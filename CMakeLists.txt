@@ -37,9 +37,17 @@ target_link_libraries(imgui PRIVATE glfw)
 # ─── Exécutable principal ─────────────────────────────────────────────────────
 add_executable(${PROJECT_NAME}
     src/main.cpp
+    src/util/window.cpp
+    src/game.cpp
+    src/graphics/mesh.cpp
+    src/graphics/shader.cpp
+    src/game/blocks.cpp
+    src/graphics/chunk_mesh.cpp
+    src/graphics/camera.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
+    src
     libs/glad/include
     libs/glfw/include
     libs/glm
