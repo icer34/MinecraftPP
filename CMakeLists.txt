@@ -44,6 +44,7 @@ add_executable(${PROJECT_NAME}
     src/game/blocks.cpp
     src/graphics/chunk_mesh.cpp
     src/graphics/camera.cpp
+    src/graphics/chunk_mesher.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

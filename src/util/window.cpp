@@ -1,6 +1,7 @@
 #include "window.h"
 
 #include <cstdio>
+#include <stdexcept>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -45,6 +46,8 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         throw std::runtime_error("Echec du chargement d'OpenGL (GLAD)");
     }
+
+    glViewport(0, 0, m_width, m_height);
 
     //IMGUI setup
     IMGUI_CHECKVERSION();
@@ -185,6 +188,8 @@ namespace {
             case MouseButton::Right : return GLFW_MOUSE_BUTTON_RIGHT;
             case MouseButton::Middle : return GLFW_MOUSE_BUTTON_MIDDLE;
         }
+
+        return -1;
     }
 }
 
@@ -244,6 +249,11 @@ void Window::toggleCursor()
         glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         resetMouse();
     }
+}
+
+bool Window::isCursorEnabled()
+{
+    return m_cursorToggle;
 }
 
 void Window::enableInput()

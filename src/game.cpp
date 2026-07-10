@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <imgui.h>
+#include <cstdlib>
 
 #include "game/blocks.h"
 #include "game/chunk.h"
@@ -15,34 +16,48 @@ Game::Game()
     , m_camera(glm::vec3(0.0f, 0.0f, 3.0f), m_window.getAspectRatio())
 {
     Blocks::registerAll();
-
     m_testShader = std::make_unique<Shader>("shaders/vertex.glsl", "shaders/fragment.glsl");
-    m_testMesh = std::make_unique<Mesh>();
 
-    std::vector<float> cubeVertices = {
-        -0.5f,-0.5f,-0.5f,  0,0,-1,  0,0,
-         0.5f,-0.5f,-0.5f,  0,0,-1,  1,0,
-         0.5f, 0.5f,-0.5f,  0,0,-1,  1,1,
-        -0.5f, 0.5f,-0.5f,  0,0,-1,  0,1,
-        -0.5f,-0.5f, 0.5f,  0,0,1,   0,0,
-         0.5f,-0.5f, 0.5f,  0,0,1,   1,0,
-         0.5f, 0.5f, 0.5f,  0,0,1,   1,1,
-        -0.5f, 0.5f, 0.5f,  0,0,1,   0,1,
-    };
+    //setup test chunk
+    m_testChunk = std::make_unique<Chunk>(ChunkCoord{0, 0, 0});
+    m_testChunk1 = std::make_unique<Chunk>(ChunkCoord{0, 0, -1});
+    for (int x = 0; x < Chunk::SIZE; x++)
+    {
+        for (int z = 0; z < Chunk::SIZE; z++)
+        {
+            for (int y = 0; y < Chunk::SIZE; y++)
+            {
+                int maxHeight = rand() % (Chunk::SIZE + 1);
+                if (y > maxHeight) continue;
 
-    std::vector<unsigned int> cubeIndices = {
-        0,1,2, 2,3,0,
-        4,5,6, 6,7,4,
-        0,4,7, 7,3,0,
-        1,5,6, 6,2,1,
-        3,2,6, 6,7,3,
-        0,1,5, 5,4,0
-    };
+                m_testChunk->setBlock(Blocks::STONE, x, y, z);
+                m_testChunk1->setBlock(Blocks::STONE, x, y, z);
+            }
+        }
+    }
 
-    m_testShader->use();
-    m_testShader->setMat4("model", m_model);
+    //create the chunk mesh
+    m_chunkMesh = std::make_unique<ChunkMesh>();
+    m_chunkMesh1 = std::make_unique<ChunkMesh>();
+    ChunkMesher chunkMesher;
 
-    m_testMesh->update(MeshData{cubeVertices, cubeIndices});
+    // m_testChunk1 is at z=-1 relative to m_testChunk (z=0) => it's m_testChunk's NORTH neighbor,
+    // and m_testChunk is m_testChunk1's SOUTH neighbor.
+    std::array<const Chunk*, 6> neighbors0;
+    neighbors0.fill(nullptr);
+    neighbors0[static_cast<size_t>(Direction::NORTH)] = m_testChunk1.get();
+
+    std::array<const Chunk*, 6> neighbors1;
+    neighbors1.fill(nullptr);
+    neighbors1[static_cast<size_t>(Direction::SOUTH)] = m_testChunk.get();
+
+    chunkMesher.mesh(*m_testChunk, neighbors0, *m_chunkMesh);
+    chunkMesher.mesh(*m_testChunk1, neighbors1, *m_chunkMesh1);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 }
 
 void Game::run() 
@@ -70,36 +85,47 @@ void Game::processInput()
 {
     m_window.pollEvents();
     
-    //keyboard inputs
     if(m_window.consumeKeyPress(Key::Esc))
     {
         m_window.toggleCursor();
     }
-    if(m_window.isKeyPressed(Key::W))
-    {
-        m_camera.move(m_camera.getFront(), m_dt);
-    }
-    if(m_window.isKeyPressed(Key::A))
-    {
-        m_camera.move(-m_camera.getRight(), m_dt);
-    }
-    if(m_window.isKeyPressed(Key::S))
-    {
-        m_camera.move(-m_camera.getFront(), m_dt);
-    }
-    if(m_window.isKeyPressed(Key::D))
-    {
-        m_camera.move(m_camera.getRight(), m_dt);
-    }
-    if(m_window.isKeyPressed(Key::Space))
-    {
-        m_camera.move(m_camera.getUp(), m_dt);
-    }
 
-    //mouse inputs
-    float dx = (float) m_window.consumeDx();
-    float dy = (float) m_window.consumeDy();
-    m_camera.rotate(dx, dy);
+    if(!m_window.isCursorEnabled())
+    {
+        if(m_window.isKeyPressed(Key::W))
+        {
+            m_camera.move(m_camera.getFront(), m_dt);
+        }
+        if(m_window.isKeyPressed(Key::A))
+        {
+            m_camera.move(-m_camera.getRight(), m_dt);
+        }
+        if(m_window.isKeyPressed(Key::S))
+        {
+            m_camera.move(-m_camera.getFront(), m_dt);
+        }
+        if(m_window.isKeyPressed(Key::D))
+        {
+            m_camera.move(m_camera.getRight(), m_dt);
+        }
+        if(m_window.isKeyPressed(Key::Space))
+        {
+            m_camera.move(m_camera.getUp(), m_dt);
+        }
+        if(m_window.isKeyPressed(Key::LCtrl))
+        {
+            m_camera.move(-m_camera.getUp(), m_dt);
+        }
+
+        float dx = (float) m_window.consumeDx();
+        float dy = (float) m_window.consumeDy();
+        m_camera.rotate(dx, dy);
+    }
+    else
+    {
+        m_window.consumeDx();
+        m_window.consumeDy();
+    }
 }
 
 void Game::update()
@@ -115,7 +141,15 @@ void Game::render()
     m_testShader->setMat4("view", m_camera.getViewMatrix());
     m_testShader->setMat4("projection", m_camera.getProjectionMatrix());
 
-    m_testMesh->draw();
+    ChunkCoord coord = m_testChunk->getCoords();
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(coord.x, coord.y, coord.z) * float(Chunk::SIZE));
+    m_testShader->setMat4("model", model);
+    m_chunkMesh->draw();
+
+    coord = m_testChunk1->getCoords();
+    model = glm::translate(glm::mat4(1.0f), glm::vec3(coord.x, coord.y, coord.z) * float(Chunk::SIZE));
+    m_testShader->setMat4("model", model);
+    m_chunkMesh1->draw();
 
     m_window.beginImguiFrame();
 

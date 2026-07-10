@@ -4,6 +4,11 @@
 #include "graphics/mesh.h"
 #include "graphics/shader.h"
 #include "graphics/camera.h"
+#include "game/chunk.h"
+#include "graphics/chunk_mesh.h"
+#include "graphics/chunk_mesher.h"
+
+#include <memory>
 
 class Game 
 {
@@ -16,10 +21,11 @@ private:
     Window m_window;
     Camera m_camera;
 
-    glm::mat4 m_model = glm::mat4(1.0f);
-    
     std::unique_ptr<Shader> m_testShader;
-    std::unique_ptr<Mesh> m_testMesh;
+    std::unique_ptr<Chunk> m_testChunk;
+    std::unique_ptr<Chunk> m_testChunk1;
+    std::unique_ptr<ChunkMesh> m_chunkMesh;
+    std::unique_ptr<ChunkMesh> m_chunkMesh1;
     
     void processInput();
     void update();

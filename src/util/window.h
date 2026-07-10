@@ -33,6 +33,7 @@ public:
     void resetMouse();
 
     void toggleCursor();
+    bool isCursorEnabled();
 
     void enableInput();
     void disableInput();
@@ -66,8 +67,8 @@ private:
     std::array<bool, MAX_BUTTONS> m_buttons{};
     std::array<bool, MAX_BUTTONS> m_buttonsPressed{};
 
-    double m_mouseX, m_mouseY;
-    double m_dx, m_dy;
+    double m_mouseX = 0.0, m_mouseY = 0.0;
+    double m_dx = 0.0, m_dy = 0.0;
     bool m_firstMouse = true;
     bool m_cursorToggle = false;
 

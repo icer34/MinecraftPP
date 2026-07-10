@@ -6,7 +6,7 @@
 #include <unordered_map>
 
 struct FaceTextures {
-    int top, bottom, north, south, east, west;
+    int north, south, east, west, top, bottom;
     static FaceTextures uniform(int idx) { return {idx, idx, idx, idx, idx, idx}; }
 };
 
