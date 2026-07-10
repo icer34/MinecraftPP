@@ -23,9 +23,7 @@ private:
 
     std::unique_ptr<Shader> m_testShader;
     std::unique_ptr<Chunk> m_testChunk;
-    std::unique_ptr<Chunk> m_testChunk1;
     std::unique_ptr<ChunkMesh> m_chunkMesh;
-    std::unique_ptr<ChunkMesh> m_chunkMesh1;
     
     void processInput();
     void update();

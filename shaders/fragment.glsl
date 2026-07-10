@@ -1,10 +1,12 @@
 #version 330 core
 
-in vec3 oNormal;
+uniform sampler2D atlas;
+
+in vec2 oTexCoord;
 
 out vec4 FragColor;
 
 void main()
 {
-    FragColor = vec4(abs(oNormal), 1.0);  // orange
+    FragColor = texture(atlas, oTexCoord);  // orange
 }

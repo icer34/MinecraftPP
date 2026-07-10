@@ -1,6 +1,7 @@
 #include "chunk_mesher.h"
 
 #include "game/block_registry.h"
+#include "graphics/texture_atlas.h"
 
 #include <glm/glm.hpp>
 
@@ -16,10 +17,21 @@ static constexpr std::array<std::array<glm::vec3, 4>, 6> CUBE_FACE_VERTICES = {{
     {{ {0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1} }}, // BOTTOM(-y)
 }};
 
+//* indices of UV coords in the FaceTextures of the blocks
+static constexpr std::array<std::array<glm::vec2, 4>, 6> CUBE_FACE_UVS = {{
+    {{ {0, 0}, {0, 1}, {1, 1}, {1, 0} }}, // NORTH
+    {{ {0, 0}, {1, 0}, {1, 1}, {0, 1} }}, // SOUTH
+    {{ {0, 0}, {0, 1}, {1, 1}, {1, 0} }}, // EAST
+    {{ {0, 0}, {1, 0}, {1, 1}, {0, 1} }}, // WEST
+    {{ {0, 0}, {0, 1}, {1, 1}, {1, 0} }}, // TOP
+    {{ {0, 0}, {1, 0}, {1, 1}, {0, 1} }}, // BOTTOM
+}};
+
 //! neighbor chunks must be in order north, south, east, west, top, bottom
 void ChunkMesher::mesh(const Chunk &chunk, std::array<const Chunk *, 6> neighbors, ChunkMesh &mesh)
 {
-    auto &registry = BlockRegistry::instance();
+    auto& registry = BlockRegistry::instance();
+    auto& atlas = TextureAtlas::instance();
 
     std::vector<float> solidVert{};
     std::vector<float> waterVert{};
@@ -33,7 +45,7 @@ void ChunkMesher::mesh(const Chunk &chunk, std::array<const Chunk *, 6> neighbor
             for (int z = 0; z < Chunk::SIZE; z++)
             {
                 auto blockID = chunk.getBlock(x, y, z);
-                auto block = registry.get(blockID);
+                auto& block = registry.get(blockID);
 
                 if (blockID == Blocks::AIR)
                     continue;
@@ -80,18 +92,21 @@ void ChunkMesher::mesh(const Chunk &chunk, std::array<const Chunk *, 6> neighbor
 }
 
 
-
-void ChunkMesher::addFace(BlockType block, Direction dir, glm::ivec3 localPos, 
+//TODO: add another quad if the block is multi textured -> add it with a lil offset to avoid z-fighting
+void ChunkMesher::addFace(const BlockType& block, Direction dir, glm::ivec3 localPos, 
                           std::vector<float>& vert, std::vector<unsigned int>& indices)
 {
     auto normal = getDirectionVector(dir);
     auto& facePos = CUBE_FACE_VERTICES[static_cast<size_t>(dir)];
+    auto& faceUVs = CUBE_FACE_UVS[static_cast<size_t>(dir)];
     unsigned int addedFaces = static_cast<unsigned int>(vert.size() / 8); //* 8 = number of floats per vertex
 
-    for (const glm::vec3& vertPos : facePos)
+    const UVRect& rect = block.textures[static_cast<size_t>(dir)].layers[0].uv;
+
+    for (int i = 0; i < 4; i++)
     {
         //position
-        glm::vec3 pos = glm::vec3(localPos) + vertPos; //shift the vertex pos by the position in the chunk
+        glm::vec3 pos = glm::vec3(localPos) + facePos[i]; //shift the vertex pos by the position in the chunk
         vert.push_back(pos.x);
         vert.push_back(pos.y);
         vert.push_back(pos.z);
@@ -102,8 +117,8 @@ void ChunkMesher::addFace(BlockType block, Direction dir, glm::ivec3 localPos,
         vert.push_back(normal.z);
 
         //uv
-        vert.push_back(0);
-        vert.push_back(0);
+        vert.push_back(faceUVs[i].x == 0 ? rect.x0 : rect.x1);
+        vert.push_back(faceUVs[i].y == 0 ? rect.y0 : rect.y1);
     }
 
     indices.insert(indices.end(), {addedFaces, addedFaces + 1, addedFaces + 2, addedFaces, addedFaces + 2, addedFaces + 3});

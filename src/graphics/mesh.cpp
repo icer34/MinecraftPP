@@ -18,20 +18,17 @@ Mesh::~Mesh()
 }
 
 void Mesh::update(const MeshData& data)
-{
-    auto vertices = std::move(data.vertices);
-    auto indices = std::move(data.indices);
-    
-    m_nVert = vertices.size();
-    m_nIdx = indices.size();
+{   
+    m_nVert = data.vertices.size();
+    m_nIdx = data.indices.size();
 
     glBindVertexArray(m_vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, m_nVert * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, m_nVert * sizeof(GLfloat), data.vertices.data(), GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_nIdx * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_nIdx * sizeof(GLuint), data.indices.data(), GL_STATIC_DRAW);
 
     //positions
     glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * sizeof(GLfloat), (void*)0);

@@ -12,6 +12,7 @@ public:
     void use();
     
     void setMat4(const std::string& name, glm::mat4 value);
+    void setInt(const std::string& name, int value);
 
 private:
     unsigned int m_programID;

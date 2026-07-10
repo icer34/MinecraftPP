@@ -3,11 +3,25 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <array>
 #include <unordered_map>
 
-struct FaceTextures {
-    int north, south, east, west, top, bottom;
-    static FaceTextures uniform(int idx) { return {idx, idx, idx, idx, idx, idx}; }
+#include "util/uv_rect.h"
+
+struct TextureLayer {
+    UVRect uv;
+    bool tinted;
+};
+
+struct FaceTexture {
+    static constexpr int MAX_LAYERS = 2;
+    std::array<TextureLayer, 2> layers{};
+    uint count = 0;
+
+    void add(const UVRect& uv, bool tinted = false)
+    {
+        layers[count++] = TextureLayer{uv, tinted};
+    }
 };
 
 struct BlockType {
@@ -17,7 +31,7 @@ struct BlockType {
     bool isTransparent = false;
     bool isLiquid = false;
 
-    FaceTextures textures;
+    std::array<FaceTexture, 6> textures{};
 
     //std::function onBreak()
 

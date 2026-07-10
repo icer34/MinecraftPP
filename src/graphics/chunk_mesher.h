@@ -25,7 +25,7 @@ private:
     /**
      * @param localPos position of the block inside the chunk (in [0, Chunk::SIZE[)
      */
-    void addFace(BlockType block, Direction dir, glm::ivec3 localPos, std::vector<float>& vert, std::vector<unsigned int>& indices);
+    void addFace(const BlockType& block, Direction dir, glm::ivec3 localPos, std::vector<float>& vert, std::vector<unsigned int>& indices);
 
     glm::ivec3 wrapCoords(int x, int y, int z);
 };

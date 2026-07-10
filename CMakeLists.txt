@@ -45,6 +45,7 @@ add_executable(${PROJECT_NAME}
     src/graphics/chunk_mesh.cpp
     src/graphics/camera.cpp
     src/graphics/chunk_mesher.cpp
+    src/graphics/texture_atlas.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -54,6 +55,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     libs/glm
     libs/imgui
     libs/imgui/backends
+    libs/stb
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

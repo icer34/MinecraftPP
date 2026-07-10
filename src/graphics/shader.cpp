@@ -104,3 +104,14 @@ void Shader::setMat4(const std::string& name, glm::mat4 mat)
 
     glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(mat));
 }
+
+void Shader::setInt(const std::string& name, int value)
+{
+    int loc = glGetUniformLocation(m_programID, name.c_str());
+    if(loc == -1)
+    {
+        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
+    }
+
+    glUniform1i(loc, value);
+}
