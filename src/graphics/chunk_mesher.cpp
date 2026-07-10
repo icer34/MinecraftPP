@@ -4,9 +4,9 @@
 
 #include <glm/glm.hpp>
 
-//! vertices of a unit cube (0..1), grouped per face, CCW winding as seen from outside the cube.
-//! indexed in the same order as the Direction enum (directions.h), so CUBE_FACE_VERTICES[(size_t)dir] works.
-//! each face is triangulated as (0,1,2) + (0,2,3).
+//* vertices of a unit cube (0..1), grouped per face, CCW winding as seen from outside the cube.
+//* indexed in the same order as the Direction enum (directions.h), so CUBE_FACE_VERTICES[(size_t)dir] works.
+//* each face is triangulated as (0,1,2) + (0,2,3).
 static constexpr std::array<std::array<glm::vec3, 4>, 6> CUBE_FACE_VERTICES = {{
     {{ {0, 0, 0}, {0, 1, 0}, {1, 1, 0}, {1, 0, 0} }}, // NORTH (-z)
     {{ {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1} }}, // SOUTH (+z)
