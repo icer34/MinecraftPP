@@ -1,17 +1,17 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <glm/glm.hpp>
-#include <array>
 
 enum class Direction : uint8_t
 {
-    NORTH = 0,  //  -z
-    SOUTH,      //  +z
-    EAST,       //  +x
-    WEST,       //  -x
-    TOP,        //  +y
-    BOTTOM      //  -y
+    NORTH = 0, //  -z
+    SOUTH,     //  +z
+    EAST,      //  +x
+    WEST,      //  -x
+    TOP,       //  +y
+    BOTTOM     //  -y
 };
 
 constexpr std::array<glm::ivec3, 6> DIRECTION_VECTORS = {{
@@ -28,11 +28,9 @@ inline glm::ivec3 getDirectionVector(Direction dir)
     return DIRECTION_VECTORS[static_cast<size_t>(dir)];
 }
 
-constexpr std::array<Direction, 6> ALL_DIRECTIONS = {
-    Direction::NORTH,
-    Direction::SOUTH,
-    Direction::EAST,
-    Direction::WEST,
-    Direction::TOP,
-    Direction::BOTTOM
-};
+constexpr std::array<Direction, 6> ALL_DIRECTIONS = {Direction::NORTH,
+                                                     Direction::SOUTH,
+                                                     Direction::EAST,
+                                                     Direction::WEST,
+                                                     Direction::TOP,
+                                                     Direction::BOTTOM};

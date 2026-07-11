@@ -3,21 +3,22 @@
 #include "drawable.h"
 #include <vector>
 
-struct MeshData {
+struct MeshData
+{
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
 };
 
 class Mesh : public Drawable
 {
-public:
+  public:
     Mesh();
     ~Mesh() override;
 
     void draw() override;
-    void update(const MeshData& data);
+    void update(const MeshData &data);
 
-private:
+  private:
     unsigned int m_vao;
     unsigned int m_vbo;
     unsigned int m_ebo;

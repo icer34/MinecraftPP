@@ -1,15 +1,15 @@
 #pragma once
 
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
 
 #include "util/directions.h"
 #include "util/uv_rect.h"
 
 class TextureAtlas
 {
-public:
-    static TextureAtlas& instance()
+  public:
+    static TextureAtlas &instance()
     {
         static TextureAtlas atlas;
         return atlas;
@@ -17,10 +17,10 @@ public:
 
     void loadAllTextures();
 
-    UVRect getUV(const std::string& fileName) const;
+    UVRect getUV(const std::string &fileName) const;
     unsigned int getID() const;
 
-private:
+  private:
     static constexpr int TEXTURE_SIZE = 16;
     static constexpr int ATLAS_SIZE = 1024;
 
@@ -29,6 +29,6 @@ private:
     unsigned int m_textureID;
 
     TextureAtlas();
-    TextureAtlas(TextureAtlas& registry) = delete;
-    TextureAtlas& operator=(const TextureAtlas&) = delete;
+    TextureAtlas(TextureAtlas &registry) = delete;
+    TextureAtlas &operator=(const TextureAtlas &) = delete;
 };

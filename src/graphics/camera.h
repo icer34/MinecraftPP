@@ -4,7 +4,7 @@
 
 class Camera
 {
-public:
+  public:
     Camera(glm::vec3 position, float aspectRatio);
 
     void move(glm::vec3 direction, float dt);
@@ -20,7 +20,7 @@ public:
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix() const;
 
-private:
+  private:
     void updateVectors();
 
     glm::vec3 m_pos;
@@ -36,7 +36,7 @@ private:
     float m_zFar;
     float m_fovDeg;
     float m_aspectRatio;
-    
+
     float m_sens;
     float m_speed;
 };

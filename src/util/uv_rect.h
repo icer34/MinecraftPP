@@ -1,5 +1,6 @@
 #pragma once
 
-struct UVRect {
+struct UVRect
+{
     float x0, x1, y0, y1;
 };

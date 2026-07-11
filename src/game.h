@@ -1,34 +1,31 @@
 #pragma once
 
-#include "util/window.h"
-#include "graphics/mesh.h"
-#include "graphics/shader.h"
-#include "graphics/camera.h"
 #include "game/chunk.h"
-#include "graphics/chunk_mesh.h"
-#include "graphics/chunk_mesher.h"
+#include "game/world.h"
+#include "graphics/camera.h"
+#include "graphics/shader.h"
+#include "util/window.h"
 
 #include <memory>
 
-class Game 
+class Game
 {
-public:
+  public:
     Game();
 
     void run();
 
-private:
+  private:
     Window m_window;
     Camera m_camera;
+    World m_world;
 
     std::unique_ptr<Shader> m_testShader;
-    std::unique_ptr<Chunk> m_testChunk;
-    std::unique_ptr<ChunkMesh> m_chunkMesh;
-    
+
     void processInput();
-    void update();
+    void update(float dt);
     void render();
-    
+
     float m_dt;
     float m_lastFrameTime;
     int m_frameCount = 0;

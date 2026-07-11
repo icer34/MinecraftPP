@@ -1,0 +1,8 @@
+BasedOnStyle: LLVM
+BreakBeforeBraces: Allman
+IndentWidth: 4
+Cpp11BracedListStyle: true
+ColumnLimit: 100
+BinPackArguments: false
+BinPackParameters: false
+PackConstructorInitializers: Never

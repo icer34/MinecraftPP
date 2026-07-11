@@ -2,15 +2,15 @@
 
 #include <iostream>
 
-int main(void) {
+int main(void)
+{
     try
     {
         Game game;
         game.run();
     }
-    catch(const std::exception& e)
+    catch (const std::exception &e)
     {
         std::cerr << e.what() << '\n';
     }
-    
 }

@@ -1,15 +1,15 @@
 #pragma once
 
-#include <string>
 #include <array>
+#include <string>
 
 #include "key_codes.h"
 
 struct GLFWwindow;
 
-class Window 
+class Window
 {
-public:
+  public:
     Window(int width, int height, const std::string &title, bool vSync);
     ~Window();
 
@@ -43,19 +43,20 @@ public:
     void beginImguiFrame();
     void endImguiFrame();
 
-private:
+  private:
     int m_width;
     int m_height;
     const std::string m_title;
     bool m_vSync;
-    GLFWwindow* m_window;
+    GLFWwindow *m_window;
 
     //* glfw callbacks
-    static void glfwErrorCallback(int error_code, const char* description);
-    static void glfwFrameBufferSizeCallback(GLFWwindow* window, int width, int height);
-    static void glfwKeyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-    static void glfwCursorPosCallback(GLFWwindow* window, double xPos, double yPos);
-    static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+    static void glfwErrorCallback(int error_code, const char *description);
+    static void glfwFrameBufferSizeCallback(GLFWwindow *window, int width, int height);
+    static void
+    glfwKeyboardCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
+    static void glfwCursorPosCallback(GLFWwindow *window, double xPos, double yPos);
+    static void glfwMouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
 
     //* input managment variables
     static constexpr int MAX_KEYS = 350;

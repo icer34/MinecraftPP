@@ -1,59 +1,44 @@
 #include "game.h"
 
+#include <cstdlib>
 #include <glad/glad.h>
-#include <iostream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <imgui.h>
-#include <cstdlib>
+#include <iostream>
 
 #include "game/blocks.h"
 #include "game/chunk.h"
-#include "util/key_codes.h"
 #include "graphics/texture_atlas.h"
+#include "util/key_codes.h"
 
-Game::Game() 
-    : m_window(1600, 900, "MinecraftPP", true)
-    , m_camera(glm::vec3(0.0f, 0.0f, 3.0f), m_window.getAspectRatio())
+Game::Game()
+    : m_window(1600, 900, "MinecraftPP", false),
+      m_camera(glm::vec3(0.0f, 90.0f, 3.0f), m_window.getAspectRatio()),
+      m_world(World())
 {
-    auto& atlas = TextureAtlas::instance();
+    auto &atlas = TextureAtlas::instance();
     atlas.loadAllTextures();
-    
+
     Blocks::registerAll();
     m_testShader = std::make_unique<Shader>("shaders/vertex.glsl", "shaders/fragment.glsl");
 
-    //setup test chunk
-    m_testChunk = std::make_unique<Chunk>(ChunkCoord{0, 0, 0});
-    for (int x = 0; x < Chunk::SIZE; x++)
-    {
-        for (int z = 0; z < Chunk::SIZE; z++)
-        {
-            for (int y = 0; y < Chunk::SIZE; y++)
-            {
-                m_testChunk->setBlock(Blocks::GRASS, x, y, z);
-            }
-        }
-    }
-
-    //create the chunk mesh
-    m_chunkMesh = std::make_unique<ChunkMesh>();
-    ChunkMesher chunkMesher;
-
-    std::array<const Chunk*, 6> neighbors0;
-    neighbors0.fill(nullptr);
-    chunkMesher.mesh(*m_testChunk, neighbors0, *m_chunkMesh);
-
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void Game::run() 
+void Game::run()
 {
     m_lastFrameTime = m_window.getTime();
-   
-    while(!m_window.shouldClose())
+
+    while (!m_window.shouldClose())
     {
         float currentTime = m_window.getTime();
         m_dt = currentTime - m_lastFrameTime;
@@ -62,7 +47,7 @@ void Game::run()
 
         processInput();
 
-        update();
+        update(m_dt);
 
         render();
 
@@ -70,44 +55,44 @@ void Game::run()
     }
 }
 
-void Game::processInput() 
+void Game::processInput()
 {
     m_window.pollEvents();
-    
-    if(m_window.consumeKeyPress(Key::Esc))
+
+    if (m_window.consumeKeyPress(Key::Esc))
     {
         m_window.toggleCursor();
     }
 
-    if(!m_window.isCursorEnabled())
+    if (!m_window.isCursorEnabled())
     {
-        if(m_window.isKeyPressed(Key::W))
+        if (m_window.isKeyPressed(Key::W))
         {
             m_camera.move(m_camera.getFront(), m_dt);
         }
-        if(m_window.isKeyPressed(Key::A))
+        if (m_window.isKeyPressed(Key::A))
         {
             m_camera.move(-m_camera.getRight(), m_dt);
         }
-        if(m_window.isKeyPressed(Key::S))
+        if (m_window.isKeyPressed(Key::S))
         {
             m_camera.move(-m_camera.getFront(), m_dt);
         }
-        if(m_window.isKeyPressed(Key::D))
+        if (m_window.isKeyPressed(Key::D))
         {
             m_camera.move(m_camera.getRight(), m_dt);
         }
-        if(m_window.isKeyPressed(Key::Space))
+        if (m_window.isKeyPressed(Key::Space))
         {
             m_camera.move(m_camera.getUp(), m_dt);
         }
-        if(m_window.isKeyPressed(Key::LCtrl))
+        if (m_window.isKeyPressed(Key::LCtrl))
         {
             m_camera.move(-m_camera.getUp(), m_dt);
         }
 
-        float dx = (float) m_window.consumeDx();
-        float dy = (float) m_window.consumeDy();
+        float dx = (float)m_window.consumeDx();
+        float dy = (float)m_window.consumeDy();
         m_camera.rotate(dx, dy);
     }
     else
@@ -117,10 +102,7 @@ void Game::processInput()
     }
 }
 
-void Game::update()
-{
-
-}
+void Game::update(float dt) { m_world.update(m_camera.getPos(), dt); }
 
 void Game::render()
 {
@@ -134,10 +116,14 @@ void Game::render()
     glBindTexture(GL_TEXTURE_2D, TextureAtlas::instance().getID());
     m_testShader->setInt("atlas", 0);
 
-    ChunkCoord coord = m_testChunk->getCoords();
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(coord.x, coord.y, coord.z) * float(Chunk::SIZE));
-    m_testShader->setMat4("model", model);
-    m_chunkMesh->draw();
+    for (auto &mesh : m_world.getChunkMeshes())
+    {
+        ChunkCoord coord = mesh->getCoords();
+        glm::mat4 model =
+            glm::translate(glm::mat4(1.0f), glm::vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
+        m_testShader->setMat4("model", model);
+        mesh->draw();
+    }
 
     m_window.beginImguiFrame();
 
