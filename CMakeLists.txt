@@ -74,6 +74,7 @@ add_executable(${PROJECT_NAME}
     src/graphics/chunk_mesher.cpp
     src/graphics/texture_atlas.cpp
     src/game/world.cpp
+    src/graphics/renderer.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

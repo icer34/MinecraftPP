@@ -1,37 +1,18 @@
 #include "game.h"
 
-#include <cstdlib>
-#include <glad/glad.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <imgui.h>
 #include <iostream>
 
 #include "game/blocks.h"
-#include "game/chunk.h"
-#include "graphics/texture_atlas.h"
 #include "util/key_codes.h"
 
 Game::Game()
     : m_window(1600, 900, "MinecraftPP", false),
       m_camera(glm::vec3(0.0f, 90.0f, 3.0f), m_window.getAspectRatio()),
-      m_world(World())
+      m_world(World()),
+      m_renderer(Renderer())
 {
-    auto &atlas = TextureAtlas::instance();
-    atlas.loadAllTextures();
-
+    // register all blocks
     Blocks::registerAll();
-    m_testShader = std::make_unique<Shader>("shaders/vertex.glsl", "shaders/fragment.glsl");
-
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
-
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void Game::run()
@@ -43,7 +24,6 @@ void Game::run()
         float currentTime = m_window.getTime();
         m_dt = currentTime - m_lastFrameTime;
         m_lastFrameTime = currentTime;
-        updateFpsCounter();
 
         processInput();
 
@@ -84,11 +64,11 @@ void Game::processInput()
         }
         if (m_window.isKeyPressed(Key::Space))
         {
-            m_camera.move(m_camera.getUp(), m_dt);
+            m_camera.move(glm::vec3(0.0f, 1.0f, 0.0f), m_dt);
         }
         if (m_window.isKeyPressed(Key::LCtrl))
         {
-            m_camera.move(-m_camera.getUp(), m_dt);
+            m_camera.move(glm::vec3(0.0f, -1.0f, 0.0f), m_dt);
         }
 
         float dx = (float)m_window.consumeDx();
@@ -106,44 +86,6 @@ void Game::update(float dt) { m_world.update(m_camera.getPos(), dt); }
 
 void Game::render()
 {
-    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-
-    m_testShader->use();
-    m_testShader->setMat4("view", m_camera.getViewMatrix());
-    m_testShader->setMat4("projection", m_camera.getProjectionMatrix());
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, TextureAtlas::instance().getID());
-    m_testShader->setInt("atlas", 0);
-
-    for (auto &mesh : m_world.getChunkMeshes())
-    {
-        ChunkCoord coord = mesh->getCoords();
-        glm::mat4 model =
-            glm::translate(glm::mat4(1.0f), glm::vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
-        m_testShader->setMat4("model", model);
-        mesh->draw();
-    }
-
-    m_window.beginImguiFrame();
-
-    ImGui::Begin("Debug");
-    ImGui::Text("FPS: %.1f", m_displayedFps);
-    ImGui::Text("Frame time: %.2f ms", m_dt * 1000.0f);
-    ImGui::End();
-
-    m_window.endImguiFrame();
-}
-
-void Game::updateFpsCounter()
-{
-    m_frameCount++;
-    m_fpsTimer += m_dt;
-
-    if (m_fpsTimer >= 1.0f)
-    {
-        m_displayedFps = static_cast<float>(m_frameCount) / m_fpsTimer;
-        m_frameCount = 0;
-        m_fpsTimer -= 1.0f;
-    }
+    // render the 3D world (terrain)
+    m_renderer.renderWorld(m_world, m_camera);
 }

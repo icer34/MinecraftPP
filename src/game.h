@@ -1,12 +1,9 @@
 #pragma once
 
-#include "game/chunk.h"
 #include "game/world.h"
 #include "graphics/camera.h"
-#include "graphics/shader.h"
+#include "graphics/renderer.h"
 #include "util/window.h"
-
-#include <memory>
 
 class Game
 {
@@ -19,8 +16,7 @@ class Game
     Window m_window;
     Camera m_camera;
     World m_world;
-
-    std::unique_ptr<Shader> m_testShader;
+    Renderer m_renderer;
 
     void processInput();
     void update(float dt);
@@ -28,9 +24,4 @@ class Game
 
     float m_dt;
     float m_lastFrameTime;
-    int m_frameCount = 0;
-    float m_fpsTimer = 0.0f;
-    float m_displayedFps = 0.0f;
-
-    void updateFpsCounter();
 };

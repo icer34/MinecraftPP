@@ -34,3 +34,6 @@ constexpr std::array<Direction, 6> ALL_DIRECTIONS = {Direction::NORTH,
                                                      Direction::WEST,
                                                      Direction::TOP,
                                                      Direction::BOTTOM};
+
+constexpr std::array<Direction, 4> CARDINAL_DIRECTIONS = {
+    Direction::NORTH, Direction::SOUTH, Direction::EAST, Direction::WEST};
