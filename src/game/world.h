@@ -12,6 +12,7 @@
 #include "chunk.h"
 #include "graphics/chunk_mesh.h"
 #include "graphics/chunk_mesher.h"
+#include "terrain_generator.h"
 #include "util/thread_pool.h"
 
 struct ChunkBuildResult

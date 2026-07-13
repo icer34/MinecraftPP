@@ -75,6 +75,8 @@ add_executable(${PROJECT_NAME}
     src/graphics/texture_atlas.cpp
     src/game/world.cpp
     src/graphics/renderer.cpp
+    src/game/terrain_generator.cpp
+    src/util/perlin_noise.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

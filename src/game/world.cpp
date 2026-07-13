@@ -14,26 +14,13 @@ ChunkBuildResult buildChunk(ChunkCoord coord,
                             std::array<std::optional<Chunk>, 4> neighborCopies)
 {
     bool isNew = !existingChunk.has_value();
-    auto chunk = isNew ? std::make_unique<Chunk>(coord)
-                       : std::make_unique<Chunk>(std::move(*existingChunk));
+    auto chunk =
+        isNew ? std::make_unique<Chunk>(coord) : std::make_unique<Chunk>(std::move(*existingChunk));
 
     if (isNew)
     {
-        constexpr int MAX_HEIGHT = 64;
-
-        for (int x = 0; x < Chunk::SIZE; x++)
-        {
-            for (int z = 0; z < Chunk::SIZE; z++)
-            {
-                for (int y = 0; y < Chunk::HEIGHT; y++)
-                {
-                    if (y < MAX_HEIGHT)
-                    {
-                        chunk->setBlock(Blocks::DIRT, x, y, z);
-                    }
-                }
-            }
-        }
+        auto &terrainGenerator = TerrainGenerator::instance();
+        terrainGenerator.generateChunk(*chunk);
     }
 
     std::array<const Chunk *, 4> neighborPtrs{};
@@ -50,11 +37,15 @@ ChunkBuildResult buildChunk(ChunkCoord coord,
 }
 } // namespace
 
-World::World() : m_threadPool(ThreadPool(10)) {}
+World::World()
+    : m_threadPool(ThreadPool(10))
+{
+}
 
 void World::update(glm::vec3 playerPos, float dt)
 {
-    m_playerCoord = ChunkCoord{(int)floor(playerPos.x / Chunk::SIZE), (int)floor(playerPos.z / Chunk::SIZE)};
+    m_playerCoord =
+        ChunkCoord{(int)floor(playerPos.x / Chunk::SIZE), (int)floor(playerPos.z / Chunk::SIZE)};
     ChunkCoord playerCoord = m_playerCoord;
 
     const auto &chunks = getChunks();
@@ -122,7 +113,8 @@ void World::update(glm::vec3 playerPos, float dt)
         if (isNew)
         {
             m_chunks[res.coord] = std::move(res.chunk);
-            m_pending.erase(std::remove(m_pending.begin(), m_pending.end(), res.coord), m_pending.end());
+            m_pending.erase(std::remove(m_pending.begin(), m_pending.end(), res.coord),
+                            m_pending.end());
         }
 
         auto mesh = std::make_unique<ChunkMesh>(res.coord);
@@ -235,7 +227,10 @@ void World::scheduleRemesh(ChunkCoord coord)
     auto neighborCopies = copyNeighbors(coord);
 
     m_threadPool.enqueue(
-        [this, coord, chunkCopy = std::move(chunkCopy), neighborCopies = std::move(neighborCopies)]() mutable
+        [this,
+         coord,
+         chunkCopy = std::move(chunkCopy),
+         neighborCopies = std::move(neighborCopies)]() mutable
         {
             ChunkBuildResult result =
                 buildChunk(coord, std::move(chunkCopy), std::move(neighborCopies));
