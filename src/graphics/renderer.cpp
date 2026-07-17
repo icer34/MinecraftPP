@@ -13,9 +13,11 @@
 #include "game/chunk.h"
 #include "game/world.h"
 #include "shader.h"
+#include "shadowmap.h"
 
 #include "util/frustum.h"
 #include "util/perlin_noise.h"
+#include "util/window.h"
 
 namespace
 {
@@ -130,13 +132,23 @@ bool isChunkInFrustum(const Frustum &frustum, const ChunkCoord &coord)
 }
 } // namespace
 
-Renderer::Renderer()
-    : m_blockTintTexture(Texture("assets/textures/colormap/vanilla/grass.png"))
+Renderer::Renderer(const Window &window)
+    : m_blockTintTexture(Texture("assets/textures/colormap/vanilla/grass.png")),
+      m_window(window)
 {
     auto &textureAtlas = BlockTextureAtlas::instance();
     textureAtlas.loadAllTextures();
 
-    m_shader = std::make_unique<Shader>("shaders/vertex.glsl", "shaders/fragment.glsl");
+    m_blockShader = std::make_unique<Shader>("shaders/block_vert.glsl", "shaders/block_frag.glsl");
+    m_blockShader->use();
+    m_blockShader->setVec3("lightDir", m_lightDir);
+
+    m_depthShader = std::make_unique<Shader>("shaders/depth_vert.glsl", "shaders/depth_frag.glsl");
+    m_shadowMap = std::make_unique<ShadowMap>();
+
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+
+    glEnable(GL_MULTISAMPLE);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -175,21 +187,61 @@ Renderer::~Renderer() = default;
 
 void Renderer::renderWorld(const World &world, const Camera &cam)
 {
+    Frustum frustum = Frustum(cam);
+
+    m_loadedChunks = world.getChunks().size();
+    m_camPos = cam.getPos();
+
+    //* ========== FIRST PASS - SHADOW PASS ==========
+    glm::mat4 lightView
+        = glm::lookAt(m_camPos - m_lightDir * 1000.0f, m_camPos, glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 lightProj = glm::ortho(-25.0f,
+                                     25.0f,
+                                     -25.0f,
+                                     25.0f,
+                                     1.0f,
+                                     1050.0f); // TODO: ajust the box to the player's frustum
+    glm::mat4 lightSpaceMatrix = lightProj * lightView;
+
+    glViewport(0, 0, m_shadowMap->size(), m_shadowMap->size());
+    glBindFramebuffer(GL_FRAMEBUFFER, m_shadowMap->getFrameBufferID());
+    glClear(GL_DEPTH_BUFFER_BIT);
+    m_depthShader->use();
+    m_depthShader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
+    for (auto &mesh : world.getChunkMeshes())
+    {
+        ChunkCoord coord = mesh->getCoords();
+
+        if (!isChunkInFrustum(frustum, coord))
+            continue;
+
+        glm::mat4 model = glm::translate(glm::mat4(1.0f),
+                                         glm::vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
+        m_depthShader->setMat4("model", model);
+        mesh->draw();
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, m_window.getWidth(), m_window.getHeight());
+
+    //* ========== SECOND PASS - ACTUAL RENDERING ==========
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-    m_shader->use();
-    m_shader->setMat4("view", cam.getViewMatrix());
-    m_shader->setMat4("projection", cam.getProjectionMatrix());
+    m_blockShader->use();
+    m_blockShader->setMat4("view", cam.getViewMatrix());
+    m_blockShader->setMat4("projection", cam.getProjectionMatrix());
+    m_blockShader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, BlockTextureAtlas::instance().getID());
-    m_shader->setInt("atlas", 0);
+    m_blockShader->setInt("atlas", 0);
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_blockTintTexture.getID());
-    m_shader->setInt("colormap", 1);
+    m_blockShader->setInt("colormap", 1);
 
-    Frustum frustum = Frustum(cam);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, m_shadowMap->getTextureID());
+    m_blockShader->setInt("shadowMap", 2);
 
     m_renderedChunks = 0;
     for (auto &mesh : world.getChunkMeshes())
@@ -201,14 +253,10 @@ void Renderer::renderWorld(const World &world, const Camera &cam)
 
         glm::mat4 model = glm::translate(glm::mat4(1.0f),
                                          glm::vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
-        m_shader->setMat4("model", model);
+        m_blockShader->setMat4("model", model);
         mesh->draw();
         m_renderedChunks++;
     }
-
-    //? ========== UPDATE DEBUG DATA ==========
-    m_loadedChunks = world.getChunks().size();
-    m_camPos = cam.getPos();
 }
 
 void Renderer::beginUI()
@@ -225,7 +273,7 @@ void Renderer::renderDebug(float dt)
     //* ===== BASIC DEBUG STATS =====
     ImGui::Begin("Debug pannel");
     ImGui::Text("FPS: %.1f", m_fps);
-    ImGui::Text("ms per frame: %.3f", dt * 1000.0);
+    ImGui::Text("ms per frame: %.3f", m_msPerFrame);
     ImGui::Text("x:%.2f y:%.2f z:%.2f", m_camPos.x, m_camPos.y, m_camPos.z);
     ImGui::Text("Loaded chunks: %d", m_loadedChunks);
     ImGui::Text("Rendered chunks: %d", m_renderedChunks);
@@ -299,5 +347,6 @@ void Renderer::updateFPS(float dt)
         m_fps = static_cast<float>(m_frameCount) / m_fpsTimer;
         m_frameCount = 0;
         m_fpsTimer -= 1.0f;
+        m_msPerFrame = 1000.0f * dt;
     }
 }

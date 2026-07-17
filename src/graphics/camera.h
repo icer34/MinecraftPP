@@ -9,6 +9,7 @@ class Camera
 
     void move(glm::vec3 direction, float dt);
     void rotate(float xOffset, float yOffset);
+    void zoom(float scrollOffset);
 
     void setAspectRatio(float value) { m_aspectRatio = value; }
 
@@ -39,4 +40,8 @@ class Camera
 
     float m_sens;
     float m_speed;
+
+    static constexpr float MIN_FOV = 10.0f;
+    static constexpr float MAX_FOV = 70.0f; // default FOV, also the "fully zoomed out" value
+    static constexpr float ZOOM_STEP = 3.0f;
 };

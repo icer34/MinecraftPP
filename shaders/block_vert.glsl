@@ -6,6 +6,7 @@ layout (location = 0) in uvec2 packedData;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform mat4 lightSpaceMatrix;
 
 uniform sampler2D colormap;
 
@@ -13,6 +14,7 @@ out vec3 vNormal;
 out vec2 vTexCoord;
 out vec3 vTint;
 out float vAO;
+out vec4 vFragPosLightSpace;
 
 // AO occlusion count (0..3) -> brightness factor. index 0 = no occluding neighbors (full light),
 // index 3 = corner fully enclosed (darkest). see ChunkMesher::cornerAO in chunk_mesher.cpp.
@@ -55,16 +57,23 @@ const vec2 CORNER_UV[4] = vec2[4](
     vec2(1.0, 0.0)
 );
 
-// must match BlockTextureAtlas::TEXTURE_SIZE / ATLAS_SIZE in block_texture_atlas.h
+// must match BlockTextureAtlas::TEXTURE_SIZE / PADDING / CELL_STRIDE / ATLAS_COLUMNS /
+// ATLAS_SIZE in block_texture_atlas.h. each atlas cell is CELL_STRIDE (18px) with a 1px
+// border duplicated around the real TEXTURE_SIZE (16px) texture -- sample only the inner
+// content region so filtering/mipmapping never reaches into the neighboring cell.
 const uint ATLAS_COLUMNS = 64u;
-const float CELL_UV_SIZE = 16.0 / 1024.0;
+const float ATLAS_SIZE = 1152.0;
+const float CELL_STRIDE_UV = 18.0 / ATLAS_SIZE;
+const float CELL_PADDING_UV = 1.0 / ATLAS_SIZE;
+const float CELL_CONTENT_UV = 16.0 / ATLAS_SIZE;
 
 vec2 uvFromTextureIndex(uint textureIdx, uint cornerIdx)
 {
     uint cellCol = textureIdx % ATLAS_COLUMNS;
     uint cellRow = textureIdx / ATLAS_COLUMNS;
-    vec2 cellOrigin = vec2(float(cellCol), float(cellRow)) * CELL_UV_SIZE;
-    return cellOrigin + CORNER_UV[cornerIdx] * CELL_UV_SIZE;
+    vec2 cellOrigin = vec2(float(cellCol), float(cellRow)) * CELL_STRIDE_UV
+                    + vec2(CELL_PADDING_UV);
+    return cellOrigin + CORNER_UV[cornerIdx] * CELL_CONTENT_UV;
 }
 
 vec3 sampleColorMap(uint humidity, uint temperature)
@@ -101,6 +110,7 @@ void main()
     vTexCoord = uvFromTextureIndex(textureIdx, cornerIdx);
     vTint = isTinted ? sampleColorMap(humidity, temperature) : vec3(1.0);
     vAO = AO_LEVELS[aoValue];
+    vFragPosLightSpace = lightSpaceMatrix * model * vec4(facePos, 1.0);
 
     gl_Position = projection * view * model * vec4(facePos, 1.0);
 }

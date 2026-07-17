@@ -26,6 +26,9 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    glfwWindowHint(GLFW_SAMPLES, 4);
+
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
@@ -47,6 +50,7 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
     glfwSetKeyCallback(m_window, glfwKeyboardCallback);
     glfwSetCursorPosCallback(m_window, glfwCursorPosCallback);
     glfwSetMouseButtonCallback(m_window, glfwMouseButtonCallback);
+    glfwSetScrollCallback(m_window, glfwScrollCallback);
 
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
@@ -87,8 +91,6 @@ void Window::pollEvents() { glfwPollEvents(); }
 void Window::swapBuffers() { glfwSwapBuffers(m_window); }
 
 float Window::getTime() const { return glfwGetTime(); }
-
-float Window::getAspectRatio() const { return (float)m_width / m_height; }
 
 //* ========== GLFW CALLBACKS ==========
 
@@ -165,6 +167,12 @@ void Window::glfwMouseButtonCallback(GLFWwindow *window, int button, int action,
     {
         self->m_buttons[button] = false;
     }
+}
+
+void Window::glfwScrollCallback(GLFWwindow *window, double xOffset, double yOffset)
+{
+    Window *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+    self->m_scrollY += yOffset;
 }
 
 //* ======= INPUT HANDLING =========
@@ -245,6 +253,13 @@ double Window::consumeDy()
 {
     double tmp = m_dy;
     m_dy = 0.0;
+    return tmp;
+}
+
+double Window::consumeScroll()
+{
+    double tmp = m_scrollY;
+    m_scrollY = 0.0;
     return tmp;
 }
 

@@ -7,13 +7,15 @@
 #include <iostream>
 
 class World;
-struct Shader;
 class Camera;
+class Window;
+class ShadowMap;
+class Shader;
 
 class Renderer
 {
   public:
-    Renderer();
+    Renderer(const Window &window);
     ~Renderer();
 
     void renderWorld(const World &world, const Camera &cam);
@@ -33,13 +35,21 @@ class Renderer
     }
 
   private:
-    std::unique_ptr<Shader> m_shader;
+    const Window &m_window;
+
+    std::unique_ptr<Shader> m_blockShader;
+    std::unique_ptr<Shader> m_depthShader;
+    std::unique_ptr<ShadowMap> m_shadowMap;
+
     Texture m_blockTintTexture;
 
     std::vector<Texture> m_noiseTextures;
     std::vector<Spline *> m_terrainGenSplines;
 
+    glm::vec3 m_lightDir = glm::normalize(glm::vec3(-0.5, -1.0, -0.3));
+
     float m_fps = 0.0f;
+    float m_msPerFrame = 0.0f;
     int m_frameCount = 0;
     float m_fpsTimer = 0.0f;
     int m_loadedChunks = 0;

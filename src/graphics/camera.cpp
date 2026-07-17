@@ -41,6 +41,13 @@ void Camera::rotate(float xOffset, float yOffset)
     updateVectors();
 }
 
+void Camera::zoom(float scrollOffset)
+{
+    // scroll up (positive offset) zooms in -> smaller FOV
+    m_fovDeg -= scrollOffset * ZOOM_STEP;
+    m_fovDeg = std::clamp(m_fovDeg, MIN_FOV, MAX_FOV);
+}
+
 void Camera::updateVectors()
 {
     glm::vec3 front;

@@ -7,9 +7,9 @@
 
 Game::Game()
     : m_window(1600, 900, "MinecraftPP", false),
-      m_camera(glm::vec3(0.0f, 90.0f, 3.0f), m_window.getAspectRatio()),
+      m_camera(glm::vec3(0.0f, 110.0f, 3.0f), m_window.getAspectRatio()),
       m_world(World(67)),
-      m_renderer(Renderer())
+      m_renderer(Renderer(m_window))
 {
     // register all blocks
     Blocks::registerAll();
@@ -79,11 +79,18 @@ void Game::processInput()
         float dx = (float)m_window.consumeDx();
         float dy = (float)m_window.consumeDy();
         m_camera.rotate(dx, dy);
+
+        float scroll = (float)m_window.consumeScroll();
+        if (scroll != 0.0f)
+        {
+            m_camera.zoom(scroll);
+        }
     }
     else
     {
         m_window.consumeDx();
         m_window.consumeDy();
+        m_window.consumeScroll();
     }
 }
 

@@ -18,7 +18,9 @@ class Window
     bool shouldClose();
 
     float getTime() const;
-    float getAspectRatio() const;
+    float getAspectRatio() const { return (float)m_width / m_height; }
+    int getWidth() const { return m_width; }
+    int getHeight() const { return m_height; }
 
     //* INPUT HANDLING
     bool isKeyPressed(Key key) const;
@@ -29,6 +31,7 @@ class Window
 
     double consumeDx();
     double consumeDy();
+    double consumeScroll();
 
     void resetMouse();
 
@@ -53,6 +56,7 @@ class Window
     glfwKeyboardCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
     static void glfwCursorPosCallback(GLFWwindow *window, double xPos, double yPos);
     static void glfwMouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
+    static void glfwScrollCallback(GLFWwindow *window, double xOffset, double yOffset);
 
     //* input managment variables
     static constexpr int MAX_KEYS = 350;
@@ -66,6 +70,7 @@ class Window
 
     double m_mouseX = 0.0, m_mouseY = 0.0;
     double m_dx = 0.0, m_dy = 0.0;
+    double m_scrollY = 0.0;
     bool m_firstMouse = true;
     bool m_cursorToggle = false;
 
