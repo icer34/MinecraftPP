@@ -9,6 +9,7 @@
 #include <backends/imgui_impl_opengl3.h>
 #include <glad/glad.h>
 #include <imgui.h>
+#include <implot.h>
 
 Window::Window(int width, int height, const std::string &title, bool vSync)
     : m_width(width),
@@ -61,6 +62,7 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
     // IMGUI setup
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImPlot::CreateContext();
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
@@ -72,6 +74,7 @@ Window::~Window()
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+    ImPlot::DestroyContext();
 
     glfwDestroyWindow(m_window);
     glfwTerminate();
@@ -276,18 +279,3 @@ void Window::disableInput()
 }
 
 bool Window::isInputEnabled() { return m_inputEnabled; }
-
-//* ========== IMGUI ==========
-
-void Window::beginImguiFrame()
-{
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-}
-
-void Window::endImguiFrame()
-{
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-}

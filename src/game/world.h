@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "chunk.h"
-#include "graphics/chunk_mesh.h"
-#include "graphics/chunk_mesher.h"
+#include "graphics/mesh/chunk_mesh.h"
+#include "graphics/mesh/chunk_mesher.h"
 #include "terrain_generator.h"
 #include "util/thread_pool.h"
 
@@ -25,15 +25,19 @@ struct ChunkBuildResult
 class World
 {
   public:
-    World();
+    World(unsigned long seed);
 
     void update(glm::vec3 playerPos, float dt);
+    void regenerate();
+
     std::vector<ChunkMesh *> getChunkMeshes() const;
     std::vector<Chunk *> getChunks() const;
 
   private:
     static constexpr int RENDER_DISTANCE = 12;
     static constexpr int LOAD_DISTANCE = RENDER_DISTANCE + 1;
+
+    unsigned long m_seed;
 
     //! ========== MAIN THREAD ONLY ==========
     ChunkCoord m_playerCoord{};

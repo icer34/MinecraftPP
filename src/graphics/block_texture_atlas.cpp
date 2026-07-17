@@ -1,4 +1,4 @@
-#include "texture_atlas.h"
+#include "block_texture_atlas.h"
 
 #include <glad/glad.h>
 
@@ -9,7 +9,7 @@
 #include <iostream>
 namespace fs = std::filesystem;
 
-TextureAtlas::TextureAtlas()
+BlockTextureAtlas::BlockTextureAtlas()
 {
     glGenTextures(1, &m_textureID);
     glBindTexture(GL_TEXTURE_2D, m_textureID);
@@ -25,7 +25,7 @@ TextureAtlas::TextureAtlas()
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void TextureAtlas::loadAllTextures()
+void BlockTextureAtlas::loadAllTextures()
 {
     glBindTexture(GL_TEXTURE_2D, m_textureID);
 
@@ -60,10 +60,7 @@ void TextureAtlas::loadAllTextures()
         glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
         stbi_image_free(data);
 
-        m_nameToUV[fileName] = UVRect{static_cast<float>(x) / ATLAS_SIZE,
-                                      static_cast<float>(x + width) / ATLAS_SIZE,
-                                      static_cast<float>(y) / ATLAS_SIZE,
-                                      static_cast<float>(y + height) / ATLAS_SIZE};
+        m_nameToIndex[fileName] = row * texPerCol + col;
 
         col++;
         if (col >= texPerCol)
@@ -76,6 +73,9 @@ void TextureAtlas::loadAllTextures()
     glGenerateMipmap(GL_TEXTURE_2D);
 }
 
-UVRect TextureAtlas::getUV(const std::string &fileName) const { return m_nameToUV.at(fileName); }
+uint16_t BlockTextureAtlas::getIndex(const std::string &fileName) const
+{
+    return m_nameToIndex.at(fileName);
+}
 
-unsigned int TextureAtlas::getID() const { return m_textureID; }
+unsigned int BlockTextureAtlas::getID() const { return m_textureID; }

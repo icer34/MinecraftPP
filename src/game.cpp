@@ -8,7 +8,7 @@
 Game::Game()
     : m_window(1600, 900, "MinecraftPP", false),
       m_camera(glm::vec3(0.0f, 90.0f, 3.0f), m_window.getAspectRatio()),
-      m_world(World()),
+      m_world(World(67)),
       m_renderer(Renderer())
 {
     // register all blocks
@@ -29,7 +29,7 @@ void Game::run()
 
         update(m_dt);
 
-        render();
+        render(m_dt);
 
         m_window.swapBuffers();
     }
@@ -42,6 +42,7 @@ void Game::processInput()
     if (m_window.consumeKeyPress(Key::Esc))
     {
         m_window.toggleCursor();
+        m_showDebug = !m_showDebug;
     }
 
     if (!m_window.isCursorEnabled())
@@ -82,10 +83,25 @@ void Game::processInput()
     }
 }
 
-void Game::update(float dt) { m_world.update(m_camera.getPos(), dt); }
-
-void Game::render()
+void Game::update(float dt)
 {
+    if (m_renderer.requestWorldRegeneration())
+    {
+        m_world.regenerate();
+    }
+
+    m_world.update(m_camera.getPos(), dt);
+}
+
+void Game::render(float dt)
+{
+    // update fps counter
+    m_renderer.updateFPS(dt);
+
     // render the 3D world (terrain)
     m_renderer.renderWorld(m_world, m_camera);
+
+    // render debug window if needed
+    if (m_showDebug)
+        m_renderer.renderDebug(dt);
 }

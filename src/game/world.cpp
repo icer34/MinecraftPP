@@ -14,8 +14,8 @@ ChunkBuildResult buildChunk(ChunkCoord coord,
                             std::array<std::optional<Chunk>, 4> neighborCopies)
 {
     bool isNew = !existingChunk.has_value();
-    auto chunk =
-        isNew ? std::make_unique<Chunk>(coord) : std::make_unique<Chunk>(std::move(*existingChunk));
+    auto chunk = isNew ? std::make_unique<Chunk>(coord)
+                       : std::make_unique<Chunk>(std::move(*existingChunk));
 
     if (isNew)
     {
@@ -37,15 +37,17 @@ ChunkBuildResult buildChunk(ChunkCoord coord,
 }
 } // namespace
 
-World::World()
-    : m_threadPool(ThreadPool(10))
+World::World(unsigned long seed)
+    : m_threadPool(ThreadPool(10)),
+      m_seed(seed)
 {
+    TerrainGenerator::instance().setSeed(m_seed);
 }
 
 void World::update(glm::vec3 playerPos, float dt)
 {
-    m_playerCoord =
-        ChunkCoord{(int)floor(playerPos.x / Chunk::SIZE), (int)floor(playerPos.z / Chunk::SIZE)};
+    m_playerCoord
+        = ChunkCoord{(int)floor(playerPos.x / Chunk::SIZE), (int)floor(playerPos.z / Chunk::SIZE)};
     ChunkCoord playerCoord = m_playerCoord;
 
     const auto &chunks = getChunks();
@@ -79,8 +81,8 @@ void World::update(glm::vec3 playerPos, float dt)
                 if (m_chunks.contains(cc))
                     continue;
 
-                bool isPending =
-                    std::find(m_pending.begin(), m_pending.end(), cc) != m_pending.end();
+                bool isPending
+                    = std::find(m_pending.begin(), m_pending.end(), cc) != m_pending.end();
                 if (isPending)
                     continue;
 
@@ -152,6 +154,12 @@ void World::update(glm::vec3 playerPos, float dt)
     {
         scheduleRemesh(coord);
     }
+}
+
+void World::regenerate()
+{
+    m_chunks.clear();
+    m_meshes.clear();
 }
 
 std::vector<Chunk *> World::getChunks() const
@@ -232,8 +240,8 @@ void World::scheduleRemesh(ChunkCoord coord)
          chunkCopy = std::move(chunkCopy),
          neighborCopies = std::move(neighborCopies)]() mutable
         {
-            ChunkBuildResult result =
-                buildChunk(coord, std::move(chunkCopy), std::move(neighborCopies));
+            ChunkBuildResult result
+                = buildChunk(coord, std::move(chunkCopy), std::move(neighborCopies));
             std::unique_lock<std::mutex> lock(m_mutex);
             m_results.push(std::move(result));
         });

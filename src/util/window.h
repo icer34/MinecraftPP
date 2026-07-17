@@ -39,10 +39,6 @@ class Window
     void disableInput();
     bool isInputEnabled();
 
-    //* IMGUI METHODS
-    void beginImguiFrame();
-    void endImguiFrame();
-
   private:
     int m_width;
     int m_height;

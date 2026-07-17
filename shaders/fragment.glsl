@@ -2,11 +2,14 @@
 
 uniform sampler2D atlas;
 
-in vec2 oTexCoord;
+in vec2 vTexCoord;
+in vec3 vNormal;
+in vec3 vTint;
 
 out vec4 FragColor;
 
 void main()
 {
-    FragColor = texture(atlas, oTexCoord);  // orange
+    vec3 test = vNormal;
+    FragColor = texture(atlas, vTexCoord) * vec4(vTint, 1.0);
 }

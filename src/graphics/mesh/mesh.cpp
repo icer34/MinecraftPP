@@ -25,25 +25,15 @@ void Mesh::update(const MeshData &data)
     glBindVertexArray(m_vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, m_nVert * sizeof(GLfloat), data.vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, m_nVert * sizeof(GLuint), data.vertices.data(), GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
     glBufferData(
         GL_ELEMENT_ARRAY_BUFFER, m_nIdx * sizeof(GLuint), data.indices.data(), GL_STATIC_DRAW);
 
-    // positions
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * sizeof(GLfloat), (void *)0);
+    // packed data inside 2 32-bit unsigned integers
+    glVertexAttribIPointer(0, 2, GL_UNSIGNED_INT, 0, 0);
     glEnableVertexAttribArray(0);
-
-    // normals
-    glVertexAttribPointer(
-        1, 3, GL_FLOAT, false, 8 * sizeof(GLfloat), (void *)(3 * sizeof(GLfloat)));
-    glEnableVertexAttribArray(1);
-
-    // uv
-    glVertexAttribPointer(
-        2, 2, GL_FLOAT, false, 8 * sizeof(GLfloat), (void *)(6 * sizeof(GLfloat)));
-    glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
 }

@@ -47,6 +47,23 @@ target_include_directories(imgui PUBLIC
 )
 target_link_libraries(imgui PRIVATE glfw)
 
+# ─── ImPlot (pas de CMakeLists → intégration manuelle, comme imgui) ──────────
+FetchContent_Declare(
+    implot
+    GIT_REPOSITORY https://github.com/epezent/implot.git
+    GIT_TAG        master # v0.16 is incompatible with our pinned ImGui (1.92.8, post-1.90 API changes)
+)
+FetchContent_MakeAvailable(implot)
+
+add_library(implot STATIC
+    ${implot_SOURCE_DIR}/implot.cpp
+    ${implot_SOURCE_DIR}/implot_items.cpp
+)
+target_include_directories(implot PUBLIC
+    ${implot_SOURCE_DIR}
+)
+target_link_libraries(implot PRIVATE imgui)
+
 # ─── stb (header-only) ───────────────────────────────────────────────────────
 FetchContent_Declare(
     stb
@@ -62,21 +79,10 @@ add_library(glad STATIC
 target_include_directories(glad PUBLIC libs/glad/include)
 
 # ─── Exécutable principal ─────────────────────────────────────────────────────
+file(GLOB_RECURSE MINECRAFTPP_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+
 add_executable(${PROJECT_NAME}
-    src/main.cpp
-    src/util/window.cpp
-    src/game.cpp
-    src/graphics/mesh.cpp
-    src/graphics/shader.cpp
-    src/game/blocks.cpp
-    src/graphics/chunk_mesh.cpp
-    src/graphics/camera.cpp
-    src/graphics/chunk_mesher.cpp
-    src/graphics/texture_atlas.cpp
-    src/game/world.cpp
-    src/graphics/renderer.cpp
-    src/game/terrain_generator.cpp
-    src/util/perlin_noise.cpp
+    ${MINECRAFTPP_SOURCES}
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -86,6 +92,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${glm_SOURCE_DIR}
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
+    ${implot_SOURCE_DIR}
     ${stb_SOURCE_DIR}
 )
 
@@ -94,15 +101,20 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
     glm::glm
     imgui
+    implot
 )
 
-# S'assure qu'imgui est compilé avant MinecraftPP
-add_dependencies(${PROJECT_NAME} imgui)
+# S'assure qu'imgui/implot sont compilés avant MinecraftPP
+add_dependencies(${PROJECT_NAME} imgui implot)
 
-# Copie les shaders/assets dans le répertoire de build
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+# Copie les shaders/assets dans le répertoire de build -- cible séparée avec ALL pour
+# qu'elle tourne à chaque build, pas seulement quand MinecraftPP doit être relinké
+# (sinon modifier un .glsl seul ne recopie jamais rien, vu qu'aucun .cpp n'a changé)
+add_custom_target(copy_runtime_files ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/assets  $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
+    COMMENT "Copying shaders and assets to build output directory"
 )
+add_dependencies(${PROJECT_NAME} copy_runtime_files)

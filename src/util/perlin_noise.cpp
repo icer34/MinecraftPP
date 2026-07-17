@@ -4,7 +4,41 @@
 #include <cmath>
 #include <glm/glm.hpp>
 
+PerlinNoise::PerlinNoise(const unsigned int seed)
+    : m_seed(seed)
+{
+}
+
 float PerlinNoise::sample(float x, float y)
+{
+    float amp = 1.0f;
+    float sum = 0.0f;
+    float freq = m_freq;
+    float norm = 0.0f;
+
+    for (int i = 0; i < m_octaves; i++)
+    {
+        sum += amp * noise(x * freq, y * freq);
+        norm += amp;
+        amp *= m_gain;
+        freq *= m_lacunarity;
+    }
+
+    return sum / norm;
+}
+
+void PerlinNoise::updateSettings(unsigned int octaves,
+                                 float gain,
+                                 float lacunarity,
+                                 float frequency)
+{
+    m_octaves = octaves;
+    m_gain = gain;
+    m_lacunarity = lacunarity;
+    m_freq = frequency;
+}
+
+float PerlinNoise::noise(float x, float y)
 {
     int cellX = std::floor(x);
     int cellZ = std::floor(y);
@@ -37,9 +71,29 @@ float PerlinNoise::sample(float x, float y)
     }
 
     //* biliniear interpolation of the 4 dot products values
-    return lerp(lerp(dotProd[0], dotProd[3], smoothstep(x - cellX)),
-                lerp(dotProd[1], dotProd[2], smoothstep(x - cellX)),
-                smoothstep(y - cellZ));
+    float raw = lerp(lerp(dotProd[0], dotProd[3], smoothstep(x - cellX)),
+                     lerp(dotProd[1], dotProd[2], smoothstep(x - cellX)),
+                     smoothstep(y - cellZ));
+
+    //* raw is theoretically bounded to [-sqrt(2)/2, sqrt(2)/2] -- rescale to [-1, 1]
+    constexpr float NORMALIZATION = 1.41421356f; // sqrt(2)
+    return raw * NORMALIZATION;
+}
+
+void PerlinNoise::generateImage(unsigned char *data, int width, int height, float worldSpan)
+{
+    float stepX = worldSpan / static_cast<float>(width);
+    float stepY = worldSpan / static_cast<float>(height);
+
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            float n = sample(x * stepX, y * stepY);
+            float n01 = (n + 1.0f) * 0.5f; // remap [-1, 1] -> [0, 1]
+            data[y * width + x] = static_cast<unsigned char>(n01 * 255.0f);
+        }
+    }
 }
 
 unsigned int PerlinNoise::hash(int x, int z, const unsigned int seed)

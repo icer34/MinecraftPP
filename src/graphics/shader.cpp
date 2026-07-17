@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 #include <glad/glad.h>
@@ -34,9 +35,10 @@ Shader::Shader(const char *vertPath, const char *fragPath)
         vertexCode = vShaderStream.str();
         fragmentCode = fShaderStream.str();
     }
-    catch (std::ifstream::failure e)
+    catch (const std::ifstream::failure &e)
     {
-        std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+        throw std::runtime_error("ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ: "
+                                 + std::string(vertPath) + " / " + std::string(fragPath));
     }
     const char *vShaderCode = vertexCode.c_str();
     const char *fShaderCode = fragmentCode.c_str();
@@ -51,8 +53,8 @@ Shader::Shader(const char *vertPath, const char *fragPath)
     glGetShaderiv(m_vertID, GL_COMPILE_STATUS, &success);
     if (!success)
     {
-        glGetProgramInfoLog(m_vertID, 512, NULL, logBuffer);
-        std::cout << "ERROR::SHADER::SHADER_NOT_COMPILED\n" << logBuffer << std::endl;
+        glGetShaderInfoLog(m_vertID, 512, NULL, logBuffer);
+        throw std::runtime_error("ERROR::SHADER::VERTEX_NOT_COMPILED\n" + std::string(logBuffer));
     }
 
     // fragment shader compilation
@@ -63,8 +65,8 @@ Shader::Shader(const char *vertPath, const char *fragPath)
     glGetShaderiv(m_fragID, GL_COMPILE_STATUS, &success);
     if (!success)
     {
-        glGetProgramInfoLog(m_fragID, 512, NULL, logBuffer);
-        std::cout << "ERROR::SHADER::SHADER_NOT_COMPILED\n" << logBuffer << std::endl;
+        glGetShaderInfoLog(m_fragID, 512, NULL, logBuffer);
+        throw std::runtime_error("ERROR::SHADER::FRAGMENT_NOT_COMPILED\n" + std::string(logBuffer));
     }
 
     // program creation and linking
@@ -76,7 +78,7 @@ Shader::Shader(const char *vertPath, const char *fragPath)
     if (!success)
     {
         glGetProgramInfoLog(m_programID, 512, NULL, logBuffer);
-        std::cout << "ERROR::SHADER::SHADER_NOT_LINKED\n" << logBuffer << std::endl;
+        throw std::runtime_error("ERROR::SHADER::SHADER_NOT_LINKED\n" + std::string(logBuffer));
     }
 
     // delete shader once in the program

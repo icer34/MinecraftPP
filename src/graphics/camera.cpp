@@ -12,7 +12,7 @@ Camera::Camera(glm::vec3 position, float aspectRatio)
       m_aspectRatio(aspectRatio),
       m_zNear(0.1f),
       m_zFar(500.0f),
-      m_speed(4.5f),
+      m_speed(30.0f),
       m_sens(0.1f)
 {
     updateVectors();

@@ -5,7 +5,7 @@
 
 struct MeshData
 {
-    std::vector<float> vertices;
+    std::vector<uint32_t> vertices;
     std::vector<unsigned int> indices;
 };
 

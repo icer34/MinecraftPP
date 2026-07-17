@@ -6,11 +6,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "util/uv_rect.h"
-
 struct TextureLayer
 {
-    UVRect uv;
+    uint16_t textureIndex;
     bool tinted;
 };
 
@@ -20,7 +18,10 @@ struct FaceTexture
     std::array<TextureLayer, 2> layers{};
     uint count = 0;
 
-    void add(const UVRect &uv, bool tinted = false) { layers[count++] = TextureLayer{uv, tinted}; }
+    void add(const uint16_t &idx, bool tinted = false)
+    {
+        layers[count++] = TextureLayer{idx, tinted};
+    }
 };
 
 struct BlockType

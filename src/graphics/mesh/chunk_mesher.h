@@ -26,9 +26,11 @@ class ChunkMesher
      * @param localPos position of the block inside the chunk (in [0, Chunk::SIZE[)
      */
     void addFace(const BlockType &block,
+                 uint8_t humidity,
+                 uint8_t temperature,
                  Direction dir,
                  glm::ivec3 localPos,
-                 std::vector<float> &vert,
+                 std::vector<uint32_t> &vert,
                  std::vector<unsigned int> &indices);
 
     glm::ivec3 wrapCoords(int x, int y, int z);

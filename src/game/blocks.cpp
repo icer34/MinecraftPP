@@ -1,22 +1,21 @@
 #include "blocks.h"
 
 #include "block_registry.h"
-#include "graphics/texture_atlas.h"
+#include "graphics/block_texture_atlas.h"
 #include "util/directions.h"
-#include "util/uv_rect.h"
 
 namespace
 {
-FaceTexture singleLayer(const UVRect &uv, bool tinted = false)
+FaceTexture singleLayer(const uint16_t &index, bool tinted = false)
 {
     FaceTexture face;
-    face.add(uv, tinted);
+    face.add(index, tinted);
     return face;
 }
 
-std::array<FaceTexture, 6> uniform(const UVRect &uv)
+std::array<FaceTexture, 6> uniform(const uint16_t &index)
 {
-    FaceTexture face = singleLayer(uv);
+    FaceTexture face = singleLayer(index);
     return {face, face, face, face, face, face};
 }
 } // namespace
@@ -31,7 +30,7 @@ uint16_t GRASS;
 void registerAll()
 {
     auto &reg = BlockRegistry::instance();
-    auto &atlas = TextureAtlas::instance();
+    auto &atlas = BlockTextureAtlas::instance();
 
     AIR = reg.registerBlock({
         .name = "air",
@@ -41,24 +40,24 @@ void registerAll()
 
     STONE = reg.registerBlock({
         .name = "stone",
-        .textures = uniform(atlas.getUV("stone")),
+        .textures = uniform(atlas.getIndex("stone")),
     });
 
     DIRT = reg.registerBlock({
         .name = "dirt",
-        .textures = uniform(atlas.getUV("dirt")),
+        .textures = uniform(atlas.getIndex("dirt")),
     });
 
     BlockType grass;
-    FaceTexture side = singleLayer(atlas.getUV("dirt"));
-    side.add(atlas.getUV("grass_block_side_overlay"), true);
+    FaceTexture side = singleLayer(atlas.getIndex("dirt"));
+    side.add(atlas.getIndex("grass_block_side_overlay"), true);
     grass.name = "grass_block";
     grass.textures[(size_t)Direction::NORTH] = side;
     grass.textures[(size_t)Direction::SOUTH] = side;
     grass.textures[(size_t)Direction::EAST] = side;
     grass.textures[(size_t)Direction::WEST] = side;
-    grass.textures[(size_t)Direction::TOP] = singleLayer(atlas.getUV("grass_block_top"), true);
-    grass.textures[(size_t)Direction::BOTTOM] = singleLayer(atlas.getUV("dirt"));
+    grass.textures[(size_t)Direction::TOP] = singleLayer(atlas.getIndex("grass_block_top"), true);
+    grass.textures[(size_t)Direction::BOTTOM] = singleLayer(atlas.getIndex("dirt"));
     GRASS = reg.registerBlock(grass);
 }
 } // namespace Blocks

@@ -20,8 +20,10 @@ class Game
 
     void processInput();
     void update(float dt);
-    void render();
+    void render(float dt);
 
     float m_dt;
     float m_lastFrameTime;
+
+    bool m_showDebug = false;
 };
