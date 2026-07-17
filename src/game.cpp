@@ -42,7 +42,7 @@ void Game::processInput()
     if (m_window.consumeKeyPress(Key::Esc))
     {
         m_window.toggleCursor();
-        m_showDebug = !m_showDebug;
+        m_showSettings = !m_showSettings;
     }
 
     if (!m_window.isCursorEnabled())
@@ -70,6 +70,10 @@ void Game::processInput()
         if (m_window.isKeyPressed(Key::LCtrl))
         {
             m_camera.move(glm::vec3(0.0f, -1.0f, 0.0f), m_dt);
+        }
+        if (m_window.consumeKeyPress(Key::F3))
+        {
+            m_showDebug = !m_showDebug;
         }
 
         float dx = (float)m_window.consumeDx();
@@ -101,7 +105,15 @@ void Game::render(float dt)
     // render the 3D world (terrain)
     m_renderer.renderWorld(m_world, m_camera);
 
+    // render UI
+    m_renderer.beginUI();
+
     // render debug window if needed
     if (m_showDebug)
         m_renderer.renderDebug(dt);
+
+    if (m_showSettings)
+        m_renderer.renderSettings();
+
+    m_renderer.endUI();
 }

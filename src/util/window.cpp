@@ -191,6 +191,8 @@ int toGflwKey(Key key)
         return GLFW_KEY_LEFT_SHIFT;
     case Key::LCtrl:
         return GLFW_KEY_LEFT_CONTROL;
+    case Key::F3:
+        return GLFW_KEY_F3;
     }
 
     return GLFW_KEY_UNKNOWN;

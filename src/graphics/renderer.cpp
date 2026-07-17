@@ -14,22 +14,44 @@
 #include "game/world.h"
 #include "shader.h"
 
+#include "util/frustum.h"
 #include "util/perlin_noise.h"
 
 namespace
 {
-void plotSpline(Spline &spline, const char *label, ImVec2 size)
+void helpMarker(const char *desc)
+{
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
+void plotSpline(Spline &spline, const char *label, ImVec2 size, const char *description = nullptr)
 {
     glm::vec2 xBounds = spline.getXBounds();
     glm::vec2 yBounds = spline.getYBounds();
 
     std::string childLabel = std::string(label) + "##spline";
 
-    ImGui::BeginChild(childLabel.c_str(), ImVec2(size.x, size.y + 50));
+    ImGui::BeginChild(childLabel.c_str(), ImVec2(size.x, size.y + 70));
 
-    if (ImPlot::BeginPlot(label, size, ImPlotFlags_NoLegend))
+    ImGui::Text("%s", label);
+    if (description)
     {
-        ImPlot::SetupAxes("noise", "height");
+        ImGui::SameLine();
+        helpMarker(description);
+    }
+
+    if (ImPlot::BeginPlot("##plot", size, ImPlotFlags_NoLegend))
+    {
+        ImPlot::SetupAxis(ImAxis_X1, "x", ImPlotAxisFlags_NoLabel);
+        ImPlot::SetupAxis(ImAxis_Y1, "y ", ImPlotAxisFlags_NoLabel);
         ImPlot::SetupAxesLimits(
             xBounds.x * 1.1, xBounds.y * 1.1, yBounds.x, yBounds.y * 1.1, ImPlotCond_Always);
 
@@ -84,6 +106,27 @@ void plotSpline(Spline &spline, const char *label, ImVec2 size)
     ImGui::InputInt("remove point", &toRemove, 0);
 
     ImGui::EndChild();
+}
+
+bool isChunkInFrustum(const Frustum &frustum, const ChunkCoord &coord)
+{
+    glm::vec3 minBox = glm::vec3(coord.x * Chunk::SIZE, 0.0f, coord.z * Chunk::SIZE);
+    glm::vec3 maxBox
+        = glm::vec3((coord.x + 1) * Chunk::SIZE, Chunk::HEIGHT, (coord.z + 1) * Chunk::SIZE);
+
+    for (const Plane &plane : frustum.planes())
+    {
+        // the AABB corner furthest along the plane's normal -- if even that corner is
+        // outside (behind) the plane, the whole box is outside it, so it can't be visible
+        glm::vec3 positiveVertex(plane.normal.x >= 0.0f ? maxBox.x : minBox.x,
+                                 plane.normal.y >= 0.0f ? maxBox.y : minBox.y,
+                                 plane.normal.z >= 0.0f ? maxBox.z : minBox.z);
+
+        if (glm::dot(plane.normal, positiveVertex) + plane.dist < 0.0f)
+            return false;
+    }
+
+    return true;
 }
 } // namespace
 
@@ -146,36 +189,61 @@ void Renderer::renderWorld(const World &world, const Camera &cam)
     glBindTexture(GL_TEXTURE_2D, m_blockTintTexture.getID());
     m_shader->setInt("colormap", 1);
 
+    Frustum frustum = Frustum(cam);
+
+    m_renderedChunks = 0;
     for (auto &mesh : world.getChunkMeshes())
     {
         ChunkCoord coord = mesh->getCoords();
+
+        if (!isChunkInFrustum(frustum, coord))
+            continue;
+
         glm::mat4 model = glm::translate(glm::mat4(1.0f),
                                          glm::vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
         m_shader->setMat4("model", model);
         mesh->draw();
+        m_renderedChunks++;
     }
 
     //? ========== UPDATE DEBUG DATA ==========
     m_loadedChunks = world.getChunks().size();
-    m_renderedChunks = world.getChunkMeshes().size();
+    m_camPos = cam.getPos();
+}
+
+void Renderer::beginUI()
+{
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 }
 
 void Renderer::renderDebug(float dt)
 {
     updateFPS(dt);
 
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
     //* ===== BASIC DEBUG STATS =====
     ImGui::Begin("Debug pannel");
     ImGui::Text("FPS: %.1f", m_fps);
     ImGui::Text("ms per frame: %.3f", dt * 1000.0);
+    ImGui::Text("x:%.2f y:%.2f z:%.2f", m_camPos.x, m_camPos.y, m_camPos.z);
     ImGui::Text("Loaded chunks: %d", m_loadedChunks);
     ImGui::Text("Rendered chunks: %d", m_renderedChunks);
-    ImGui::End();
 
+    auto &terrainGen = TerrainGenerator::instance();
+    m_continentalness = terrainGen.getContinentalnessNoise().sample(m_camPos.x, m_camPos.z);
+    m_erosion = terrainGen.getErosionNoise().sample(m_camPos.x, m_camPos.z);
+    m_pv = terrainGen.getPvNoise().sample(m_camPos.x, m_camPos.z);
+
+    ImGui::Text("PV: %.3f", m_pv);
+    ImGui::Text("Erosion: %.3f", m_erosion);
+    ImGui::Text("Continentalness: %.3f", m_continentalness);
+
+    ImGui::End();
+}
+
+void Renderer::renderSettings()
+{
     //* ===== TERRAIN GENERATION DEBUG =====
     ImGui::Begin("Terrain Generation Debug");
 
@@ -192,18 +260,31 @@ void Renderer::renderDebug(float dt)
     }
 
     std::string splineNames[3]{"Continentalness", "Erosion", "Peaks & Valleys"};
-    plotSpline(*m_terrainGenSplines[0], splineNames[0].c_str(), ImVec2(400, 300));
+    plotSpline(*m_terrainGenSplines[0],
+               splineNames[0].c_str(),
+               ImVec2(400, 300),
+               "Base terrain height from the overall land shape (ocean vs. plains vs. mountains).");
     ImGui::SameLine();
-    plotSpline(*m_terrainGenSplines[1], splineNames[1].c_str(), ImVec2(400, 300));
+    plotSpline(*m_terrainGenSplines[1],
+               splineNames[1].c_str(),
+               ImVec2(400, 300),
+               "0..1 factor: how much Peaks & Valleys is allowed to pull the terrain away from the "
+               "Continentalness base height (0 = flat, 1 = full jaggedness).");
     ImGui::SameLine();
-    plotSpline(*m_terrainGenSplines[2], splineNames[2].c_str(), ImVec2(400, 300));
+    plotSpline(*m_terrainGenSplines[2],
+               splineNames[2].c_str(),
+               ImVec2(400, 300),
+               "Raw peaks/valleys shape, blended in according to the Erosion factor.");
 
     if (ImGui::Button("Regenerate"))
     {
         m_shouldRegenerateWorld = true;
     }
     ImGui::End();
+}
 
+void Renderer::endUI()
+{
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }

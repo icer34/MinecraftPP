@@ -25,5 +25,6 @@ class Game
     float m_dt;
     float m_lastFrameTime;
 
-    bool m_showDebug = false;
+    bool m_showDebug = true;
+    bool m_showSettings = false;
 };

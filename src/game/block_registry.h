@@ -16,7 +16,7 @@ struct FaceTexture
 {
     static constexpr int MAX_LAYERS = 2;
     std::array<TextureLayer, 2> layers{};
-    uint count = 0;
+    unsigned int count = 0;
 
     void add(const uint16_t &idx, bool tinted = false)
     {

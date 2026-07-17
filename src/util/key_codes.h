@@ -9,7 +9,8 @@ enum class Key
     Space,
     LShift,
     LCtrl,
-    Esc
+    Esc,
+    F3
 };
 
 enum class MouseButton

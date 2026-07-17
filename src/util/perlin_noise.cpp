@@ -4,6 +4,8 @@
 #include <cmath>
 #include <glm/glm.hpp>
 
+constexpr float PI = 3.14159265358979323846f;
+
 PerlinNoise::PerlinNoise(const unsigned int seed)
     : m_seed(seed)
 {
@@ -60,7 +62,7 @@ float PerlinNoise::noise(float x, float y)
         unsigned int h = hash(point.x, point.y, m_seed);
         float r = (h & 0x7fffffff) / (float)0x80000000;
 
-        float a = 2.0f * (float)M_PI * r;
+        float a = 2.0f * (float)PI * r;
         gradients[i] = glm::vec2{cos(a), sin(a)};
 
         //* compute the direction from the cell point to the sampled point

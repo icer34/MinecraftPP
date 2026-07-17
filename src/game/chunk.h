@@ -36,7 +36,7 @@ class Chunk
 {
   public:
     static constexpr int SIZE = 16;
-    static constexpr int HEIGHT = 128;
+    static constexpr int HEIGHT = 256;
 
     explicit Chunk(ChunkCoord coord)
         : m_coord(coord),
@@ -79,21 +79,10 @@ class Chunk
 
     static size_t index(int x, int y, int z)
     {
-        if (x < 0 || y < 0 || z < 0)
-        {
-            throw std::runtime_error("CHUNK::INVALID POSITION INDEXING\n");
-        }
         return static_cast<size_t>(x + y * SIZE + z * SIZE * HEIGHT);
     }
 
-    static size_t index(int x, int z)
-    {
-        if (x < 0 || z < 0)
-        {
-            throw std::runtime_error("CHUNK::INVALID POSITION INDEXING\n");
-        }
-        return static_cast<size_t>(x + z * SIZE);
-    }
+    static size_t index(int x, int z) { return static_cast<size_t>(x + z * SIZE); }
 
     static uint64_t computeId(ChunkCoord coord) { return computeChunkID(coord); }
 };

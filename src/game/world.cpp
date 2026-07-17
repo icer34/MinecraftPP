@@ -8,32 +8,40 @@
 namespace
 {
 //! Runs on a worker thread. Never touches World's shared maps -- everything it needs
-//! (the chunk's own previous data, if any, and its neighbors) is passed in by value.
+//! (the chunk's own previous data, if any, and its neighbors) is passed in as shared_ptr
+//! handles (cheap refcount bump), not copied -- Chunk is never mutated once inserted into
+//! World::m_chunks, so sharing read-only ownership across threads is safe.
 ChunkBuildResult buildChunk(ChunkCoord coord,
-                            std::optional<Chunk> existingChunk,
-                            std::array<std::optional<Chunk>, 4> neighborCopies)
+                            std::shared_ptr<const Chunk> existingChunk,
+                            std::array<std::shared_ptr<const Chunk>, 4> neighborCopies)
 {
-    bool isNew = !existingChunk.has_value();
-    auto chunk = isNew ? std::make_unique<Chunk>(coord)
-                       : std::make_unique<Chunk>(std::move(*existingChunk));
+    bool isNew = existingChunk == nullptr;
+
+    std::unique_ptr<Chunk> newChunk;
+    const Chunk *chunkPtr;
 
     if (isNew)
     {
-        auto &terrainGenerator = TerrainGenerator::instance();
-        terrainGenerator.generateChunk(*chunk);
+        newChunk = std::make_unique<Chunk>(coord);
+        TerrainGenerator::instance().generateChunk(*newChunk);
+        chunkPtr = newChunk.get();
+    }
+    else
+    {
+        chunkPtr = existingChunk.get();
     }
 
     std::array<const Chunk *, 4> neighborPtrs{};
     for (size_t i = 0; i < neighborPtrs.size(); i++)
     {
-        neighborPtrs[i] = neighborCopies[i].has_value() ? &neighborCopies[i].value() : nullptr;
+        neighborPtrs[i] = neighborCopies[i].get();
     }
 
     auto meshData = std::make_unique<ChunkMeshData>();
     ChunkMesher mesher;
-    mesher.mesh(*chunk, neighborPtrs, *meshData);
+    mesher.mesh(*chunkPtr, neighborPtrs, *meshData);
 
-    return ChunkBuildResult{coord, isNew ? std::move(chunk) : nullptr, std::move(meshData)};
+    return ChunkBuildResult{coord, std::move(newChunk), std::move(meshData)};
 }
 } // namespace
 
@@ -195,9 +203,9 @@ std::vector<ChunkMesh *> World::getChunkMeshes() const
     return meshes;
 }
 
-std::array<std::optional<Chunk>, 4> World::copyNeighbors(ChunkCoord coord) const
+std::array<std::shared_ptr<const Chunk>, 4> World::copyNeighbors(ChunkCoord coord) const
 {
-    std::array<std::optional<Chunk>, 4> result{};
+    std::array<std::shared_ptr<const Chunk>, 4> result{};
 
     for (size_t i = 0; i < CARDINAL_DIRECTIONS.size(); i++)
     {
@@ -205,7 +213,7 @@ std::array<std::optional<Chunk>, 4> World::copyNeighbors(ChunkCoord coord) const
         auto it = m_chunks.find(ChunkCoord{coord.x + offset.x, coord.z + offset.z});
         if (it != m_chunks.end())
         {
-            result[i].emplace(*it->second);
+            result[i] = it->second; // cheap: shared_ptr refcount bump, not a data copy
         }
     }
 
@@ -219,7 +227,7 @@ void World::scheduleGenerate(ChunkCoord coord)
     m_threadPool.enqueue(
         [this, coord, neighborCopies = std::move(neighborCopies)]() mutable
         {
-            ChunkBuildResult result = buildChunk(coord, std::nullopt, std::move(neighborCopies));
+            ChunkBuildResult result = buildChunk(coord, nullptr, std::move(neighborCopies));
             std::unique_lock<std::mutex> lock(m_mutex);
             m_results.push(std::move(result));
         });
@@ -231,17 +239,13 @@ void World::scheduleRemesh(ChunkCoord coord)
     if (it == m_chunks.end())
         return;
 
-    Chunk chunkCopy = *it->second;
+    std::shared_ptr<const Chunk> existingChunk = it->second; // cheap: refcount bump
     auto neighborCopies = copyNeighbors(coord);
 
     m_threadPool.enqueue(
-        [this,
-         coord,
-         chunkCopy = std::move(chunkCopy),
-         neighborCopies = std::move(neighborCopies)]() mutable
+        [this, coord, existingChunk, neighborCopies]()
         {
-            ChunkBuildResult result
-                = buildChunk(coord, std::move(chunkCopy), std::move(neighborCopies));
+            ChunkBuildResult result = buildChunk(coord, existingChunk, neighborCopies);
             std::unique_lock<std::mutex> lock(m_mutex);
             m_results.push(std::move(result));
         });

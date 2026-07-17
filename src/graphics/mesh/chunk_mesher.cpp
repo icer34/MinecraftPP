@@ -5,16 +5,39 @@
 
 #include <glm/glm.hpp>
 
-//* which corner of the texture (in the atlas cell) each vertex of a face maps to.
-//* the vertex shader turns this into an actual UV offset from the cell origin --
-//* nothing CPU-side ever deals with a raw UV value.
-enum class Corner : uint8_t
+// (u_sign, v_sign) of each corner along a face's tangent axes -- same order/meaning
+// as the Corner enum, and the same for every face direction (only the tangent axes
+// themselves, picked in getTangentAxes(), differ per direction).
+static constexpr std::array<glm::ivec2, 4> CORNER_SIGNS = {{
+    {-1, -1}, // BOTTOM_LEFT
+    {-1, 1},  // TOP_LEFT
+    {1, 1},   // TOP_RIGHT
+    {1, -1},  // BOTTOM_RIGHT
+}};
+
+// the two axes that span a face's plane (perpendicular to its normal), used to walk
+// towards a corner from the face's center when sampling AO neighbors.
+static void getTangentAxes(Direction dir, glm::ivec3 &uAxis, glm::ivec3 &vAxis)
 {
-    BOTTOM_LEFT = 0,
-    TOP_LEFT = 1,
-    TOP_RIGHT = 2,
-    BOTTOM_RIGHT = 3,
-};
+    switch (dir)
+    {
+    case Direction::NORTH:
+    case Direction::SOUTH:
+        uAxis = {1, 0, 0};
+        vAxis = {0, 1, 0};
+        break;
+    case Direction::EAST:
+    case Direction::WEST:
+        uAxis = {0, 0, 1};
+        vAxis = {0, 1, 0};
+        break;
+    case Direction::TOP:
+    case Direction::BOTTOM:
+        uAxis = {1, 0, 0};
+        vAxis = {0, 0, 1};
+        break;
+    }
+}
 
 static constexpr std::array<std::array<Corner, 4>, 6> CUBE_FACE_CORNERS = {{
     {{Corner::BOTTOM_LEFT, Corner::TOP_LEFT, Corner::TOP_RIGHT, Corner::BOTTOM_RIGHT}}, // NORTH
@@ -99,6 +122,8 @@ void ChunkMesher::mesh(const Chunk &chunk,
                                 temperature,
                                 dir,
                                 glm::ivec3(x, y, z),
+                                chunk,
+                                neighbors,
                                 solidVert,
                                 solidIdx);
 
@@ -108,6 +133,8 @@ void ChunkMesher::mesh(const Chunk &chunk,
                                 temperature,
                                 dir,
                                 glm::ivec3(x, y, z),
+                                chunk,
+                                neighbors,
                                 waterVert,
                                 waterIdx);
                 }
@@ -120,8 +147,8 @@ void ChunkMesher::mesh(const Chunk &chunk,
 }
 /**
  * the vertex data is packed in 2 32-bit integers in the following way:
- *? chunkX - chunkY - chunkZ - normalIdx - textureIdx - cornerIdx --> 4 - 7 - 4 - 3 - 12 - 2 = 32
- *? humidity - temperature - isTinted - future use --> 8 - 8 - 1 - 15 = 32
+ *? chunkX - chunkY - chunkZ - normalIdx - textureIdx - isTinted --> 4 - 8 - 4 - 3 - 12 - 1 = 32
+ ** humidity - temperature - cornerIdx - ambientOcclusion - future use --> 8 - 8 - 2 - 2 - 12 = 32
  * - the final position of a vertex is computed in the vertex shader: (chunkPos + facePos)
  * modelMatrix where the model matrix shifts the vertex to the correct world coords
  */
@@ -130,11 +157,13 @@ void ChunkMesher::addFace(const BlockType &block,
                           uint8_t temperature,
                           Direction dir,
                           glm::ivec3 localPos,
+                          const Chunk &chunk,
+                          std::array<const Chunk *, 4> neighbors,
                           std::vector<uint32_t> &vert,
                           std::vector<unsigned int> &indices)
 {
     auto &faceCorners = CUBE_FACE_CORNERS[static_cast<size_t>(dir)];
-    uint8_t normalIdx = static_cast<uint>(dir);
+    uint8_t normalIdx = static_cast<unsigned int>(dir);
 
     const FaceTexture &face = block.textures[static_cast<size_t>(dir)];
     for (uint8_t layerIdx = 0; layerIdx < face.count; layerIdx++)
@@ -146,20 +175,23 @@ void ChunkMesher::addFace(const BlockType &block,
 
         for (int i = 0; i < 4; i++)
         {
-            uint8_t cornerIdx = static_cast<uint8_t>(faceCorners[i]);
+            Corner corner = faceCorners[i];
+            uint8_t cornerIdx = static_cast<uint8_t>(corner);
+            uint8_t aoValue = cornerAO(chunk, neighbors, localPos, dir, corner);
 
             uint32_t data1 = 0;
             data1 |= (static_cast<uint32_t>(localPos.x) & 0xF) << 28;
-            data1 |= (static_cast<uint32_t>(localPos.y) & 0x7F) << 21;
-            data1 |= (static_cast<uint32_t>(localPos.z) & 0xF) << 17;
-            data1 |= (normalIdx & 0x7) << 14;
-            data1 |= (textureIdx & 0xFFF) << 2;
-            data1 |= (cornerIdx & 0x3);
+            data1 |= (static_cast<uint32_t>(localPos.y) & 0xFF) << 20;
+            data1 |= (static_cast<uint32_t>(localPos.z) & 0xF) << 16;
+            data1 |= (normalIdx & 0x7) << 13;
+            data1 |= (textureIdx & 0xFFF) << 1;
+            data1 |= (static_cast<uint8_t>(isTinted) & 0x1);
 
             uint32_t data2 = 0;
             data2 |= (humidity & 0xFF) << 24;
             data2 |= (temperature & 0xFF) << 16;
-            data2 |= (static_cast<uint8_t>(isTinted) & 0x1) << 15;
+            data2 |= (cornerIdx & 0x3) << 14;
+            data2 |= (aoValue & 0x3) << 12;
 
             vert.push_back(data1);
             vert.push_back(data2);
@@ -196,4 +228,62 @@ glm::ivec3 ChunkMesher::wrapCoords(int x, int y, int z)
     int newZ = ((z % Chunk::SIZE) + Chunk::SIZE) % Chunk::SIZE;
 
     return glm::ivec3(newX, y, newZ);
+}
+
+bool ChunkMesher::isSolidNeighbor(glm::ivec3 pos,
+                                  const Chunk &chunk,
+                                  std::array<const Chunk *, 4> neighbors)
+{
+    if (pos.y < 0 || pos.y >= Chunk::HEIGHT)
+        return false; // above/below the world -> air
+
+    bool outX = pos.x < 0 || pos.x >= Chunk::SIZE;
+    bool outZ = pos.z < 0 || pos.z >= Chunk::SIZE;
+
+    if (outX && outZ)
+        return false; // diagonal chunk neighbor, not tracked -- treat as air (see chunk_mesher.h)
+
+    uint16_t blockID;
+    if (!outX && !outZ)
+    {
+        blockID = chunk.getBlock(pos.x, pos.y, pos.z);
+    }
+    else
+    {
+        auto neighborChunkDir = posInChunk(pos.x, pos.y, pos.z);
+        glm::ivec3 wrapped = wrapCoords(pos.x, pos.y, pos.z);
+        const Chunk *neighborChunk = neighbors.at(static_cast<size_t>(neighborChunkDir.value()));
+
+        if (neighborChunk == nullptr)
+            return false;
+
+        blockID = neighborChunk->getBlock(wrapped.x, wrapped.y, wrapped.z);
+    }
+
+    return BlockRegistry::instance().get(blockID).isSolid;
+}
+
+uint8_t ChunkMesher::cornerAO(const Chunk &chunk,
+                              std::array<const Chunk *, 4> neighbors,
+                              glm::ivec3 localPos,
+                              Direction dir,
+                              Corner corner)
+{
+    glm::ivec3 normalOffset = getDirectionVector(dir);
+
+    glm::ivec3 uAxis, vAxis;
+    getTangentAxes(dir, uAxis, vAxis);
+
+    glm::ivec2 signs = CORNER_SIGNS[static_cast<size_t>(corner)];
+    glm::ivec3 tangentOffset = signs.x * uAxis + signs.y * vAxis;
+
+    bool side1 = isSolidNeighbor(localPos + normalOffset + signs.x * uAxis, chunk, neighbors);
+    bool side2 = isSolidNeighbor(localPos + normalOffset + signs.y * vAxis, chunk, neighbors);
+    bool cornerSolid = isSolidNeighbor(localPos + normalOffset + tangentOffset, chunk, neighbors);
+
+    if (side1 && side2)
+        return 3; // fully occluded regardless of the diagonal, avoids lighting seams
+
+    return static_cast<uint8_t>(side1) + static_cast<uint8_t>(side2)
+         + static_cast<uint8_t>(cornerSolid);
 }

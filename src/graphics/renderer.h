@@ -6,9 +6,9 @@
 
 #include <iostream>
 
-struct World;
+class World;
 struct Shader;
-struct Camera;
+class Camera;
 
 class Renderer
 {
@@ -17,7 +17,12 @@ class Renderer
     ~Renderer();
 
     void renderWorld(const World &world, const Camera &cam);
+
+    void beginUI();
     void renderDebug(float dt);
+    void renderSettings();
+    void endUI();
+
     void updateFPS(float dt);
 
     bool requestWorldRegeneration()
@@ -39,6 +44,10 @@ class Renderer
     float m_fpsTimer = 0.0f;
     int m_loadedChunks = 0;
     int m_renderedChunks = 0;
+    glm::vec3 m_camPos;
+    float m_pv = 0.0f;
+    float m_continentalness = 0.0f;
+    float m_erosion = 0.0f;
 
     bool m_shouldRegenerateWorld = false;
 };

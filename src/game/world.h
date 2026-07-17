@@ -4,7 +4,6 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <queue>
 #include <unordered_map>
 #include <vector>
@@ -34,14 +33,14 @@ class World
     std::vector<Chunk *> getChunks() const;
 
   private:
-    static constexpr int RENDER_DISTANCE = 12;
+    static constexpr int RENDER_DISTANCE = 20;
     static constexpr int LOAD_DISTANCE = RENDER_DISTANCE + 1;
 
     unsigned long m_seed;
 
     //! ========== MAIN THREAD ONLY ==========
     ChunkCoord m_playerCoord{};
-    std::unordered_map<ChunkCoord, std::unique_ptr<Chunk>> m_chunks;
+    std::unordered_map<ChunkCoord, std::shared_ptr<Chunk>> m_chunks;
     std::unordered_map<ChunkCoord, std::unique_ptr<ChunkMesh>> m_meshes;
     std::vector<ChunkCoord> m_pending;
 
@@ -53,8 +52,9 @@ class World
     void scheduleRemesh(ChunkCoord coord);
 
     // snapshot of the currently-loaded cardinal neighbors of coord.
-    // Returns copies (never pointers into m_chunks) so they're safe to hand to a worker thread.
-    std::array<std::optional<Chunk>, 4> copyNeighbors(ChunkCoord coord) const;
+    // shared_ptr handles (cheap refcount bump), never raw pointers into m_chunks -- safe to
+    // hand to a worker thread since the underlying Chunk is never mutated once inserted.
+    std::array<std::shared_ptr<const Chunk>, 4> copyNeighbors(ChunkCoord coord) const;
     //!========================================
 
     std::mutex m_mutex;

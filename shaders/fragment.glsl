@@ -5,11 +5,11 @@ uniform sampler2D atlas;
 in vec2 vTexCoord;
 in vec3 vNormal;
 in vec3 vTint;
+in float vAO;
 
 out vec4 FragColor;
 
 void main()
 {
-    vec3 test = vNormal;
-    FragColor = texture(atlas, vTexCoord) * vec4(vTint, 1.0);
+    FragColor = texture(atlas, vTexCoord) * vec4(vTint, 1.0) * vec4(vec3(vAO), 1.0);
 }

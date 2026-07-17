@@ -1,8 +1,6 @@
 #version 330 core
 
-// packed vertex data (see the comment above ChunkMesher::addFace):
-// x(4) | y(7) | z(4) | normalIdx(3) | textureIdx(12) | cornerIdx(2) = 32 bits in data1
-// data2 is reserved for future lighting/AO data, unused for now
+// see ChunkMesher::mesh() in chunk_mesher.cpp to see the packing format in detail
 layout (location = 0) in uvec2 packedData;
 
 uniform mat4 model;
@@ -14,6 +12,11 @@ uniform sampler2D colormap;
 out vec3 vNormal;
 out vec2 vTexCoord;
 out vec3 vTint;
+out float vAO;
+
+// AO occlusion count (0..3) -> brightness factor. index 0 = no occluding neighbors (full light),
+// index 3 = corner fully enclosed (darkest). see ChunkMesher::cornerAO in chunk_mesher.cpp.
+const float AO_LEVELS[4] = float[4](1.0, 0.75, 0.5, 0.25);
 
 // mirrors the Direction enum order in directions.h (NORTH, SOUTH, EAST, WEST, TOP, BOTTOM)
 const vec3 NORMALS[6] = vec3[6](
@@ -80,15 +83,16 @@ void main()
     uint data2 = packedData.y;
 
     uint chunkX = (data1 >> 28) & 0xFu;
-    uint chunkY = (data1 >> 21) & 0x7Fu;
-    uint chunkZ = (data1 >> 17) & 0xFu;
-    uint normalIdx = (data1 >> 14) & 0x7u; //* also encodes the direction, thus the face Idx.
-    uint textureIdx = (data1 >> 2) & 0xFFFu;
-    uint cornerIdx = data1 & 0x3u;
+    uint chunkY = (data1 >> 20) & 0xFFu;
+    uint chunkZ = (data1 >> 16) & 0xFu;
+    uint normalIdx = (data1 >> 13) & 0x7u; //* also encodes the direction, thus the face Idx.
+    uint textureIdx = (data1 >> 1) & 0xFFFu;
+    bool isTinted = bool(data1 & 0x1u);
+
     uint temperature = (data2 >> 24) & 0xFFu;
     uint humidity = (data2 >> 16) & 0xFFu;
-    bool isTinted = bool((data2 >> 15) & 0x1u);
-    
+    uint cornerIdx = (data2 >> 14) & 0x3u;
+    uint aoValue = (data2 >> 12) & 0x3u;
 
     vec3 chunkPos = vec3(float(chunkX), float(chunkY), float(chunkZ));
     vec3 facePos = chunkPos + FACE_CORNER_OFFSET[normalIdx * 4u + cornerIdx];
@@ -96,6 +100,7 @@ void main()
     vNormal = NORMALS[normalIdx];
     vTexCoord = uvFromTextureIndex(textureIdx, cornerIdx);
     vTint = isTinted ? sampleColorMap(humidity, temperature) : vec3(1.0);
+    vAO = AO_LEVELS[aoValue];
 
     gl_Position = projection * view * model * vec4(facePos, 1.0);
 }
