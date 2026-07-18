@@ -6,7 +6,6 @@ layout (location = 0) in uvec2 packedData;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-uniform mat4 lightSpaceMatrix;
 
 uniform sampler2D colormap;
 
@@ -14,7 +13,8 @@ out vec3 vNormal;
 out vec2 vTexCoord;
 out vec3 vTint;
 out float vAO;
-out vec4 vFragPosLightSpace;
+out vec4 vFragPosWorld;
+out float vViewDepth;
 
 // AO occlusion count (0..3) -> brightness factor. index 0 = no occluding neighbors (full light),
 // index 3 = corner fully enclosed (darkest). see ChunkMesher::cornerAO in chunk_mesher.cpp.
@@ -110,7 +110,8 @@ void main()
     vTexCoord = uvFromTextureIndex(textureIdx, cornerIdx);
     vTint = isTinted ? sampleColorMap(humidity, temperature) : vec3(1.0);
     vAO = AO_LEVELS[aoValue];
-    vFragPosLightSpace = lightSpaceMatrix * model * vec4(facePos, 1.0);
+    vFragPosWorld = model * vec4(facePos, 1.0);
+    vViewDepth = -(view * model * vec4(facePos, 1.0)).z;
 
     gl_Position = projection * view * model * vec4(facePos, 1.0);
 }

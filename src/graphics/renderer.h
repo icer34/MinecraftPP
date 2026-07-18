@@ -9,7 +9,7 @@
 class World;
 class Camera;
 class Window;
-class ShadowMap;
+class CascadedShadowMap;
 class Shader;
 
 class Renderer
@@ -39,7 +39,7 @@ class Renderer
 
     std::unique_ptr<Shader> m_blockShader;
     std::unique_ptr<Shader> m_depthShader;
-    std::unique_ptr<ShadowMap> m_shadowMap;
+    std::unique_ptr<CascadedShadowMap> m_shadowMap;
 
     Texture m_blockTintTexture;
 

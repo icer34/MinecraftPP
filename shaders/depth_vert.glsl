@@ -39,5 +39,5 @@ void main()
     vec3 chunkPos = vec3(float(chunkX), float(chunkY), float(chunkZ));
     vec3 facePos = chunkPos + FACE_CORNER_OFFSET[normalIdx * 4u + cornerIdx];
 
-    gl_Position = lightSpaceMatrix * model * vec4(facePos, 1.0);
+    gl_Position = model * vec4(facePos, 1.0);
 }

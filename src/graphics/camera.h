@@ -17,6 +17,10 @@ class Camera
     glm::vec3 getFront() const { return m_front; }
     glm::vec3 getRight() const { return m_right; }
     glm::vec3 getUp() const { return m_up; }
+    float getFOV() const { return m_fovDeg; }
+    float getAspectRatio() const { return m_aspectRatio; }
+    float getZNear() const { return m_zNear; }
+    float getZFar() const { return m_zFar; }
 
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix() const;

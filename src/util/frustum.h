@@ -50,6 +50,27 @@ class Frustum
         m_far = Plane::fromCoefficients(row3 - row2);
     }
 
+    bool isChunkInside(const ChunkCoord coord)
+    {
+        glm::vec3 minBox = glm::vec3(coord.x * Chunk::SIZE, 0.0f, coord.z * Chunk::SIZE);
+        glm::vec3 maxBox
+            = glm::vec3((coord.x + 1) * Chunk::SIZE, Chunk::HEIGHT, (coord.z + 1) * Chunk::SIZE);
+
+        for (const Plane &plane : planes())
+        {
+            // the AABB corner furthest along the plane's normal -- if even that corner is
+            // outside (behind) the plane, the whole box is outside it, so it can't be visible
+            glm::vec3 positiveVertex(plane.normal.x >= 0.0f ? maxBox.x : minBox.x,
+                                     plane.normal.y >= 0.0f ? maxBox.y : minBox.y,
+                                     plane.normal.z >= 0.0f ? maxBox.z : minBox.z);
+
+            if (glm::dot(plane.normal, positiveVertex) + plane.dist < 0.0f)
+                return false;
+        }
+
+        return true;
+    }
+
     Plane getPlane(FrustumPlane planeDir)
     {
         switch (planeDir)

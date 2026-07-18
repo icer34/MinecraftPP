@@ -1,6 +1,6 @@
 - [ ] player -> item system
 - [ ] hud rendering
 - [ ] lighting
-  - [ ] base lighting -> AO + diffuse/ambient
-  - [ ] shadow mapping
+  - [ ] cascaded shadow maps - CSM
+  - [ ] screen space ambient occlusion - SSAO
   - [ ] water shading
