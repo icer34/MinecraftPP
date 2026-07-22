@@ -78,14 +78,17 @@ add_library(glad STATIC
 )
 target_include_directories(glad PUBLIC libs/glad/include)
 
-# ─── Exécutable principal ─────────────────────────────────────────────────────
+# ─── engine_lib (toute la logique du jeu, sans le point d'entrée) ────────────
+# séparée de l'exécutable principal pour qu'un autre binaire (tests/) puisse
+# linker dessus et appeler des fonctions individuelles sans passer par main()
 file(GLOB_RECURSE MINECRAFTPP_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+list(REMOVE_ITEM MINECRAFTPP_SOURCES "${CMAKE_SOURCE_DIR}/src/main.cpp")
 
-add_executable(${PROJECT_NAME}
+add_library(engine_lib STATIC
     ${MINECRAFTPP_SOURCES}
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(engine_lib PUBLIC
     src
     libs/glad/include
     ${glfw_SOURCE_DIR}/include
@@ -96,7 +99,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${stb_SOURCE_DIR}
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
+target_link_libraries(engine_lib PUBLIC
     glad
     glfw
     glm::glm
@@ -104,8 +107,37 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     implot
 )
 
-# S'assure qu'imgui/implot sont compilés avant MinecraftPP
-add_dependencies(${PROJECT_NAME} imgui implot)
+# S'assure qu'imgui/implot sont compilés avant engine_lib
+add_dependencies(engine_lib imgui implot)
+
+# ─── Exécutable principal ─────────────────────────────────────────────────────
+add_executable(${PROJECT_NAME}
+    src/main.cpp
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    engine_lib
+)
+
+# ─── Exécutable de tests ──────────────────────────────────────────────────────
+# main() séparé : #include n'importe quel header de src/ pour tester des
+# fonctions individuellement, sans passer par le main() du jeu ni ouvrir de fenêtre
+file(GLOB_RECURSE MINECRAFTPP_TEST_SOURCES CONFIGURE_DEPENDS "tests/*.cpp")
+
+add_executable(tests
+    ${MINECRAFTPP_TEST_SOURCES}
+)
+
+target_link_libraries(tests PRIVATE
+    engine_lib
+)
+
+# expose la racine du projet en macro pour que les tests puissent écrire/lire
+# des fichiers à un endroit fixe, peu importe le working directory courant
+# (celui-ci dépend de comment l'exe est lancé -- VS Code, terminal, etc.)
+target_compile_definitions(tests PRIVATE
+    PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}"
+)
 
 # Copie les shaders/assets dans le répertoire de build -- cible séparée avec ALL pour
 # qu'elle tourne à chaque build, pas seulement quand MinecraftPP doit être relinké
@@ -115,6 +147,11 @@ add_custom_target(copy_runtime_files ALL
         ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/assets  $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
-    COMMENT "Copying shaders and assets to build output directory"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:tests>/shaders
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/assets  $<TARGET_FILE_DIR:tests>/assets
+    COMMENT "Copying shaders and assets to build output directories"
 )
 add_dependencies(${PROJECT_NAME} copy_runtime_files)
+add_dependencies(tests copy_runtime_files)

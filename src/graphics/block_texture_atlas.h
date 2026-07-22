@@ -21,10 +21,9 @@ class BlockTextureAtlas
 
   private:
     static constexpr int TEXTURE_SIZE = 16;
-    // 1px border duplicated around each tile so mipmap generation blends a tile with itself
-    // at its edges instead of bleeding into the neighboring tile (atlas cells are packed with
-    // no gap otherwise). must match vertex.glsl's CELL_STRIDE_UV/CELL_PADDING_UV/CELL_CONTENT_UV.
-    static constexpr int PADDING = 1;
+    static constexpr int MIPMAP_LEVELS = 5;
+    // must match vertex.glsl's CELL_STRIDE_UV/CELL_PADDING_UV/CELL_CONTENT_UV.
+    static constexpr int PADDING = 1 << (MIPMAP_LEVELS - 1);
     static constexpr int CELL_STRIDE = TEXTURE_SIZE + 2 * PADDING;
     static constexpr int ATLAS_COLUMNS = 64;
     static constexpr int ATLAS_SIZE = ATLAS_COLUMNS * CELL_STRIDE;
@@ -37,3 +36,10 @@ class BlockTextureAtlas
     BlockTextureAtlas(BlockTextureAtlas &registry) = delete;
     BlockTextureAtlas &operator=(const BlockTextureAtlas &) = delete;
 };
+/**
+ * @brief downsamoples an texture of size WxW to a new texture of size (W/2)x(W/2)
+ * where each pixel is the average of the 4 corresponding pixels in the starting texture.
+ *
+ * @param buff raw texture buffered data (straight from stbi_load)
+ */
+std::vector<unsigned char> downsample(const std::vector<unsigned char> &src, int w, int h);

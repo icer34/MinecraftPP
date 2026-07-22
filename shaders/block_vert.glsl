@@ -62,9 +62,9 @@ const vec2 CORNER_UV[4] = vec2[4](
 // border duplicated around the real TEXTURE_SIZE (16px) texture -- sample only the inner
 // content region so filtering/mipmapping never reaches into the neighboring cell.
 const uint ATLAS_COLUMNS = 64u;
-const float ATLAS_SIZE = 1152.0;
-const float CELL_STRIDE_UV = 18.0 / ATLAS_SIZE;
-const float CELL_PADDING_UV = 1.0 / ATLAS_SIZE;
+const float ATLAS_SIZE = 3072.0;
+const float CELL_STRIDE_UV = 48.0 / ATLAS_SIZE;
+const float CELL_PADDING_UV = 16.0 / ATLAS_SIZE;
 const float CELL_CONTENT_UV = 16.0 / ATLAS_SIZE;
 
 vec2 uvFromTextureIndex(uint textureIdx, uint cornerIdx)
