@@ -14,6 +14,13 @@ enum class Direction : uint8_t
     BOTTOM     //  -y
 };
 
+enum class Axis : uint8_t
+{
+    X = 0,
+    Y,
+    Z
+};
+
 constexpr std::array<glm::ivec3, 6> DIRECTION_VECTORS = {{
     {0, 0, -1}, // north
     {0, 0, 1},  // south
@@ -35,5 +42,5 @@ constexpr std::array<Direction, 6> ALL_DIRECTIONS = {Direction::NORTH,
                                                      Direction::TOP,
                                                      Direction::BOTTOM};
 
-constexpr std::array<Direction, 4> CARDINAL_DIRECTIONS = {
-    Direction::NORTH, Direction::SOUTH, Direction::EAST, Direction::WEST};
+constexpr std::array<Direction, 4> CARDINAL_DIRECTIONS
+    = {Direction::NORTH, Direction::SOUTH, Direction::EAST, Direction::WEST};

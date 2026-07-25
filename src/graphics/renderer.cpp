@@ -192,9 +192,10 @@ glm::mat4 getLightVPMatrix(const glm::vec3 &lightDir,
 }
 } // namespace
 
-Renderer::Renderer(const Window &window)
+Renderer::Renderer(const Window &window, const World &world)
     : m_blockTintTexture(Texture("assets/textures/colormap/vanilla/grass.png")),
-      m_window(window)
+      m_window(window),
+      m_world(world)
 {
     auto &textureAtlas = BlockTextureAtlas::instance();
     textureAtlas.loadAllTextures();
@@ -246,11 +247,11 @@ Renderer::Renderer(const Window &window)
 
 Renderer::~Renderer() = default;
 
-void Renderer::renderWorld(const World &world, const Camera &cam)
+void Renderer::renderWorld(const Camera &cam)
 {
-    Frustum frustum = Frustum(cam);
+    Frustum frustum = Frustum(cam, m_window.getAspectRatio());
 
-    m_loadedChunks = world.getChunks().size();
+    m_loadedChunks = m_world.getChunks().size();
     m_camPos = cam.getPos();
 
     //* ========== FIRST PASS - SHADOW PASS ==========
@@ -283,7 +284,7 @@ void Renderer::renderWorld(const World &world, const Camera &cam)
         glm::mat4 lightVPMatrix = getLightVPMatrix(m_lightDir,
                                                    cam.getViewMatrix(),
                                                    cam.getFOV(),
-                                                   cam.getAspectRatio(),
+                                                   m_window.getAspectRatio(),
                                                    splitNear,
                                                    splitFar * 1.1f);
         m_shadowMap->updateLightVPMatrix(i, lightVPMatrix);
@@ -294,7 +295,7 @@ void Renderer::renderWorld(const World &world, const Camera &cam)
     glClear(GL_DEPTH_BUFFER_BIT);
     m_depthShader->use();
     m_depthShader->setMat4Array("lightSpaceMatrices", m_shadowMap->getLightVPMatrices());
-    for (auto &mesh : world.getChunkMeshes())
+    for (auto &mesh : m_world.getChunkMeshes())
     {
         ChunkCoord coord = mesh->getCoords();
 
@@ -314,7 +315,7 @@ void Renderer::renderWorld(const World &world, const Camera &cam)
 
     m_blockShader->use();
     m_blockShader->setMat4("view", cam.getViewMatrix());
-    m_blockShader->setMat4("projection", cam.getProjectionMatrix());
+    m_blockShader->setMat4("projection", cam.getProjectionMatrix(m_window.getAspectRatio()));
     m_blockShader->setMat4Array("lightSpaceMatrices", m_shadowMap->getLightVPMatrices());
     m_blockShader->setFloatArray("cutoffDist", m_shadowMap->getCutoffDists());
 
@@ -331,7 +332,7 @@ void Renderer::renderWorld(const World &world, const Camera &cam)
     m_blockShader->setInt("shadowMap", 2);
 
     m_renderedChunks = 0;
-    for (auto &mesh : world.getChunkMeshes())
+    for (auto &mesh : m_world.getChunkMeshes())
     {
         ChunkCoord coord = mesh->getCoords();
 
@@ -351,6 +352,12 @@ void Renderer::beginUI()
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+}
+
+void Renderer::endUI()
+{
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
 void Renderer::renderDebug(float dt)
@@ -379,49 +386,60 @@ void Renderer::renderDebug(float dt)
 
 void Renderer::renderSettings()
 {
-    //* ===== TERRAIN GENERATION DEBUG =====
-    ImGui::Begin("Terrain Generation Debug");
+    ImGui::Begin("Settings");
+    ImGui::BeginTabBar("##settings");
 
-    std::string noiseNames[5]{
-        "Continentalness", "Erosion", "Peaks & Valleys", "Temperature", "Humidity"};
-    for (size_t i = 0; i < m_noiseTextures.size(); i++)
+    if (ImGui::BeginTabItem("Terrain Generation"))
     {
+        std::string noiseNames[5]{
+            "Continentalness", "Erosion", "Peaks & Valleys", "Temperature", "Humidity"};
+        for (size_t i = 0; i < m_noiseTextures.size(); i++)
+        {
+            if (i != 0)
+                ImGui::SameLine();
+
+            ImGui::BeginChild(noiseNames[i].c_str(), ImVec2(256, 280));
+            ImGui::Text("%s - 1024x1024 blocks", noiseNames[i].c_str());
+            ImGui::Image((ImTextureID)(intptr_t)m_noiseTextures[i].getID(), ImVec2(256, 256));
+            ImGui::EndChild();
+        }
+
+        std::string splineNames[3]{"Continentalness", "Erosion", "Peaks & Valleys"};
+        plotSpline(
+            *m_terrainGenSplines[0],
+            splineNames[0].c_str(),
+            ImVec2(450, 300),
+            "Base terrain height from the overall land shape (ocean vs. plains vs. mountains).");
         ImGui::SameLine();
+        plotSpline(
+            *m_terrainGenSplines[1],
+            splineNames[1].c_str(),
+            ImVec2(450, 300),
+            "0..1 factor: how much Peaks & Valleys is allowed to pull the terrain away from the "
+            "Continentalness base height (0 = flat, 1 = full jaggedness).");
+        ImGui::SameLine();
+        plotSpline(*m_terrainGenSplines[2],
+                   splineNames[2].c_str(),
+                   ImVec2(450, 300),
+                   "Raw peaks/valleys shape, blended in according to the Erosion factor.");
 
-        ImGui::BeginChild(noiseNames[i].c_str(), ImVec2(256, 280));
-        ImGui::Text("%s - 1024x1024 blocks", noiseNames[i].c_str());
-        ImGui::Image((ImTextureID)(intptr_t)m_noiseTextures[i].getID(), ImVec2(256, 256));
-        ImGui::EndChild();
+        if (ImGui::Button("Regenerate"))
+        {
+            m_shouldRegenerateWorld = true;
+        }
+
+        ImGui::EndTabItem();
     }
 
-    std::string splineNames[3]{"Continentalness", "Erosion", "Peaks & Valleys"};
-    plotSpline(*m_terrainGenSplines[0],
-               splineNames[0].c_str(),
-               ImVec2(400, 300),
-               "Base terrain height from the overall land shape (ocean vs. plains vs. mountains).");
-    ImGui::SameLine();
-    plotSpline(*m_terrainGenSplines[1],
-               splineNames[1].c_str(),
-               ImVec2(400, 300),
-               "0..1 factor: how much Peaks & Valleys is allowed to pull the terrain away from the "
-               "Continentalness base height (0 = flat, 1 = full jaggedness).");
-    ImGui::SameLine();
-    plotSpline(*m_terrainGenSplines[2],
-               splineNames[2].c_str(),
-               ImVec2(400, 300),
-               "Raw peaks/valleys shape, blended in according to the Erosion factor.");
-
-    if (ImGui::Button("Regenerate"))
+    if (ImGui::BeginTabItem("Graphics"))
     {
-        m_shouldRegenerateWorld = true;
-    }
-    ImGui::End();
-}
+        ImGui::Text("graphics settings");
 
-void Renderer::endUI()
-{
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ImGui::EndTabItem();
+    }
+
+    ImGui::EndTabBar();
+    ImGui::End();
 }
 
 void Renderer::updateFPS(float dt)

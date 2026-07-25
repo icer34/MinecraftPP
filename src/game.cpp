@@ -6,10 +6,10 @@
 #include "util/key_codes.h"
 
 Game::Game()
-    : m_window(1600, 900, "MinecraftPP", false),
-      m_camera(glm::vec3(0.0f, 110.0f, 3.0f), m_window.getAspectRatio()),
+    : m_window(1600, 900, "MinecraftPP", true),
+      m_player(glm::vec3(0.5f, 110.0f, 3.2f)),
       m_world(World(67)),
-      m_renderer(Renderer(m_window))
+      m_renderer(Renderer(m_window, m_world))
 {
     // register all blocks
     Blocks::registerAll();
@@ -47,43 +47,47 @@ void Game::processInput()
 
     if (!m_window.isCursorEnabled())
     {
+        glm::vec3 moveInput{0.0f};
+        bool jumpPressed = false;
+
         if (m_window.isKeyPressed(Key::W))
         {
-            m_camera.move(m_camera.getFront(), m_dt);
+            moveInput += m_player.getFront();
         }
         if (m_window.isKeyPressed(Key::A))
         {
-            m_camera.move(-m_camera.getRight(), m_dt);
+            moveInput -= m_player.getRight();
         }
         if (m_window.isKeyPressed(Key::S))
         {
-            m_camera.move(-m_camera.getFront(), m_dt);
+            moveInput -= m_player.getFront();
         }
         if (m_window.isKeyPressed(Key::D))
         {
-            m_camera.move(m_camera.getRight(), m_dt);
+            moveInput += m_player.getRight();
         }
         if (m_window.isKeyPressed(Key::Space))
         {
-            m_camera.move(glm::vec3(0.0f, 1.0f, 0.0f), m_dt);
-        }
-        if (m_window.isKeyPressed(Key::LCtrl))
-        {
-            m_camera.move(glm::vec3(0.0f, -1.0f, 0.0f), m_dt);
+            jumpPressed = true;
         }
         if (m_window.consumeKeyPress(Key::F3))
         {
             m_showDebug = !m_showDebug;
         }
 
+        moveInput.y = 0.0f;
+        if (glm::length(moveInput) > 0.0f)
+            moveInput = glm::normalize(moveInput);
+        m_player.setMoveInput(moveInput, jumpPressed);
+
         float dx = (float)m_window.consumeDx();
         float dy = (float)m_window.consumeDy();
-        m_camera.rotate(dx, dy);
+        m_player.rotateCam(dx, dy);
 
         float scroll = (float)m_window.consumeScroll();
         if (scroll != 0.0f)
         {
-            m_camera.zoom(scroll);
+            m_player.zoomCam(scroll);
         }
     }
     else
@@ -101,7 +105,9 @@ void Game::update(float dt)
         m_world.regenerate();
     }
 
-    m_world.update(m_camera.getPos(), dt);
+    m_player.update(dt, m_world);
+
+    m_world.update(m_player.getPos(), dt);
 }
 
 void Game::render(float dt)
@@ -110,7 +116,7 @@ void Game::render(float dt)
     m_renderer.updateFPS(dt);
 
     // render the 3D world (terrain)
-    m_renderer.renderWorld(m_world, m_camera);
+    m_renderer.renderWorld(m_player.getCam());
 
     // render UI
     m_renderer.beginUI();

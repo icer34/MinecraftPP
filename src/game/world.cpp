@@ -46,7 +46,7 @@ ChunkBuildResult buildChunk(ChunkCoord coord,
 } // namespace
 
 World::World(unsigned long seed)
-    : m_threadPool(ThreadPool(10)),
+    : m_threadPool(ThreadPool(15)),
       m_seed(seed)
 {
     TerrainGenerator::instance().setSeed(m_seed);
@@ -168,6 +168,24 @@ void World::regenerate()
 {
     m_chunks.clear();
     m_meshes.clear();
+}
+
+bool World::isBlockSolid(glm::vec3 wPos)
+{
+    if (wPos.y < 0 || wPos.y >= Chunk::HEIGHT)
+        return false;
+
+    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE),
+                     (int)floor((float)wPos.z / Chunk::SIZE)};
+
+    auto it = m_chunks.find(coord);
+    if (it == m_chunks.end())
+        return true; // chunk not loaded yet
+
+    int lx = wPos.x - coord.x * Chunk::SIZE;
+    int lz = wPos.z - coord.z * Chunk::SIZE;
+    uint16_t blockID = it->second->getBlock(lx, wPos.y, lz);
+    return BlockRegistry::instance().get(blockID).isSolid;
 }
 
 std::vector<Chunk *> World::getChunks() const

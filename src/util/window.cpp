@@ -62,6 +62,8 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
     int fbWidth, fbHeight;
     glfwGetFramebufferSize(m_window, &fbWidth, &fbHeight);
     glViewport(0, 0, fbWidth, fbHeight);
+    m_width = fbWidth;
+    m_height = fbHeight;
 
     // IMGUI setup
     IMGUI_CHECKVERSION();

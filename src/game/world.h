@@ -29,11 +29,13 @@ class World
     void update(glm::vec3 playerPos, float dt);
     void regenerate();
 
+    bool isBlockSolid(glm::vec3 wPos);
+
     std::vector<ChunkMesh *> getChunkMeshes() const;
     std::vector<Chunk *> getChunks() const;
 
   private:
-    static constexpr int RENDER_DISTANCE = 20;
+    static constexpr int RENDER_DISTANCE = 10;
     static constexpr int LOAD_DISTANCE = RENDER_DISTANCE + 1;
 
     unsigned long m_seed;

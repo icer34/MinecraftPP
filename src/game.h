@@ -1,7 +1,7 @@
 #pragma once
 
+#include "game/player.h"
 #include "game/world.h"
-#include "graphics/camera.h"
 #include "graphics/renderer.h"
 #include "util/window.h"
 
@@ -14,7 +14,7 @@ class Game
 
   private:
     Window m_window;
-    Camera m_camera;
+    Player m_player;
     World m_world;
     Renderer m_renderer;
 

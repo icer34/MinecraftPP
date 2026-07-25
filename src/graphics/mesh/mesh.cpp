@@ -40,6 +40,9 @@ void Mesh::update(const MeshData &data)
 
 void Mesh::draw()
 {
+    if (m_nIdx == 0)
+        return;
+
     glBindVertexArray(m_vao);
     glDrawElements(GL_TRIANGLES, m_nIdx, GL_UNSIGNED_INT, 0);
 }

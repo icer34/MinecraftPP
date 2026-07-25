@@ -5,7 +5,7 @@
 #include <glm/gtc/matrix_access.hpp>
 #include <vector>
 
-#include "camera.h"
+#include "graphics/camera.h"
 
 struct Plane
 {
@@ -33,9 +33,9 @@ enum class FrustumPlane : uint8_t
 class Frustum
 {
   public:
-    Frustum(const Camera &cam)
+    Frustum(const Camera &cam, float aspectRatio)
     {
-        glm::mat4 m = cam.getProjectionMatrix() * cam.getViewMatrix();
+        glm::mat4 m = cam.getProjectionMatrix(aspectRatio) * cam.getViewMatrix();
 
         glm::vec4 row0 = glm::row(m, 0);
         glm::vec4 row1 = glm::row(m, 1);
