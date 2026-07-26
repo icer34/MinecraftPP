@@ -21,6 +21,11 @@
 #include "util/perlin_noise.h"
 #include "util/window.h"
 
+using glm::mat4;
+using glm::vec2;
+using glm::vec3;
+using glm::vec4;
+
 namespace
 {
 void helpMarker(const char *desc)
@@ -38,8 +43,8 @@ void helpMarker(const char *desc)
 
 void plotSpline(Spline &spline, const char *label, ImVec2 size, const char *description = nullptr)
 {
-    glm::vec2 xBounds = spline.getXBounds();
-    glm::vec2 yBounds = spline.getYBounds();
+    vec2 xBounds = spline.getXBounds();
+    vec2 yBounds = spline.getYBounds();
 
     std::string childLabel = std::string(label) + "##spline";
 
@@ -112,41 +117,40 @@ void plotSpline(Spline &spline, const char *label, ImVec2 size, const char *desc
     ImGui::EndChild();
 }
 
-glm::mat4 getLightVPMatrix(const glm::vec3 &lightDir,
-                           const glm::mat4 &camView,
-                           const float fov,
-                           const float aspectRatio,
-                           float zNear,
-                           float zFar)
+mat4 getLightVPMatrix(const vec3 &lightDir,
+                      const mat4 &camView,
+                      const float fov,
+                      const float aspectRatio,
+                      float zNear,
+                      float zFar)
 {
     auto camProj = glm::perspective(glm::radians(fov), aspectRatio, zNear, zFar);
 
     auto inv = glm::inverse(camProj * camView);
 
-    std::vector<glm::vec4> frustumCornersWorld;
+    std::vector<vec4> frustumCornersWorld;
     for (int x = 0; x < 2; x++)
     {
         for (int y = 0; y < 2; y++)
         {
             for (int z = 0; z < 2; z++)
             {
-                glm::vec4 point
-                    = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
+                vec4 point = inv * vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
                 frustumCornersWorld.push_back(point / point.w);
             }
         }
     }
 
     // get the center of the frustum for the viewMatrix center
-    glm::vec3 center = glm::vec3(0.0, 0.0, 0.0);
+    vec3 center = vec3(0.0, 0.0, 0.0);
     for (const auto &corner : frustumCornersWorld)
     {
-        center += glm::vec3(corner);
+        center += vec3(corner);
     }
     center /= frustumCornersWorld.size();
 
     // get the lightView matrix
-    glm::mat4 lightView = glm::lookAt(center - lightDir, center, glm::vec3(0.0f, 1.0f, 0.0f));
+    mat4 lightView = glm::lookAt(center - lightDir, center, vec3(0.0f, 1.0f, 0.0f));
 
     // get the limits of the box in the light space to get the left/right top/bottom near/far args
     // for the orthogonal projection
@@ -186,14 +190,14 @@ glm::mat4 getLightVPMatrix(const glm::vec3 &lightDir,
         maxZ *= zMult;
     }
 
-    glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
+    mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 
     return lightProjection * lightView;
 }
 } // namespace
 
 Renderer::Renderer(const Window &window, const World &world)
-    : m_blockTintTexture(Texture("assets/textures/colormap/vanilla/grass.png")),
+    : m_blockTintTexture(Texture("assets/textures/colormap/grass.png")),
       m_window(window),
       m_world(world)
 {
@@ -281,12 +285,12 @@ void Renderer::renderWorld(const Camera &cam)
         m_shadowMap->updateCutoffDist(i, splitFar);
 
         // compute the light VP matrix for that cascade
-        glm::mat4 lightVPMatrix = getLightVPMatrix(m_lightDir,
-                                                   cam.getViewMatrix(),
-                                                   cam.getFOV(),
-                                                   m_window.getAspectRatio(),
-                                                   splitNear,
-                                                   splitFar * 1.1f);
+        mat4 lightVPMatrix = getLightVPMatrix(m_lightDir,
+                                              cam.getViewMatrix(),
+                                              cam.getFOV(),
+                                              m_window.getAspectRatio(),
+                                              splitNear,
+                                              splitFar * 1.1f);
         m_shadowMap->updateLightVPMatrix(i, lightVPMatrix);
     }
 
@@ -302,8 +306,7 @@ void Renderer::renderWorld(const Camera &cam)
         if (!frustum.isChunkInside(coord))
             continue;
 
-        glm::mat4 model = glm::translate(glm::mat4(1.0f),
-                                         glm::vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
+        mat4 model = glm::translate(mat4(1.0f), vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
         m_depthShader->setMat4("model", model);
         mesh->draw();
     }
@@ -339,8 +342,7 @@ void Renderer::renderWorld(const Camera &cam)
         if (!frustum.isChunkInside(coord))
             continue;
 
-        glm::mat4 model = glm::translate(glm::mat4(1.0f),
-                                         glm::vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
+        mat4 model = glm::translate(mat4(1.0f), vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
         m_blockShader->setMat4("model", model);
         mesh->draw();
         m_renderedChunks++;

@@ -9,6 +9,9 @@
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 
+using glm::mat4;
+using glm::vec3;
+
 Shader::Shader(const char *vertPath, const char *fragPath)
 {
     // load the shader file contents
@@ -147,7 +150,7 @@ void Shader::addGeometryShader(const char *path)
 
 void Shader::use() { glUseProgram(m_programID); }
 
-void Shader::setMat4(const std::string &name, glm::mat4 mat)
+void Shader::setMat4(const std::string &name, mat4 mat)
 {
     int loc = glGetUniformLocation(m_programID, name.c_str());
     if (loc == -1)
@@ -158,7 +161,7 @@ void Shader::setMat4(const std::string &name, glm::mat4 mat)
     glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(mat));
 }
 
-void Shader::setMat4Array(const std::string &name, const std::vector<glm::mat4> &value)
+void Shader::setMat4Array(const std::string &name, const std::vector<mat4> &value)
 {
     std::string locName = name + "[0]";
     int loc = glGetUniformLocation(m_programID, locName.c_str());
@@ -170,7 +173,7 @@ void Shader::setMat4Array(const std::string &name, const std::vector<glm::mat4> 
     glUniformMatrix4fv(loc, value.size(), GL_FALSE, glm::value_ptr(value[0]));
 }
 
-void Shader::setVec3(const std::string &name, glm::vec3 value)
+void Shader::setVec3(const std::string &name, vec3 value)
 {
     int loc = glGetUniformLocation(m_programID, name.c_str());
     if (loc == -1)

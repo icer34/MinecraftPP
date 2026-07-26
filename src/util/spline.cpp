@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <iostream>
 
+using glm::vec2;
+
 Spline::Spline(float xMin, float xMax, float yMin, float yMax)
 {
-    m_xBounds = glm::vec2(xMin, xMax);
-    m_yBounds = glm::vec2(yMin, yMax);
+    m_xBounds = vec2(xMin, xMax);
+    m_yBounds = vec2(yMin, yMax);
     addPoint(xMin, (yMin + yMax) / 2.0f);
     addPoint(xMax, (yMin + yMax) / 2.0f);
 }

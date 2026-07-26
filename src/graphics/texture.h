@@ -8,7 +8,7 @@
 
 class Texture
 {
-  public:
+public:
     Texture() = default;
 
     // loads a PNG/JPG file from disk, always as RGBA
@@ -55,7 +55,22 @@ class Texture
 
     unsigned int getID() const { return m_id; }
 
-  private:
+    void addSubImage(int x, int y, int w, int h, unsigned char *data, GLenum format = GL_RGBA)
+    {
+        glBindTexture(GL_TEXTURE_2D, m_id);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, format, GL_UNSIGNED_BYTE, data);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    void setFilters(GLenum minFilter, GLenum magFilter)
+    {
+        glBindTexture(GL_TEXTURE_2D, m_id);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+private:
     unsigned int m_id;
 
     void

@@ -5,9 +5,11 @@
 #include "game/blocks.h"
 #include "util/key_codes.h"
 
+using glm::vec3;
+
 Game::Game()
-    : m_window(1600, 900, "MinecraftPP", true),
-      m_player(glm::vec3(0.5f, 110.0f, 3.2f)),
+    : m_window(1600, 900, "MinecraftPP", false),
+      m_player(vec3(0.5f, 110.0f, 3.2f)),
       m_world(World(67)),
       m_renderer(Renderer(m_window, m_world))
 {
@@ -47,7 +49,7 @@ void Game::processInput()
 
     if (!m_window.isCursorEnabled())
     {
-        glm::vec3 moveInput{0.0f};
+        vec3 moveInput{0.0f};
         bool jumpPressed = false;
 
         if (m_window.isKeyPressed(Key::W))

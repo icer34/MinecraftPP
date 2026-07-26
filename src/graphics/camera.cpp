@@ -3,7 +3,10 @@
 #include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 
-Camera::Camera(glm::vec3 position)
+using glm::mat4;
+using glm::vec3;
+
+Camera::Camera(vec3 position)
     : m_pos(position),
       m_worldUp(0.0f, 1.0f, 0.0f),
       m_yaw(-90.0f),
@@ -16,14 +19,14 @@ Camera::Camera(glm::vec3 position)
     updateVectors();
 }
 
-glm::mat4 Camera::getViewMatrix() const { return glm::lookAt(m_pos, m_pos + m_front, m_up); }
+mat4 Camera::getViewMatrix() const { return glm::lookAt(m_pos, m_pos + m_front, m_up); }
 
-glm::mat4 Camera::getProjectionMatrix(float aspectRatio) const
+mat4 Camera::getProjectionMatrix(float aspectRatio) const
 {
     return glm::perspective(glm::radians(m_fovDeg), aspectRatio, m_zNear, m_zFar);
 }
 
-void Camera::move(glm::vec3 delta) { m_pos += delta; }
+void Camera::move(vec3 delta) { m_pos += delta; }
 
 void Camera::rotate(float xOffset, float yOffset)
 {
@@ -45,7 +48,7 @@ void Camera::zoom(float scrollOffset)
 
 void Camera::updateVectors()
 {
-    glm::vec3 front;
+    vec3 front;
     front.x = cos(glm::radians(m_yaw)) * cos(glm::radians(m_pitch));
     front.y = sin(glm::radians(m_pitch));
     front.z = sin(glm::radians(m_yaw)) * cos(glm::radians(m_pitch));

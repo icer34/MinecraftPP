@@ -5,10 +5,13 @@
 
 #include <glm/glm.hpp>
 
+using glm::ivec2;
+using glm::ivec3;
+
 // (u_sign, v_sign) of each corner along a face's tangent axes -- same order/meaning
 // as the Corner enum, and the same for every face direction (only the tangent axes
 // themselves, picked in getTangentAxes(), differ per direction).
-static constexpr std::array<glm::ivec2, 4> CORNER_SIGNS = {{
+static constexpr std::array<ivec2, 4> CORNER_SIGNS = {{
     {-1, -1}, // BOTTOM_LEFT
     {-1, 1},  // TOP_LEFT
     {1, 1},   // TOP_RIGHT
@@ -17,7 +20,7 @@ static constexpr std::array<glm::ivec2, 4> CORNER_SIGNS = {{
 
 // the two axes that span a face's plane (perpendicular to its normal), used to walk
 // towards a corner from the face's center when sampling AO neighbors.
-static void getTangentAxes(Direction dir, glm::ivec3 &uAxis, glm::ivec3 &vAxis)
+static void getTangentAxes(Direction dir, ivec3 &uAxis, ivec3 &vAxis)
 {
     switch (dir)
     {
@@ -78,8 +81,8 @@ void ChunkMesher::mesh(const Chunk &chunk,
 
                 for (Direction dir : ALL_DIRECTIONS)
                 {
-                    glm::ivec3 offset = getDirectionVector(dir);
-                    glm::ivec3 neighborPos = glm::ivec3(x, y, z) + offset;
+                    ivec3 offset = getDirectionVector(dir);
+                    ivec3 neighborPos = ivec3(x, y, z) + offset;
 
                     auto neighborChunkDir = posInChunk(neighborPos.x, neighborPos.y, neighborPos.z);
                     uint16_t neighborBlockID = Blocks::AIR;
@@ -121,7 +124,7 @@ void ChunkMesher::mesh(const Chunk &chunk,
                                 humidity,
                                 temperature,
                                 dir,
-                                glm::ivec3(x, y, z),
+                                ivec3(x, y, z),
                                 chunk,
                                 neighbors,
                                 solidVert,
@@ -132,7 +135,7 @@ void ChunkMesher::mesh(const Chunk &chunk,
                                 humidity,
                                 temperature,
                                 dir,
-                                glm::ivec3(x, y, z),
+                                ivec3(x, y, z),
                                 chunk,
                                 neighbors,
                                 waterVert,
@@ -156,7 +159,7 @@ void ChunkMesher::addFace(const BlockType &block,
                           uint8_t humidity,
                           uint8_t temperature,
                           Direction dir,
-                          glm::ivec3 localPos,
+                          ivec3 localPos,
                           const Chunk &chunk,
                           std::array<const Chunk *, 4> neighbors,
                           std::vector<uint32_t> &vert,
@@ -222,15 +225,15 @@ std::optional<Direction> ChunkMesher::posInChunk(int x, int y, int z)
     return std::nullopt;
 }
 
-glm::ivec3 ChunkMesher::wrapCoords(int x, int y, int z)
+ivec3 ChunkMesher::wrapCoords(int x, int y, int z)
 {
     int newX = ((x % Chunk::SIZE) + Chunk::SIZE) % Chunk::SIZE;
     int newZ = ((z % Chunk::SIZE) + Chunk::SIZE) % Chunk::SIZE;
 
-    return glm::ivec3(newX, y, newZ);
+    return ivec3(newX, y, newZ);
 }
 
-bool ChunkMesher::isSolidNeighbor(glm::ivec3 pos,
+bool ChunkMesher::isSolidNeighbor(ivec3 pos,
                                   const Chunk &chunk,
                                   std::array<const Chunk *, 4> neighbors)
 {
@@ -251,7 +254,7 @@ bool ChunkMesher::isSolidNeighbor(glm::ivec3 pos,
     else
     {
         auto neighborChunkDir = posInChunk(pos.x, pos.y, pos.z);
-        glm::ivec3 wrapped = wrapCoords(pos.x, pos.y, pos.z);
+        ivec3 wrapped = wrapCoords(pos.x, pos.y, pos.z);
         const Chunk *neighborChunk = neighbors.at(static_cast<size_t>(neighborChunkDir.value()));
 
         if (neighborChunk == nullptr)
@@ -265,17 +268,17 @@ bool ChunkMesher::isSolidNeighbor(glm::ivec3 pos,
 
 uint8_t ChunkMesher::cornerAO(const Chunk &chunk,
                               std::array<const Chunk *, 4> neighbors,
-                              glm::ivec3 localPos,
+                              ivec3 localPos,
                               Direction dir,
                               Corner corner)
 {
-    glm::ivec3 normalOffset = getDirectionVector(dir);
+    ivec3 normalOffset = getDirectionVector(dir);
 
-    glm::ivec3 uAxis, vAxis;
+    ivec3 uAxis, vAxis;
     getTangentAxes(dir, uAxis, vAxis);
 
-    glm::ivec2 signs = CORNER_SIGNS[static_cast<size_t>(corner)];
-    glm::ivec3 tangentOffset = signs.x * uAxis + signs.y * vAxis;
+    ivec2 signs = CORNER_SIGNS[static_cast<size_t>(corner)];
+    ivec3 tangentOffset = signs.x * uAxis + signs.y * vAxis;
 
     bool side1 = isSolidNeighbor(localPos + normalOffset + signs.x * uAxis, chunk, neighbors);
     bool side2 = isSolidNeighbor(localPos + normalOffset + signs.y * vAxis, chunk, neighbors);

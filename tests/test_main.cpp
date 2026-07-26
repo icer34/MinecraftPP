@@ -11,50 +11,34 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#include "graphics/block_texture_atlas.h"
+#include "graphics/hud/hud_renderer.h"
 #include "util/window.h"
 
 int main()
 {
     // un Window suffit à obtenir un contexte GL valide (glad + GLFW), même si on
-    // n'affiche rien dedans -- BlockTextureAtlas a besoin de ce contexte pour
-    // pouvoir appeler glGenTextures/glTexImage2D etc.
-    Window window(400, 300, "Mipmap Debug", false);
+    // n'affiche rien dedans -- HudRenderer a besoin de ce contexte pour pouvoir
+    // appeler glGenTextures/glTexImage2D etc.
+    Window window(1600, 900, "Hud Atlas Debug", false);
 
-    auto &atlas = BlockTextureAtlas::instance();
-    atlas.loadAllTextures();
+    HudRenderer hud;
 
-    std::cout << "stone index: " << atlas.getIndex("stone") << std::endl;
-
-    glBindTexture(GL_TEXTURE_2D, atlas.getID());
-
-    int maxLevel = 0;
-    glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, &maxLevel);
-
-    for (int lvl = 0; lvl <= maxLevel; lvl++)
+    while (!window.shouldClose())
     {
-        int width = 0, height = 0;
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, lvl, GL_TEXTURE_WIDTH, &width);
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, lvl, GL_TEXTURE_HEIGHT, &height);
+        window.pollEvents();
+        glClear(GL_COLOR_BUFFER_BIT);
 
-        if (width == 0 || height == 0)
-        {
-            std::cout << "Level " << lvl << " is empty, stopping." << std::endl;
-            break;
-        }
+        hud.begin();
+        std::string text = "je m'appelle oumar et je suis noir";
+        float scale = 2.7f;
+        hud.drawQuad(glm::vec2(0.0f),
+                     glm::vec2(hud.textWidth(text) * scale, hud.TEXT_HEIGHT * scale),
+                     glm::vec4(0.5));
+        hud.drawText(text, glm::vec2(0.0f), scale, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+        hud.end(1600, 900);
 
-        std::vector<unsigned char> pixels(static_cast<size_t>(width) * height * 4);
-        glGetTexImage(GL_TEXTURE_2D, lvl, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-
-        std::string path
-            = std::string(PROJECT_ROOT_DIR) + "/atlas_mip" + std::to_string(lvl) + ".png";
-        stbi_write_png(path.c_str(), width, height, 4, pixels.data(), 0);
-
-        std::cout << "Wrote level " << lvl << " (" << width << "x" << height << ") to " << path
-                  << std::endl;
+        window.swapBuffers();
     }
-
-    glBindTexture(GL_TEXTURE_2D, 0);
 
     return 0;
 }

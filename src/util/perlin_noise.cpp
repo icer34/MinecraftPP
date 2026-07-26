@@ -4,6 +4,9 @@
 #include <cmath>
 #include <glm/glm.hpp>
 
+using glm::ivec2;
+using glm::vec2;
+
 constexpr float PI = 3.14159265358979323846f;
 
 PerlinNoise::PerlinNoise(const unsigned int seed)
@@ -45,15 +48,15 @@ float PerlinNoise::noise(float x, float y)
     int cellX = std::floor(x);
     int cellZ = std::floor(y);
 
-    std::array<glm::ivec2, 4> cellPoints{
-        glm::ivec2{cellX, cellZ},         // bot left
-        glm::ivec2{cellX, cellZ + 1},     // top left
-        glm::ivec2{cellX + 1, cellZ + 1}, // top right
-        glm::ivec2{cellX + 1, cellZ},     // bot right
+    std::array<ivec2, 4> cellPoints{
+        ivec2{cellX, cellZ},         // bot left
+        ivec2{cellX, cellZ + 1},     // top left
+        ivec2{cellX + 1, cellZ + 1}, // top right
+        ivec2{cellX + 1, cellZ},     // bot right
     };
 
-    std::array<glm::vec2, 4> gradients{};
-    std::array<glm::vec2, 4> directions{};
+    std::array<vec2, 4> gradients{};
+    std::array<vec2, 4> directions{};
     std::array<float, 4> dotProd{};
     for (size_t i = 0; i < 4; i++)
     {
@@ -63,10 +66,10 @@ float PerlinNoise::noise(float x, float y)
         float r = (h & 0x7fffffff) / (float)0x80000000;
 
         float a = 2.0f * (float)PI * r;
-        gradients[i] = glm::vec2{cos(a), sin(a)};
+        gradients[i] = vec2{cos(a), sin(a)};
 
         //* compute the direction from the cell point to the sampled point
-        directions[i] = glm::vec2{x - cellPoints[i].x, y - cellPoints[i].y};
+        directions[i] = vec2{x - cellPoints[i].x, y - cellPoints[i].y};
 
         //* compute the dot product of the direction with the random gradient
         dotProd[i] = glm::dot(gradients[i], directions[i]);

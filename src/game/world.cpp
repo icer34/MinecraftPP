@@ -5,6 +5,9 @@
 
 #include "util/directions.h"
 
+using glm::ivec3;
+using glm::vec3;
+
 namespace
 {
 //! Runs on a worker thread. Never touches World's shared maps -- everything it needs
@@ -52,7 +55,7 @@ World::World(unsigned long seed)
     TerrainGenerator::instance().setSeed(m_seed);
 }
 
-void World::update(glm::vec3 playerPos, float dt)
+void World::update(vec3 playerPos, float dt)
 {
     m_playerCoord
         = ChunkCoord{(int)floor(playerPos.x / Chunk::SIZE), (int)floor(playerPos.z / Chunk::SIZE)};
@@ -149,7 +152,7 @@ void World::update(glm::vec3 playerPos, float dt)
 
         for (Direction dir : CARDINAL_DIRECTIONS)
         {
-            glm::ivec3 offset = getDirectionVector(dir);
+            ivec3 offset = getDirectionVector(dir);
             ChunkCoord neighborCoord{coord.x + offset.x, coord.z + offset.z};
             if (m_chunks.contains(neighborCoord))
             {
@@ -170,7 +173,7 @@ void World::regenerate()
     m_meshes.clear();
 }
 
-bool World::isBlockSolid(glm::vec3 wPos)
+bool World::isBlockSolid(vec3 wPos)
 {
     if (wPos.y < 0 || wPos.y >= Chunk::HEIGHT)
         return false;
@@ -227,7 +230,7 @@ std::array<std::shared_ptr<const Chunk>, 4> World::copyNeighbors(ChunkCoord coor
 
     for (size_t i = 0; i < CARDINAL_DIRECTIONS.size(); i++)
     {
-        glm::ivec3 offset = getDirectionVector(CARDINAL_DIRECTIONS[i]);
+        ivec3 offset = getDirectionVector(CARDINAL_DIRECTIONS[i]);
         auto it = m_chunks.find(ChunkCoord{coord.x + offset.x, coord.z + offset.z});
         if (it != m_chunks.end())
         {

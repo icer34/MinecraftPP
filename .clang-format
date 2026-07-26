@@ -8,3 +8,4 @@ BinPackParameters: false
 PackConstructorInitializers: Never
 BreakBeforeBinaryOperators: All
 AlignOperands: AlignAfterOperator
+AccessModifierOffset: -4
