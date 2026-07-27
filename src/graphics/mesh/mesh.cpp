@@ -1,6 +1,7 @@
 #include "mesh.h"
 
 #include <glad/glad.h>
+#include <iostream>
 
 Mesh::Mesh()
 {

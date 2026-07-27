@@ -9,7 +9,7 @@ Player::Player(vec3 pos)
       Entity(pos, vec3(0.25f, 0.95f, 0.25f))
 {
     m_reach = 4.0f;
-    m_walkSpeed = 5.0f;
+    m_walkSpeed = 6.0f;
     m_flySpeed = 10.0f;
     m_gravity = 15.0f;
     m_jumpVel = 6.0f;

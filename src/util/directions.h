@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <glm/glm.hpp>
+#include <iostream>
 
 enum class Direction : uint8_t
 {
@@ -32,7 +33,8 @@ constexpr std::array<glm::ivec3, 6> DIRECTION_VECTORS = {{
 
 inline glm::ivec3 getDirectionVector(Direction dir)
 {
-    return DIRECTION_VECTORS[static_cast<size_t>(dir)];
+    size_t idx = static_cast<size_t>(dir);
+    return DIRECTION_VECTORS[idx];
 }
 
 constexpr std::array<Direction, 6> ALL_DIRECTIONS = {Direction::NORTH,

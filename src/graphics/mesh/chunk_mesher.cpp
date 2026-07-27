@@ -5,6 +5,8 @@
 
 #include <glm/glm.hpp>
 
+#include <iostream>
+
 using glm::ivec2;
 using glm::ivec3;
 

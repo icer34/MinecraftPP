@@ -41,7 +41,7 @@ const vec2 POISSON_DISK[16] = vec2[](
     vec2(0.14383161, -0.14100790));
 
 // PCF sample radius in texels -- how far the Poisson disk spreads, not how many samples.
-const float PCF_RADIUS = 1.5;
+const float PCF_RADIUS = 1.2;
 
 float random(vec2 seed)
 {

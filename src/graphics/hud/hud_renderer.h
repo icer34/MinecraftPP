@@ -34,6 +34,9 @@ public:
     /**
      * @param pos position of the top left corner
      * @param size width and height
+     *
+     * @brief !! every icon must be drawn with a size of at least its file size --> check assets
+     * folder if needed !!
      */
     void drawIcon(const std::string &name,
                   glm::vec2 pos,
@@ -55,6 +58,7 @@ public:
     static constexpr int TEXT_HEIGHT = 8;
 
 private:
+    // drawQuad() helper method
     void drawQuad_h(glm::vec2 pos, glm::vec2 size, UVRect uv, glm::vec4 color = glm::vec4{0.3f});
     UVRect getCharUV(char c) const;
     UVRect getIconUV(const std::string &name) const;

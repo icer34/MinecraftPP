@@ -34,7 +34,8 @@ int main()
         hud.drawQuad(glm::vec2(0.0f),
                      glm::vec2(hud.textWidth(text) * scale, hud.TEXT_HEIGHT * scale),
                      glm::vec4(0.5));
-        hud.drawText(text, glm::vec2(0.0f), scale, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+        hud.drawText(text, glm::vec2(0.0f), scale, glm::vec4(1.0f));
+        hud.drawIcon("crosshair", glm::vec2(800, 450), glm::vec2(30.0f));
         hud.end(1600, 900);
 
         window.swapBuffers();

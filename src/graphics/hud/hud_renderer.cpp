@@ -244,6 +244,15 @@ void HudRenderer::flushBatch(unsigned int vao,
     glBindVertexArray(0);
 }
 
+void checkGLError(const char *label)
+{
+    GLenum err;
+    while ((err = glGetError()) != GL_NO_ERROR)
+    {
+        std::cout << "GL_ERROR [" << label << "]: " << err << std::endl;
+    }
+}
+
 void HudRenderer::end(int screenWidth, int screenHeight)
 {
     // hud elements are always on top, drawn front-to-back in the order the draw calls were
@@ -261,6 +270,9 @@ void HudRenderer::end(int screenWidth, int screenHeight)
 
     flushBatch(
         m_iconVao, m_iconVbo, m_iconEbo, m_iconVertData, m_iconIdxData, m_iconAtlasTexture.getID());
+
+    checkGLError("after icon batch");
+
     flushBatch(
         m_textVao, m_textVbo, m_textEbo, m_textVertData, m_textIdxData, m_fontTexture.getID());
 
@@ -271,7 +283,7 @@ void HudRenderer::end(int screenWidth, int screenHeight)
     // silently break depth testing/culling for the whole next frame's world render
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-    glDisable(GL_BLEND);
+    glEnable(GL_BLEND);
 }
 
 void HudRenderer::drawIcon(const std::string &name, vec2 pos, vec2 size, vec4 color)
@@ -313,7 +325,7 @@ void HudRenderer::drawText(const std::string &text, vec2 pos, float scale, vec4 
                                  addedVertices + 3,
                              });
 
-        xOffset += m_charWidth.at(c) + 2;
+        xOffset += m_charWidth.at(c) + 1;
     }
 }
 
@@ -357,7 +369,7 @@ int HudRenderer::textWidth(const std::string &text)
     int w = 0;
     for (char c : text)
     {
-        w += m_charWidth.at(c) + 2;
+        w += m_charWidth.at(c) + 1;
     }
     return w;
 }

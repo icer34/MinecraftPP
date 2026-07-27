@@ -8,6 +8,7 @@
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <algorithm>
 #include <cmath>
 
 #include "block_texture_atlas.h"
@@ -19,6 +20,7 @@
 
 #include "util/frustum.h"
 #include "util/perlin_noise.h"
+#include "util/raycaster.h"
 #include "util/window.h"
 
 using glm::mat4;
@@ -27,7 +29,7 @@ using glm::vec3;
 using glm::vec4;
 
 namespace
-{
+{ // all this will move to the settings menu class when it's done
 void helpMarker(const char *desc)
 {
     ImGui::TextDisabled("(?)");
@@ -116,84 +118,6 @@ void plotSpline(Spline &spline, const char *label, ImVec2 size, const char *desc
 
     ImGui::EndChild();
 }
-
-mat4 getLightVPMatrix(const vec3 &lightDir,
-                      const mat4 &camView,
-                      const float fov,
-                      const float aspectRatio,
-                      float zNear,
-                      float zFar)
-{
-    auto camProj = glm::perspective(glm::radians(fov), aspectRatio, zNear, zFar);
-
-    auto inv = glm::inverse(camProj * camView);
-
-    std::vector<vec4> frustumCornersWorld;
-    for (int x = 0; x < 2; x++)
-    {
-        for (int y = 0; y < 2; y++)
-        {
-            for (int z = 0; z < 2; z++)
-            {
-                vec4 point = inv * vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
-                frustumCornersWorld.push_back(point / point.w);
-            }
-        }
-    }
-
-    // get the center of the frustum for the viewMatrix center
-    vec3 center = vec3(0.0, 0.0, 0.0);
-    for (const auto &corner : frustumCornersWorld)
-    {
-        center += vec3(corner);
-    }
-    center /= frustumCornersWorld.size();
-
-    // get the lightView matrix
-    mat4 lightView = glm::lookAt(center - lightDir, center, vec3(0.0f, 1.0f, 0.0f));
-
-    // get the limits of the box in the light space to get the left/right top/bottom near/far args
-    // for the orthogonal projection
-    float minX = std::numeric_limits<float>::max();
-    float maxX = std::numeric_limits<float>::lowest();
-    float minY = std::numeric_limits<float>::max();
-    float maxY = std::numeric_limits<float>::lowest();
-    float minZ = std::numeric_limits<float>::max();
-    float maxZ = std::numeric_limits<float>::lowest();
-    for (const auto &corner : frustumCornersWorld)
-    {
-        const auto transfo = lightView * corner;
-        minX = std::min(minX, transfo.x);
-        maxX = std::max(maxX, transfo.x);
-        minY = std::min(minY, transfo.y);
-        maxY = std::max(maxY, transfo.y);
-        minZ = std::min(minZ, transfo.z);
-        maxZ = std::max(maxZ, transfo.z);
-    }
-
-    // multiply near/far by a constant factor to make the boxes overlap
-    constexpr float zMult = 10.0f;
-    if (minZ < 0)
-    {
-        minZ *= zMult;
-    }
-    else
-    {
-        minZ /= zMult;
-    }
-    if (maxZ < 0)
-    {
-        maxZ /= zMult;
-    }
-    else
-    {
-        maxZ *= zMult;
-    }
-
-    mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
-
-    return lightProjection * lightView;
-}
 } // namespace
 
 Renderer::Renderer(const Window &window, const World &world)
@@ -258,41 +182,8 @@ void Renderer::renderWorld(const Camera &cam)
     m_loadedChunks = m_world.getChunks().size();
     m_camPos = cam.getPos();
 
-    //* ========== FIRST PASS - SHADOW PASS ==========
-    float near = cam.getZNear();
-    float far = cam.getZFar();
-    size_t cascadeCount = m_shadowMap->depth();
-
-    // practical split scheme: blend of logarithmic and uniform splits. Pure uniform wastes
-    // precision on the near cascade (which needs it most -- nearby geometry covers far more
-    // screen space than distant geometry). Pure logarithmic gives razor-thin, imprecise far
-    // cascades. lambda blends the two; 0.5 is a common middle ground.
-    constexpr float lambda = 0.7f;
-    std::vector<float> splits(cascadeCount + 1);
-    splits[0] = near;
-    for (size_t i = 1; i <= cascadeCount; i++)
-    {
-        float p = float(i) / float(cascadeCount);
-        float logSplit = near * std::pow(far / near, p);
-        float uniformSplit = near + (far - near) * p;
-        splits[i] = lambda * logSplit + (1.0f - lambda) * uniformSplit;
-    }
-
-    for (size_t i = 0; i < cascadeCount; i++)
-    {
-        float splitNear = splits[i];
-        float splitFar = splits[i + 1];
-        m_shadowMap->updateCutoffDist(i, splitFar);
-
-        // compute the light VP matrix for that cascade
-        mat4 lightVPMatrix = getLightVPMatrix(m_lightDir,
-                                              cam.getViewMatrix(),
-                                              cam.getFOV(),
-                                              m_window.getAspectRatio(),
-                                              splitNear,
-                                              splitFar * 1.1f);
-        m_shadowMap->updateLightVPMatrix(i, lightVPMatrix);
-    }
+    //* ========== PRE PROCESSING - SHADOW PASS ==========
+    m_shadowMap->update(cam, m_window.getAspectRatio(), m_lightDir);
 
     glViewport(0, 0, m_shadowMap->size(), m_shadowMap->size());
     glBindFramebuffer(GL_FRAMEBUFFER, m_shadowMap->getFrameBufferID());
@@ -340,7 +231,9 @@ void Renderer::renderWorld(const Camera &cam)
         ChunkCoord coord = mesh->getCoords();
 
         if (!frustum.isChunkInside(coord))
+        {
             continue;
+        }
 
         mat4 model = glm::translate(mat4(1.0f), vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
         m_blockShader->setMat4("model", model);

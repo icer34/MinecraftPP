@@ -34,7 +34,7 @@ template <> struct hash<ChunkCoord>
 
 class Chunk
 {
-  public:
+public:
     static constexpr int SIZE = 16;
     static constexpr int HEIGHT = 256;
 
@@ -45,7 +45,7 @@ class Chunk
         m_blocks.fill(Blocks::AIR);
     }
 
-    uint16_t getBlock(int x, int y, int z) const { return m_blocks[index(x, y, z)]; }
+    uint16_t getBlock(int x, int y, int z) const { return m_blocks.at(index(x, y, z)); }
 
     void setBlock(uint16_t id, int x, int y, int z)
     {
@@ -66,7 +66,7 @@ class Chunk
     bool isDirty() { return m_dirty; }
     void clearDirty() { m_dirty = false; }
 
-  private:
+private:
     const uint64_t m_id;
     ChunkCoord m_coord;
     std::array<uint16_t, SIZE * SIZE * HEIGHT> m_blocks;

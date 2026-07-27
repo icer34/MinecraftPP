@@ -139,8 +139,12 @@ void World::update(vec3 playerPos, float dt)
     //* pass 2: a chunk that just appeared may have made an already-loaded neighbor's mesh
     //* stale (that neighbor was meshed without knowing about it), and its own mesh may have
     //* been built before some of its neighbors existed too -- refresh everyone involved.
-    //* Only fresh chunks trigger this, never remeshes, so this can't cascade forever.
+    //* propagated to a fixpoint with a worklist: remeshing a neighbor can itself surface
+    //* further neighbors that need refreshing (e.g. several new chunks landing in the same
+    //* batch, chained together), so we keep draining the worklist until nothing new turns up
+    //* rather than stopping after a single hop from the freshly-built chunks.
     std::unordered_set<ChunkCoord> toRemesh;
+    std::vector<ChunkCoord> worklist;
 
     for (size_t i = 0; i < results.size(); i++)
     {
@@ -149,14 +153,23 @@ void World::update(vec3 playerPos, float dt)
 
         ChunkCoord coord = results[i].coord;
         toRemesh.insert(coord);
+        worklist.push_back(coord);
+    }
+
+    for (size_t i = 0; i < worklist.size(); i++)
+    {
+        ChunkCoord coord = worklist[i];
 
         for (Direction dir : CARDINAL_DIRECTIONS)
         {
             ivec3 offset = getDirectionVector(dir);
             ChunkCoord neighborCoord{coord.x + offset.x, coord.z + offset.z};
-            if (m_chunks.contains(neighborCoord))
+
+            // .second is true only the first time a coord is inserted -- skip anything
+            // already queued/marked so we don't process the same chunk twice
+            if (m_chunks.contains(neighborCoord) && toRemesh.insert(neighborCoord).second)
             {
-                toRemesh.insert(neighborCoord);
+                worklist.push_back(neighborCoord);
             }
         }
     }
@@ -173,7 +186,7 @@ void World::regenerate()
     m_meshes.clear();
 }
 
-bool World::isBlockSolid(vec3 wPos)
+uint16_t World::getBlock(vec3 wPos) const
 {
     if (wPos.y < 0 || wPos.y >= Chunk::HEIGHT)
         return false;
@@ -187,8 +200,12 @@ bool World::isBlockSolid(vec3 wPos)
 
     int lx = wPos.x - coord.x * Chunk::SIZE;
     int lz = wPos.z - coord.z * Chunk::SIZE;
-    uint16_t blockID = it->second->getBlock(lx, wPos.y, lz);
-    return BlockRegistry::instance().get(blockID).isSolid;
+    return it->second->getBlock(lx, wPos.y, lz);
+}
+
+bool World::isBlockSolid(glm::vec3 wPos) const
+{
+    return BlockRegistry::instance().get(getBlock(wPos)).isSolid;
 }
 
 std::vector<Chunk *> World::getChunks() const

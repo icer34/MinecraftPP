@@ -1,6 +1,17 @@
-- [ ] player -> item system
-- [ ] hud rendering
-- [ ] lighting
-  - [ ] cascaded shadow maps - CSM
-  - [ ] screen space ambient occlusion - SSAO
-  - [ ] water shading
+- player -> item system
+- hud rendering
+- post processing : (dificulty order)
+  - pipeline (FBO + fullscreen quad) -- prerequis pour tout le reste, render la scene dans une texture puis la dessiner sur un quad plein ecran avec un shader
+  - gamma correction / tone mapping simple -- corrige l'image lineaire vers sRGB (+ tonemap basique)
+  - vignette -- assombrit les coins de l'ecran selon la distance au centre
+  - chromatic aberration -- decale les UV par canal (R/G/B) en s'eloignant du centre
+  - FXAA -- anti-aliasing par detection de contraste sur l'image deja rendue
+  - bloom -- extrait les pixels tres lumineux, les floute, et les recompose en additif
+  - depth of field -- floute selon la distance au plan de nettete (lecture du depth buffer)
+  - SSAO (screen space ambient occlusion) -- assombrit les pixels selon la geometrie environnante (depth + normales), en plus de l'AO par vertex deja en place
+  - god rays / light shafts (screen-space) -- blur radial depuis la position ecran de la lumiere, occlus par le depth buffer
+  - SSR (screen-space reflections) -- utile pour l'eau, ray-marching dans le depth buffer pour trouver ce qui se reflete a l'ecran
+  - motion blur -- flou base sur un buffer de velocite (position projetee frame courante vs precedente)
+  - TAA (temporal anti-aliasing) -- combine plusieurs frames avec jitter de projection + historique + buffer de velocite
+- shadows upgardes
+  - blue noise + accumulation temporelle --> need TAA before

@@ -23,18 +23,19 @@ struct ChunkBuildResult
 
 class World
 {
-  public:
+public:
     World(unsigned long seed);
 
     void update(glm::vec3 playerPos, float dt);
     void regenerate();
 
-    bool isBlockSolid(glm::vec3 wPos);
+    uint16_t getBlock(glm::vec3 wPos) const;
+    bool isBlockSolid(glm::vec3 wPos) const;
 
     std::vector<ChunkMesh *> getChunkMeshes() const;
     std::vector<Chunk *> getChunks() const;
 
-  private:
+private:
     static constexpr int RENDER_DISTANCE = 10;
     static constexpr int LOAD_DISTANCE = RENDER_DISTANCE + 1;
 

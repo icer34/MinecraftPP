@@ -11,7 +11,8 @@ Game::Game()
     : m_window(1600, 900, "MinecraftPP", false),
       m_player(vec3(0.5f, 110.0f, 3.2f)),
       m_world(World(67)),
-      m_renderer(Renderer(m_window, m_world))
+      m_renderer(Renderer(m_window, m_world)),
+      m_hud(m_window.getWidth(), m_window.getHeight())
 {
     // register all blocks
     Blocks::registerAll();
@@ -131,4 +132,6 @@ void Game::render(float dt)
         m_renderer.renderSettings();
 
     m_renderer.endUI();
+
+    m_hud.render();
 }

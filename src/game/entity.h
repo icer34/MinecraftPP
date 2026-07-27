@@ -8,7 +8,7 @@
 
 class Entity
 {
-  public:
+public:
     Entity(glm::vec3 pos, glm::vec3 hitboxHalfExtents)
         : m_pos(pos),
           m_vel(0.0f),
@@ -20,7 +20,7 @@ class Entity
     virtual ~Entity() = default;
     virtual void update(float dt, World &world) = 0;
 
-  protected:
+protected:
     glm::vec3 m_pos;
     glm::vec3 m_vel;
 
@@ -42,7 +42,7 @@ class Entity
         resolveAxisCollision(Axis::Y, delta.y, world);
     }
 
-  private:
+private:
     void resolveAxisCollision(Axis axis, float delta, World &world)
     {
         glm::vec3 min = m_hitBox.getMin(m_pos);
