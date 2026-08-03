@@ -5,7 +5,7 @@
 
 class Spline
 {
-  public:
+public:
     Spline(float xMin, float xMax, float yMin, float yMax);
     void addPoint(float x, float y);
     void removePoint(size_t index);
@@ -17,7 +17,7 @@ class Spline
     glm::vec2 getXBounds() const { return m_xBounds; }
     glm::vec2 getYBounds() const { return m_yBounds; }
 
-  private:
+private:
     glm::vec2 m_xBounds;
     glm::vec2 m_yBounds;
     std::vector<float> m_xVal{};

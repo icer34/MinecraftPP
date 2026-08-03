@@ -21,10 +21,10 @@ enum class Corner : uint8_t
 
 class ChunkMesher
 {
-  public:
+public:
     void mesh(const Chunk &chunk, std::array<const Chunk *, 4> neighbors, ChunkMeshData &meshData);
 
-  private:
+private:
     /**
      * @brief determines if a given position is in the boundaries of the chunk or not.
      * if not, it returns the direction of the neighbor chunk where the position is.
@@ -52,7 +52,8 @@ class ChunkMesher
     // e.g. at a chunk corner) -- out of Y bounds or diagonally out of chunk bounds is treated
     // as "not solid" (air), which is an accepted simplification since `neighbors` only tracks
     // the 4 cardinal chunks, not diagonal ones.
-    bool isSolidNeighbor(glm::ivec3 pos, const Chunk &chunk, std::array<const Chunk *, 4> neighbors);
+    bool
+    isSolidNeighbor(glm::ivec3 pos, const Chunk &chunk, std::array<const Chunk *, 4> neighbors);
 
     // 0..3 occlusion count for one corner of a face (0 = fully lit, 3 = most occluded).
     // see: https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/

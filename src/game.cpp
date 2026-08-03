@@ -12,7 +12,8 @@ Game::Game()
       m_player(vec3(0.5f, 110.0f, 3.2f)),
       m_world(World(67)),
       m_renderer(Renderer(m_window, m_world)),
-      m_hud(m_window.getWidth(), m_window.getHeight())
+      m_hud(m_window.getWidth(), m_window.getHeight()),
+      m_rayCaster(m_world)
 {
     // register all blocks
     Blocks::registerAll();
@@ -44,60 +45,67 @@ void Game::processInput()
 
     if (m_window.consumeKeyPress(Key::Esc))
     {
-        m_window.toggleCursor();
         m_showSettings = !m_showSettings;
+        m_window.setCursorEnabled(m_showSettings);
+        if (m_showSettings)
+            m_settingsMenu.resetNavigation();
     }
 
     if (!m_window.isCursorEnabled())
     {
-        vec3 moveInput{0.0f};
-        bool jumpPressed = false;
+        InputData inputData;
 
+        if (m_window.consumeButtonPress(MouseButton::Left))
+        {
+            m_world.breakBlock(m_castResult.targetPos);
+        }
+        if (m_window.consumeButtonPress(MouseButton::Right))
+        {
+            glm::vec3 placePos = m_castResult.targetPos + m_castResult.targetNorm;
+            glm::vec3 blockCenter = glm::floor(placePos) + glm::vec3(0.5f, 0.0f, 0.5f);
+            AABB blockBox(glm::vec3(0.5f));
+            if (!blockBox.intersects(m_player.getHitBox(), blockCenter, m_player.getPos()))
+                m_world.placeBlock(Blocks::STONE, placePos);
+        }
         if (m_window.isKeyPressed(Key::W))
         {
-            moveInput += m_player.getFront();
+            inputData.move += m_player.getFront();
         }
         if (m_window.isKeyPressed(Key::A))
         {
-            moveInput -= m_player.getRight();
+            inputData.move -= m_player.getRight();
         }
         if (m_window.isKeyPressed(Key::S))
         {
-            moveInput -= m_player.getFront();
+            inputData.move -= m_player.getFront();
         }
         if (m_window.isKeyPressed(Key::D))
         {
-            moveInput += m_player.getRight();
+            inputData.move += m_player.getRight();
         }
         if (m_window.isKeyPressed(Key::Space))
         {
-            jumpPressed = true;
+            inputData.jump = true;
         }
         if (m_window.consumeKeyPress(Key::F3))
         {
             m_showDebug = !m_showDebug;
         }
 
-        moveInput.y = 0.0f;
-        if (glm::length(moveInput) > 0.0f)
-            moveInput = glm::normalize(moveInput);
-        m_player.setMoveInput(moveInput, jumpPressed);
+        inputData.move.y = 0.0f;
+        if (glm::length(inputData.move) > 0.0f)
+            inputData.move = glm::normalize(inputData.move);
 
-        float dx = (float)m_window.consumeDx();
-        float dy = (float)m_window.consumeDy();
-        m_player.rotateCam(dx, dy);
+        inputData.mouseDx = (float)m_window.consumeDx();
+        inputData.mouseDy = (float)m_window.consumeDy();
+        inputData.scroll = (float)m_window.consumeScroll();
 
-        float scroll = (float)m_window.consumeScroll();
-        if (scroll != 0.0f)
-        {
-            m_player.zoomCam(scroll);
-        }
+        m_player.consumeInput(inputData);
     }
     else
     {
         m_window.consumeDx();
         m_window.consumeDy();
-        m_window.consumeScroll();
     }
 }
 
@@ -110,6 +118,10 @@ void Game::update(float dt)
 
     m_player.update(dt, m_world);
 
+    m_castResult = m_rayCaster.cast(m_player.getCam().getPos(),
+                                    m_player.getCam().getFront(),
+                                    m_player.getReach());
+
     m_world.update(m_player.getPos(), dt);
 }
 
@@ -120,6 +132,10 @@ void Game::render(float dt)
 
     // render the 3D world (terrain)
     m_renderer.renderWorld(m_player.getCam());
+    if (m_castResult.hit)
+        m_renderer.renderBlockOutline(m_castResult, m_player.getCam());
+
+    m_hud.render();
 
     // render UI
     m_renderer.beginUI();
@@ -129,9 +145,19 @@ void Game::render(float dt)
         m_renderer.renderDebug(dt);
 
     if (m_showSettings)
-        m_renderer.renderSettings();
+    {
+        bool closeRequested = m_settingsMenu.render(m_window.getWidth(),
+                                                    m_window.getHeight(),
+                                                    m_window.getCursorPos(),
+                                                    m_window.consumeButtonPress(MouseButton::Left),
+                                                    m_window.isButtonPressed(MouseButton::Left),
+                                                    m_window.consumeScroll());
+        if (closeRequested)
+        {
+            m_window.setCursorEnabled(false);
+            m_showSettings = false;
+        }
+    }
 
     m_renderer.endUI();
-
-    m_hud.render();
 }

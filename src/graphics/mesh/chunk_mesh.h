@@ -11,7 +11,7 @@ struct ChunkMeshData
 
 class ChunkMesh : public Drawable
 {
-  public:
+public:
     explicit ChunkMesh(ChunkCoord coord)
         : m_coord(coord)
     {
@@ -23,7 +23,7 @@ class ChunkMesh : public Drawable
 
     ChunkCoord getCoords() const { return m_coord; }
 
-  private:
+private:
     ChunkCoord m_coord;
     Mesh m_solidMesh;
     Mesh m_waterMesh;

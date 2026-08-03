@@ -4,6 +4,10 @@ project(MinecraftPP VERSION 1.0)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# off by default (slower builds, and not compatible with /RTC or incremental linking) --
+# turn on with -DENABLE_ASAN=ON to hunt memory corruption/UB bugs
+option(ENABLE_ASAN "Build engine_lib/MinecraftPP/tests with AddressSanitizer" OFF)
+
 include(FetchContent)
 
 # ─── GLFW ────────────────────────────────────────────────────────────────────
@@ -72,6 +76,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(stb)
 
+# ─── BS::thread_pool (header-only) ───────────────────────────────────────────
+FetchContent_Declare(
+    bs_thread_pool
+    GIT_REPOSITORY https://github.com/bshoshany/thread-pool.git
+    GIT_TAG        v5.0.0 # verifie que ce tag existe encore -- ajuste si FetchContent echoue
+)
+FetchContent_MakeAvailable(bs_thread_pool)
+
 # ─── Glad (généré pour ce projet, pas de repo à fetch → reste committé) ──────
 add_library(glad STATIC
     libs/glad/src/glad.c
@@ -97,6 +109,7 @@ target_include_directories(engine_lib PUBLIC
     ${imgui_SOURCE_DIR}/backends
     ${implot_SOURCE_DIR}
     ${stb_SOURCE_DIR}
+    ${bs_thread_pool_SOURCE_DIR}/include
 )
 
 target_link_libraries(engine_lib PUBLIC
@@ -131,6 +144,27 @@ add_executable(tests
 target_link_libraries(tests PRIVATE
     engine_lib
 )
+
+# ─── AddressSanitizer (voir option ENABLE_ASAN plus haut) ────────────────────
+# applique uniquement à notre code (pas aux libs fetch -- glfw/imgui/implot/glad n'ont
+# pas besoin d'être instrumentées, et ça éviterait de tout recompiler pour rien)
+if(ENABLE_ASAN)
+    if(MSVC)
+        foreach(target engine_lib ${PROJECT_NAME} tests)
+            target_compile_options(${target} PRIVATE /fsanitize=address /Zi)
+        endforeach()
+        # ASan sous MSVC est incompatible avec /RTC (ajouté automatiquement en Debug)
+        # et avec le linking incrémental
+        string(REGEX REPLACE "/RTC[^ ]*" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        target_link_options(${PROJECT_NAME} PRIVATE /INCREMENTAL:NO)
+        target_link_options(tests PRIVATE /INCREMENTAL:NO)
+    else()
+        foreach(target engine_lib ${PROJECT_NAME} tests)
+            target_compile_options(${target} PRIVATE -fsanitize=address -g)
+            target_link_options(${target} PRIVATE -fsanitize=address)
+        endforeach()
+    endif()
+endif()
 
 # expose la racine du projet en macro pour que les tests puissent écrire/lire
 # des fichiers à un endroit fixe, peu importe le working directory courant

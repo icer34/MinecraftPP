@@ -25,5 +25,5 @@ private:
     float m_crosshairScale = 1.0f;
     static constexpr int CROSSHAIR_BASE_SIZE = 30;
 
-    HudRenderer m_renderer;
+    HudRenderer &m_renderer;
 };

@@ -2,7 +2,7 @@
 
 class Drawable
 {
-  public:
+public:
     virtual ~Drawable() = default;
     virtual void draw() = 0;
 };

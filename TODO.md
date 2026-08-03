@@ -1,5 +1,19 @@
-- player -> item system
-- hud rendering
+**NEXT UP**
+- water and its shading
+
+**GENERAL IDEAS**
+- gameplay
+  - player -> item system
+
+- hud / settings (voir docs/hud_and_settings_architecture.md)
+  - Hud : chat (historique des messages + timers d'affichage, purge des expires)
+  - ItemRenderer : rendu live d'un item-bloc en 3D (hotbar, inventaire, item lache au sol)
+  - Hud : hotbar (une fois ItemRenderer + inventaire dispo)
+  - DebugPanel -> make a registry of stats: struct Entry = {getValue() + label}, update the values of the registry and keep a circular buffer
+
+- shadows
+  - blue noise + accumulation temporelle sur les ombres -- need TAA d'abord (voir post processing)
+
 - post processing : (dificulty order)
   - pipeline (FBO + fullscreen quad) -- prerequis pour tout le reste, render la scene dans une texture puis la dessiner sur un quad plein ecran avec un shader
   - gamma correction / tone mapping simple -- corrige l'image lineaire vers sRGB (+ tonemap basique)
@@ -13,5 +27,3 @@
   - SSR (screen-space reflections) -- utile pour l'eau, ray-marching dans le depth buffer pour trouver ce qui se reflete a l'ecran
   - motion blur -- flou base sur un buffer de velocite (position projetee frame courante vs precedente)
   - TAA (temporal anti-aliasing) -- combine plusieurs frames avec jitter de projection + historique + buffer de velocite
-- shadows upgardes
-  - blue noise + accumulation temporelle --> need TAA before

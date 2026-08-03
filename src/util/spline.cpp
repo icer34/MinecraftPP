@@ -35,6 +35,12 @@ void Spline::addPoint(float x, float y)
 
 void Spline::removePoint(size_t index)
 {
+    if (m_xVal.size() <= 2)
+    {
+        std::cout << "Remove not allowed: not enough points" << std::endl;
+        return;
+    }
+
     m_xVal.erase(m_xVal.begin() + index);
     m_yVal.erase(m_yVal.begin() + index);
 }
@@ -61,8 +67,9 @@ void Spline::setPoint(size_t index, float x, float y)
     for (size_t i = 0; i < order.size(); i++)
         order[i] = i;
 
-    std::sort(
-        order.begin(), order.end(), [this](size_t a, size_t b) { return m_xVal[a] < m_xVal[b]; });
+    std::sort(order.begin(),
+              order.end(),
+              [this](size_t a, size_t b) { return m_xVal[a] < m_xVal[b]; });
 
     std::vector<float> sortedX(m_xVal.size()), sortedY(m_yVal.size());
     for (size_t i = 0; i < order.size(); i++)

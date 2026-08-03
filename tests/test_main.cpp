@@ -8,36 +8,42 @@
 
 #include <glad/glad.h>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
+// implementation lives in src/util/stb_image_write_impl.cpp (engine_lib), so it's not
+// redefined here too -- would be a duplicate symbol at link time otherwise
 #include "stb_image_write.h"
 
-#include "graphics/hud/hud_renderer.h"
+#include "graphics/block_texture_atlas.h"
 #include "util/window.h"
 
 int main()
 {
-    // un Window suffit à obtenir un contexte GL valide (glad + GLFW), même si on
-    // n'affiche rien dedans -- HudRenderer a besoin de ce contexte pour pouvoir
-    // appeler glGenTextures/glTexImage2D etc.
-    Window window(1600, 900, "Hud Atlas Debug", false);
+    // un Window suffit à obtenir un contexte GL valide (glad + GLFW), nécessaire pour que
+    // BlockTextureAtlas puisse appeler glGenTextures/glTexImage2D etc.
+    Window window(1600, 900, "Block Atlas Dump", false);
+    glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
 
-    HudRenderer hud;
+    BlockTextureAtlas::instance().loadAllTextures();
+    unsigned int atlasID = BlockTextureAtlas::instance().getID();
+
+    glBindTexture(GL_TEXTURE_2D, atlasID);
+    int width = 0, height = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
+
+    std::vector<unsigned char> pixels(width * height * 4);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    std::string outPath = std::string(PROJECT_ROOT_DIR) + "/block_atlas_dump.png";
+    if (stbi_write_png(outPath.c_str(), width, height, 4, pixels.data(), width * 4))
+        std::cout << "Block atlas (" << width << "x" << height << ") dumped to " << outPath
+                  << std::endl;
+    else
+        std::cout << "BLOCK_ATLAS_DUMP_FAILURE::stbi_write_png failed" << std::endl;
 
     while (!window.shouldClose())
     {
         window.pollEvents();
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        hud.begin();
-        std::string text = "je m'appelle oumar et je suis noir";
-        float scale = 2.7f;
-        hud.drawQuad(glm::vec2(0.0f),
-                     glm::vec2(hud.textWidth(text) * scale, hud.TEXT_HEIGHT * scale),
-                     glm::vec4(0.5));
-        hud.drawText(text, glm::vec2(0.0f), scale, glm::vec4(1.0f));
-        hud.drawIcon("crosshair", glm::vec2(800, 450), glm::vec2(30.0f));
-        hud.end(1600, 900);
-
         window.swapBuffers();
     }
 

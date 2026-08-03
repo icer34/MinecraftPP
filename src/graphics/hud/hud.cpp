@@ -5,7 +5,7 @@
 using glm::vec2;
 
 Hud::Hud(int screenWidth, int screenHeight)
-    : m_renderer(),
+    : m_renderer(HudRenderer::instance()),
       m_screenW(screenWidth),
       m_screenH(screenHeight)
 {

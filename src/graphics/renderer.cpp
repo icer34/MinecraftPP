@@ -16,6 +16,7 @@
 #include "cascaded_shadow_map.h"
 #include "game/chunk.h"
 #include "game/world.h"
+#include "mesh/block_outline.h"
 #include "shader.h"
 
 #include "util/frustum.h"
@@ -63,8 +64,11 @@ void plotSpline(Spline &spline, const char *label, ImVec2 size, const char *desc
     {
         ImPlot::SetupAxis(ImAxis_X1, "x", ImPlotAxisFlags_NoLabel);
         ImPlot::SetupAxis(ImAxis_Y1, "y ", ImPlotAxisFlags_NoLabel);
-        ImPlot::SetupAxesLimits(
-            xBounds.x * 1.1, xBounds.y * 1.1, yBounds.x, yBounds.y * 1.1, ImPlotCond_Always);
+        ImPlot::SetupAxesLimits(xBounds.x * 1.1,
+                                xBounds.y * 1.1,
+                                yBounds.x,
+                                yBounds.y * 1.1,
+                                ImPlotCond_Always);
 
         const auto &xs = spline.getXValues();
         const auto &ys = spline.getYValues();
@@ -123,7 +127,8 @@ void plotSpline(Spline &spline, const char *label, ImVec2 size, const char *desc
 Renderer::Renderer(const Window &window, const World &world)
     : m_blockTintTexture(Texture("assets/textures/colormap/grass.png")),
       m_window(window),
-      m_world(world)
+      m_world(world),
+      m_blockOutline(BlockOutline())
 {
     auto &textureAtlas = BlockTextureAtlas::instance();
     textureAtlas.loadAllTextures();
@@ -164,7 +169,6 @@ Renderer::Renderer(const Window &window, const World &world)
         auto noise = noises.at(i);
         noise.generateImage(buffer.data(), 256, 256, 1024);
         m_noiseTextures.push_back(Texture(buffer.data(), 256, 256, GL_R8, GL_RED));
-        buffer.clear();
     }
 
     // get the splines
@@ -175,15 +179,17 @@ Renderer::Renderer(const Window &window, const World &world)
 
 Renderer::~Renderer() = default;
 
-void Renderer::renderWorld(const Camera &cam)
+void Renderer::renderWorld(Camera &cam)
 {
-    Frustum frustum = Frustum(cam, m_window.getAspectRatio());
+    cam.setAspectRatio(m_window.getAspectRatio());
+
+    Frustum frustum = Frustum(cam);
 
     m_loadedChunks = m_world.getChunks().size();
     m_camPos = cam.getPos();
 
     //* ========== PRE PROCESSING - SHADOW PASS ==========
-    m_shadowMap->update(cam, m_window.getAspectRatio(), m_lightDir);
+    m_shadowMap->update(cam, m_lightDir);
 
     glViewport(0, 0, m_shadowMap->size(), m_shadowMap->size());
     glBindFramebuffer(GL_FRAMEBUFFER, m_shadowMap->getFrameBufferID());
@@ -193,9 +199,6 @@ void Renderer::renderWorld(const Camera &cam)
     for (auto &mesh : m_world.getChunkMeshes())
     {
         ChunkCoord coord = mesh->getCoords();
-
-        if (!frustum.isChunkInside(coord))
-            continue;
 
         mat4 model = glm::translate(mat4(1.0f), vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
         m_depthShader->setMat4("model", model);
@@ -209,7 +212,7 @@ void Renderer::renderWorld(const Camera &cam)
 
     m_blockShader->use();
     m_blockShader->setMat4("view", cam.getViewMatrix());
-    m_blockShader->setMat4("projection", cam.getProjectionMatrix(m_window.getAspectRatio()));
+    m_blockShader->setMat4("projection", cam.getProjectionMatrix());
     m_blockShader->setMat4Array("lightSpaceMatrices", m_shadowMap->getLightVPMatrices());
     m_blockShader->setFloatArray("cutoffDist", m_shadowMap->getCutoffDists());
 
@@ -240,6 +243,11 @@ void Renderer::renderWorld(const Camera &cam)
         mesh->draw();
         m_renderedChunks++;
     }
+}
+
+void Renderer::renderBlockOutline(const RayCastResult &result, const Camera &cam)
+{
+    m_blockOutline.draw(result.targetPos, cam);
 }
 
 void Renderer::beginUI()
@@ -286,8 +294,11 @@ void Renderer::renderSettings()
 
     if (ImGui::BeginTabItem("Terrain Generation"))
     {
-        std::string noiseNames[5]{
-            "Continentalness", "Erosion", "Peaks & Valleys", "Temperature", "Humidity"};
+        std::string noiseNames[5]{"Continentalness",
+                                  "Erosion",
+                                  "Peaks & Valleys",
+                                  "Temperature",
+                                  "Humidity"};
         for (size_t i = 0; i < m_noiseTextures.size(); i++)
         {
             if (i != 0)
@@ -349,4 +360,11 @@ void Renderer::updateFPS(float dt)
         m_fpsTimer -= 1.0f;
         m_msPerFrame = 1000.0f * dt;
     }
+}
+
+bool Renderer::requestWorldRegeneration()
+{
+    bool result = m_shouldRegenerateWorld;
+    m_shouldRegenerateWorld = false;
+    return result;
 }

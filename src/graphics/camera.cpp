@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "game/settings_registry.h"
+
 using glm::mat4;
 using glm::vec3;
 
@@ -16,14 +18,20 @@ Camera::Camera(vec3 position)
       m_zFar(500.0f),
       m_sens(0.1f)
 {
+    auto &reg = SettingsRegistry::instance();
+
+    reg.addFloat(SettingCategory::Graphics, "", "Zoom Speed", &ZOOM_STEP, 1.0f, 10.0f);
+    reg.addInt(SettingCategory::Graphics, "", "fov", &m_fovDeg, MIN_FOV, MAX_FOV);
+    reg.addFloat(SettingCategory::Controls, "", "Camera Speed", &m_sens, 0.01f, 0.5f);
+
     updateVectors();
 }
 
 mat4 Camera::getViewMatrix() const { return glm::lookAt(m_pos, m_pos + m_front, m_up); }
 
-mat4 Camera::getProjectionMatrix(float aspectRatio) const
+mat4 Camera::getProjectionMatrix() const
 {
-    return glm::perspective(glm::radians(m_fovDeg), aspectRatio, m_zNear, m_zFar);
+    return glm::perspective(glm::radians(float(m_fovDeg)), m_aspectRatio, m_zNear, m_zFar);
 }
 
 void Camera::move(vec3 delta) { m_pos += delta; }
@@ -31,6 +39,8 @@ void Camera::move(vec3 delta) { m_pos += delta; }
 void Camera::rotate(float xOffset, float yOffset)
 {
     m_yaw += xOffset * m_sens;
+    // clamp yaw so it doesnt accumulate to infinity
+    m_yaw = std::fmod(m_yaw, 360.0f);
     m_pitch += yOffset * m_sens;
 
     // avoid camera flip

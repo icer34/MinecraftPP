@@ -92,8 +92,15 @@ private:
             glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle);
         }
 
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glTexImage2D(GL_TEXTURE_2D,
+                     0,
+                     internalFormat,
+                     width,
+                     height,
+                     0,
+                     format,
+                     GL_UNSIGNED_BYTE,
+                     data);
 
         glBindTexture(GL_TEXTURE_2D, 0);
     }

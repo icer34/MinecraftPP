@@ -70,12 +70,12 @@ void ChunkMesher::mesh(const Chunk &chunk,
     {
         for (int z = 0; z < Chunk::SIZE; z++)
         {
-            uint8_t temperature = chunk.getTemp(x, z);
-            uint8_t humidity = chunk.getHumidity(x, z);
+            uint8_t temperature = chunk.getTemp(ivec2(x, z));
+            uint8_t humidity = chunk.getHumidity(ivec2(x, z));
 
             for (int y = 0; y < Chunk::HEIGHT; y++)
             {
-                auto blockID = chunk.getBlock(x, y, z);
+                auto blockID = chunk.getBlock(ivec3(x, y, z));
                 auto &block = registry.get(blockID);
 
                 if (blockID == Blocks::AIR)
@@ -102,14 +102,12 @@ void ChunkMesher::mesh(const Chunk &chunk,
 
                         if (neighborChunk != nullptr)
                         {
-                            neighborBlockID = neighborChunk->getBlock(
-                                neighborPos.x, neighborPos.y, neighborPos.z);
+                            neighborBlockID = neighborChunk->getBlock(neighborPos);
                         }
                     }
                     else
                     {
-                        neighborBlockID
-                            = chunk.getBlock(neighborPos.x, neighborPos.y, neighborPos.z);
+                        neighborBlockID = chunk.getBlock(neighborPos);
                     }
 
                     auto neighborBlock = registry.get(neighborBlockID);
@@ -251,7 +249,7 @@ bool ChunkMesher::isSolidNeighbor(ivec3 pos,
     uint16_t blockID;
     if (!outX && !outZ)
     {
-        blockID = chunk.getBlock(pos.x, pos.y, pos.z);
+        blockID = chunk.getBlock(pos);
     }
     else
     {
@@ -262,7 +260,7 @@ bool ChunkMesher::isSolidNeighbor(ivec3 pos,
         if (neighborChunk == nullptr)
             return false;
 
-        blockID = neighborChunk->getBlock(wrapped.x, wrapped.y, wrapped.z);
+        blockID = neighborChunk->getBlock(wrapped);
     }
 
     return BlockRegistry::instance().get(blockID).isSolid;

@@ -2,7 +2,7 @@
 
 class PerlinNoise
 {
-  public:
+public:
     /**
      * @param octaves number of times we sample the noise to add more detail
      * @param gain amplitude gain between octaves (default = 0.5)
@@ -22,7 +22,7 @@ class PerlinNoise
      */
     void generateImage(unsigned char *data, int width, int height, float worldSpan);
 
-  private:
+private:
     unsigned int m_seed;
     unsigned int m_octaves = 1;
     float m_gain = 0.5f;

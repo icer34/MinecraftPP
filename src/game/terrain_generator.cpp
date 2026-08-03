@@ -1,5 +1,7 @@
 #include "terrain_generator.h"
 
+#include "settings_registry.h"
+
 #include <algorithm>
 
 TerrainGenerator::TerrainGenerator()
@@ -83,6 +85,12 @@ TerrainGenerator::TerrainGenerator()
     m_pvNoise.updateSettings(5, 0.5, 2.0, 0.01);
     m_temperatureNoise.updateSettings(2, 0.5, 2.0, 0.0015);
     m_humidityNoise.updateSettings(2, 0.5, 2.0, 0.0015);
+
+    auto &reg = SettingsRegistry::instance();
+    reg.addSpline(
+        SettingCategory::WorldGen, "", "Continentalness spline", &m_continentalnessSpline, "TODO");
+    reg.addSpline(SettingCategory::WorldGen, "", "Erosion spline", &m_erosionSpline, "TODO");
+    reg.addSpline(SettingCategory::WorldGen, "", "Peaks & Valleys spline", &m_pvSpline, "TODO");
 }
 
 void TerrainGenerator::generateChunk(Chunk &chunk)
@@ -98,8 +106,9 @@ void TerrainGenerator::generateChunk(Chunk &chunk)
 
             int height = getHeight(worldX, worldZ);
 
-            chunk.setTemp(abs(m_temperatureNoise.sample(worldX, worldZ) * 255.0), x, z);
-            chunk.setHumidity(abs(m_humidityNoise.sample(worldX, worldZ) * 255.0), x, z);
+            chunk.setTemp(abs(m_temperatureNoise.sample(worldX, worldZ) * 255.0), glm::ivec2(x, z));
+            chunk.setHumidity(abs(m_humidityNoise.sample(worldX, worldZ) * 255.0),
+                              glm::ivec2(x, z));
 
             for (int y = 0; y < Chunk::HEIGHT; y++)
             {
@@ -107,13 +116,13 @@ void TerrainGenerator::generateChunk(Chunk &chunk)
                     continue;
 
                 else if (y > height && y <= m_seaLvl)
-                    chunk.setBlock(Blocks::STONE, x, y, z);
+                    chunk.setBlock(Blocks::STONE, glm::ivec3(x, y, z));
 
                 else if (y == height)
-                    chunk.setBlock(Blocks::GRASS, x, y, z);
+                    chunk.setBlock(Blocks::GRASS, glm::ivec3(x, y, z));
 
                 else
-                    chunk.setBlock(Blocks::DIRT, x, y, z);
+                    chunk.setBlock(Blocks::DIRT, glm::ivec3(x, y, z));
             }
         }
     }

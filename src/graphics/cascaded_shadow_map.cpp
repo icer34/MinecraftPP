@@ -52,7 +52,7 @@ CascadedShadowMap::~CascadedShadowMap()
     glDeleteFramebuffers(1, &m_fboID);
 }
 
-void CascadedShadowMap::update(const Camera &cam, float aspectRatio, const glm::vec3 &lightDir)
+void CascadedShadowMap::update(const Camera &cam, const glm::vec3 &lightDir)
 {
     float near = cam.getZNear();
     float far = cam.getZFar();
@@ -75,15 +75,16 @@ void CascadedShadowMap::update(const Camera &cam, float aspectRatio, const glm::
         m_cutoffDist[i] = splitFar;
 
         // compute the light VP matrix for that cascade
-        m_lightVPMatrices[i]
-            = getLightVPMatrix(cam, aspectRatio, splitNear, splitFar * 1.1f, lightDir);
+        m_lightVPMatrices[i] = getLightVPMatrix(cam, splitNear, splitFar * 1.1f, lightDir);
     }
 }
 
-mat4 CascadedShadowMap::getLightVPMatrix(
-    const Camera &cam, float aspectRatio, float zNear, float zFar, const glm::vec3 &lightDir)
+mat4 CascadedShadowMap::getLightVPMatrix(const Camera &cam,
+                                         float zNear,
+                                         float zFar,
+                                         const glm::vec3 &lightDir)
 {
-    auto camProj = glm::perspective(glm::radians(cam.getFOV()), aspectRatio, zNear, zFar);
+    auto camProj = glm::perspective(glm::radians(cam.getFOV()), cam.getAspectRatio(), zNear, zFar);
 
     auto inv = glm::inverse(camProj * cam.getViewMatrix());
 
@@ -146,24 +147,15 @@ mat4 CascadedShadowMap::getLightVPMatrix(
         maxZ = std::max(maxZ, transfo.z);
     }
 
-    // multiply near/far by a constant factor to make the boxes overlap
-    constexpr float zMult = 10.0f;
-    if (minZ < 0)
-    {
-        minZ *= zMult;
-    }
-    else
-    {
-        minZ /= zMult;
-    }
-    if (maxZ < 0)
-    {
-        maxZ /= zMult;
-    }
-    else
-    {
-        maxZ *= zMult;
-    }
+    // pad near/far proportionally to this cascade's own Z range, rather than by a fixed
+    // multiplier -- the near cascade (small natural range, needs max precision to avoid thin
+    // occluders leaking light) only gets a small absolute margin, while far cascades (huge
+    // natural range already) get a proportionally larger absolute margin, enough to avoid
+    // tall terrain popping in/out of the shadow map at the frustum edge.
+    constexpr float zPaddingFactor = 0.5f;
+    float zPadding = (maxZ - minZ) * zPaddingFactor;
+    minZ -= zPadding;
+    maxZ += zPadding;
 
     mat4 lightProjection = glm::ortho(-radius, radius, -radius, radius, minZ, maxZ);
 

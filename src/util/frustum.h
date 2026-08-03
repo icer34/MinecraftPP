@@ -2,7 +2,9 @@
 
 #include "glm/glm.hpp"
 #include <array>
+#include <cmath>
 #include <glm/gtc/matrix_access.hpp>
+#include <iostream>
 #include <vector>
 
 #include "graphics/camera.h"
@@ -32,10 +34,31 @@ enum class FrustumPlane : uint8_t
 
 class Frustum
 {
-  public:
-    Frustum(const Camera &cam, float aspectRatio)
+public:
+    Frustum(const Camera &cam)
     {
-        glm::mat4 m = cam.getProjectionMatrix(aspectRatio) * cam.getViewMatrix();
+        glm::mat4 proj = cam.getProjectionMatrix();
+        glm::mat4 view = cam.getViewMatrix();
+        glm::mat4 m = proj * view;
+
+        // temporary: catch the exact frame a degenerate/NaN VP matrix shows up
+        bool hasNan = false;
+        for (int col = 0; col < 4 && !hasNan; col++)
+            for (int row = 0; row < 4; row++)
+                if (std::isnan(m[col][row]) || std::isinf(m[col][row]))
+                {
+                    hasNan = true;
+                    break;
+                }
+        if (hasNan)
+        {
+            glm::vec3 pos = cam.getPos();
+            glm::vec3 front = cam.getFront();
+            std::cout << "[frustum-debug] NaN/Inf in VP matrix! pos=(" << pos.x << "," << pos.y
+                      << "," << pos.z << ") front=(" << front.x << "," << front.y << "," << front.z
+                      << ") yaw=" << cam.getYaw() << " pitch=" << cam.getPitch()
+                      << " aspect=" << cam.getAspectRatio() << " fov=" << cam.getFOV() << std::endl;
+        }
 
         glm::vec4 row0 = glm::row(m, 0);
         glm::vec4 row1 = glm::row(m, 1);
@@ -71,6 +94,31 @@ class Frustum
         return true;
     }
 
+    // temporary debug helper -- prints each plane's normal/dist and the AABB test result
+    // for one chunk, to catch the exact frustum state when everything gets culled.
+    void debugDumpChunk(const ChunkCoord coord) const
+    {
+        glm::vec3 minBox = glm::vec3(coord.x * Chunk::SIZE, 0.0f, coord.z * Chunk::SIZE);
+        glm::vec3 maxBox
+            = glm::vec3((coord.x + 1) * Chunk::SIZE, Chunk::HEIGHT, (coord.z + 1) * Chunk::SIZE);
+
+        static constexpr const char *names[6] = {"near", "far", "top", "bottom", "left", "right"};
+
+        int i = 0;
+        for (const Plane &plane : planes())
+        {
+            glm::vec3 positiveVertex(plane.normal.x >= 0.0f ? maxBox.x : minBox.x,
+                                     plane.normal.y >= 0.0f ? maxBox.y : minBox.y,
+                                     plane.normal.z >= 0.0f ? maxBox.z : minBox.z);
+            float result = glm::dot(plane.normal, positiveVertex) + plane.dist;
+
+            std::cout << "  [" << names[i] << "] normal=(" << plane.normal.x << ","
+                      << plane.normal.y << "," << plane.normal.z << ") dist=" << plane.dist
+                      << " -> test=" << result << (result < 0.0f ? " FAIL" : " pass") << std::endl;
+            i++;
+        }
+    }
+
     Plane getPlane(FrustumPlane planeDir)
     {
         switch (planeDir)
@@ -95,7 +143,7 @@ class Frustum
         return std::vector<Plane>{m_near, m_far, m_top, m_bottom, m_left, m_right};
     }
 
-  private:
+private:
     Plane m_near;
     Plane m_far;
     Plane m_top;

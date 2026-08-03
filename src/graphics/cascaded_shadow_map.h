@@ -14,7 +14,7 @@ public:
     CascadedShadowMap();
     ~CascadedShadowMap();
 
-    void update(const Camera &cam, float aspectRatio, const glm::vec3 &lightDir);
+    void update(const Camera &cam, const glm::vec3 &lightDir);
 
     const std::vector<glm::mat4> &getLightVPMatrices() const { return m_lightVPMatrices; }
     const std::vector<float> &getCutoffDists() const { return m_cutoffDist; }
@@ -25,8 +25,8 @@ public:
     unsigned int getTextureID() const { return m_texID; }
 
 private:
-    glm::mat4 getLightVPMatrix(
-        const Camera &cam, float aspectRatio, float zNear, float zFar, const glm::vec3 &lightDir);
+    glm::mat4
+    getLightVPMatrix(const Camera &cam, float zNear, float zFar, const glm::vec3 &lightDir);
 
     unsigned int m_DEPTH = 5;
     unsigned int m_TEXTURE_SIZE = 4096;

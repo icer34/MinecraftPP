@@ -5,11 +5,13 @@
 
 #include "key_codes.h"
 
+#include <glm/glm.hpp>
+
 struct GLFWwindow;
 
 class Window
 {
-  public:
+public:
     Window(int width, int height, const std::string &title, bool vSync);
     ~Window();
 
@@ -32,17 +34,18 @@ class Window
     double consumeDx();
     double consumeDy();
     double consumeScroll();
+    glm::vec2 getCursorPos();
 
     void resetMouse();
 
-    void toggleCursor();
+    void setCursorEnabled(bool enabled);
     bool isCursorEnabled();
 
     void enableInput();
     void disableInput();
     bool isInputEnabled();
 
-  private:
+private:
     int m_width;
     int m_height;
     const std::string m_title;

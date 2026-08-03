@@ -5,7 +5,7 @@
 
 class Shader
 {
-  public:
+public:
     Shader(const char *vertPath, const char *fragPath);
     ~Shader();
 
@@ -19,7 +19,7 @@ class Shader
     void setInt(const std::string &name, int value);
     void setFloatArray(const std::string &name, const std::vector<float> &value);
 
-  private:
+private:
     unsigned int m_programID;
     unsigned int m_vertID;
     unsigned int m_fragID;

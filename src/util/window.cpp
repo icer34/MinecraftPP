@@ -265,6 +265,8 @@ double Window::consumeScroll()
     return tmp;
 }
 
+glm::vec2 Window::getCursorPos() { return glm::vec2(m_mouseX, m_mouseY); }
+
 void Window::resetMouse()
 {
     m_firstMouse = true;
@@ -272,9 +274,9 @@ void Window::resetMouse()
     m_dy = 0.0;
 }
 
-void Window::toggleCursor()
+void Window::setCursorEnabled(bool enabled)
 {
-    m_cursorToggle = !m_cursorToggle;
+    m_cursorToggle = enabled;
     if (m_cursorToggle)
     {
         glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);

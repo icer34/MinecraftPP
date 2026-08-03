@@ -7,7 +7,7 @@
 
 class BlockTextureAtlas
 {
-  public:
+public:
     static BlockTextureAtlas &instance()
     {
         static BlockTextureAtlas atlas;
@@ -19,7 +19,7 @@ class BlockTextureAtlas
     uint16_t getIndex(const std::string &fileName) const;
     unsigned int getID() const;
 
-  private:
+private:
     static constexpr int TEXTURE_SIZE = 16;
     static constexpr int MIPMAP_LEVELS = 5;
     // must match vertex.glsl's CELL_STRIDE_UV/CELL_PADDING_UV/CELL_CONTENT_UV.

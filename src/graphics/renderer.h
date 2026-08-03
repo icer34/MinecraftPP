@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mesh/block_outline.h"
 #include "texture.h"
 #include "util/spline.h"
 #include <memory>
@@ -11,32 +12,31 @@ class Camera;
 class Window;
 class CascadedShadowMap;
 class Shader;
+struct RayCastResult;
 
 class Renderer
 {
-  public:
+public:
     Renderer(const Window &window, const World &world);
     ~Renderer();
 
-    void renderWorld(const Camera &cam);
+    void renderWorld(Camera &cam);
 
     void beginUI();
     void renderDebug(float dt);
     void renderSettings();
     void endUI();
 
+    void renderBlockOutline(const RayCastResult &result, const Camera &cam);
+
     void updateFPS(float dt);
 
-    bool requestWorldRegeneration()
-    {
-        bool result = m_shouldRegenerateWorld;
-        m_shouldRegenerateWorld = false;
-        return result;
-    }
+    bool requestWorldRegeneration();
 
-  private:
+private:
     const Window &m_window;
     const World &m_world;
+    BlockOutline m_blockOutline;
 
     std::unique_ptr<Shader> m_blockShader;
     std::unique_ptr<Shader> m_depthShader;

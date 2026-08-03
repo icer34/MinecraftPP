@@ -20,6 +20,8 @@ public:
     virtual ~Entity() = default;
     virtual void update(float dt, World &world) = 0;
 
+    const AABB &getHitBox() const { return m_hitBox; }
+
 protected:
     glm::vec3 m_pos;
     glm::vec3 m_vel;

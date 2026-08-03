@@ -20,7 +20,7 @@ struct NamedSpline
 
 class TerrainGenerator
 {
-  public:
+public:
     static TerrainGenerator &instance()
     {
         static TerrainGenerator terrainGenerator;
@@ -46,7 +46,7 @@ class TerrainGenerator
 
     void setSeed(unsigned int seed) { m_seed = seed; }
 
-  private:
+private:
     unsigned int m_seed = 67;
     unsigned int m_seaLvl = 102;
 

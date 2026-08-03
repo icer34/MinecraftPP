@@ -11,7 +11,7 @@ struct Biome
 
 class BiomeRegistry
 {
-  public:
+public:
     static BiomeRegistry &instance()
     {
         static BiomeRegistry reg;

@@ -2,9 +2,14 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include <glm/glm.hpp>
+
+class World;
 
 struct TextureLayer
 {
@@ -34,7 +39,9 @@ struct BlockType
 
     std::array<FaceTexture, 6> textures{};
 
-    // std::function onBreak()
+    // takes the world and the wPos of the block that is broken / placed
+    std::function<void(World &, glm::ivec3)> onBreak = [](World &, glm::ivec3) {};
+    std::function<void(World &, glm::ivec3)> onPlace = [](World &, glm::ivec3) {};
 
     // sounds, drops, ...
     //   ...
@@ -42,7 +49,7 @@ struct BlockType
 
 class BlockRegistry
 {
-  public:
+public:
     static BlockRegistry &instance()
     {
         static BlockRegistry registry;
@@ -63,7 +70,7 @@ class BlockRegistry
 
     uint16_t getIdByName(const std::string &name) { return m_nameToId.at(name); }
 
-  private:
+private:
     BlockRegistry() = default;
     BlockRegistry(BlockRegistry &registry) = delete;
     BlockRegistry &operator=(const BlockRegistry &) = delete;
