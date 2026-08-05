@@ -12,6 +12,7 @@ class Camera;
 class Window;
 class CascadedShadowMap;
 class Shader;
+class FrameBuffer;
 struct RayCastResult;
 
 class Renderer
@@ -24,7 +25,6 @@ public:
 
     void beginUI();
     void renderDebug(float dt);
-    void renderSettings();
     void endUI();
 
     void renderBlockOutline(const RayCastResult &result, const Camera &cam);
@@ -40,18 +40,15 @@ private:
 
     std::unique_ptr<Shader> m_blockShader;
     std::unique_ptr<Shader> m_depthShader;
+    std::unique_ptr<Shader> m_waterShader;
     std::unique_ptr<CascadedShadowMap> m_shadowMap;
+    std::unique_ptr<FrameBuffer> m_frameBuffer;
 
     Texture m_blockTintTexture;
 
-    std::vector<Texture> m_noiseTextures;
-    std::vector<Spline *> m_terrainGenSplines;
     int m_loadedChunks = 0;
     int m_renderedChunks = 0;
-    float m_pv = 0.0f;
-    float m_continentalness = 0.0f;
-    float m_erosion = 0.0f;
-    glm::vec3 m_lightDir = glm::normalize(glm::vec3(-0.5, -1.0, -0.3));
+    glm::vec3 m_lightDir = glm::normalize(glm::vec3(-0.3, -0.6, -0.3));
     bool m_shouldRegenerateWorld = false;
 
     float m_fps = 0.0f;

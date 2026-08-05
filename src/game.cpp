@@ -9,7 +9,7 @@ using glm::vec3;
 
 Game::Game()
     : m_window(1600, 900, "MinecraftPP", false),
-      m_player(vec3(0.5f, 110.0f, 3.2f)),
+      m_player(vec3(-96.0f, 110.0f, 30.2f)),
       m_world(World(67)),
       m_renderer(Renderer(m_window, m_world)),
       m_hud(m_window.getWidth(), m_window.getHeight()),
@@ -118,9 +118,8 @@ void Game::update(float dt)
 
     m_player.update(dt, m_world);
 
-    m_castResult = m_rayCaster.cast(m_player.getCam().getPos(),
-                                    m_player.getCam().getFront(),
-                                    m_player.getReach());
+    m_castResult = m_rayCaster.cast(
+        m_player.getCam().getPos(), m_player.getCam().getFront(), m_player.getReach());
 
     m_world.update(m_player.getPos(), dt);
 }

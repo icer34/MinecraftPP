@@ -67,11 +67,6 @@ void BlockTextureAtlas::loadAllTextures()
         std::string fileName = entry.path().stem().string();
         std::string filePath = entry.path().string();
 
-        if (fileName.ends_with("water_still"))
-        {
-            std::cout << "WATER" << std::endl;
-        }
-
         int width, height, channels;
         unsigned char *data = stbi_load(filePath.c_str(), &width, &height, &channels, 4);
         if (!data)

@@ -195,6 +195,17 @@ void Shader::setInt(const std::string &name, int value)
     glUniform1i(loc, value);
 }
 
+void Shader::setFloat(const std::string &name, float value)
+{
+    int loc = glGetUniformLocation(m_programID, name.c_str());
+    if (loc == -1)
+    {
+        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
+    }
+
+    glUniform1f(loc, value);
+}
+
 void Shader::setFloatArray(const std::string &name, const std::vector<float> &value)
 {
     std::string locName = name + "[0]";

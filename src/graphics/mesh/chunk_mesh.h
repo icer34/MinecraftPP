@@ -9,7 +9,7 @@ struct ChunkMeshData
     MeshData waterData;
 };
 
-class ChunkMesh : public Drawable
+class ChunkMesh
 {
 public:
     explicit ChunkMesh(ChunkCoord coord)
@@ -19,7 +19,8 @@ public:
 
     void updateSolid(const MeshData &data);
     void updateWater(const MeshData &data);
-    void draw() override;
+    void drawSolid();
+    void drawWater();
 
     ChunkCoord getCoords() const { return m_coord; }
 

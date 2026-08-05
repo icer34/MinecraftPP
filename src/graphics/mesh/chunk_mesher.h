@@ -36,15 +36,25 @@ private:
     /**
      * @param localPos position of the block inside the chunk (in [0, Chunk::SIZE[)
      */
-    void addFace(const BlockType &block,
-                 uint8_t humidity,
-                 uint8_t temperature,
-                 Direction dir,
-                 glm::ivec3 localPos,
-                 const Chunk &chunk,
-                 std::array<const Chunk *, 4> neighbors,
-                 std::vector<uint32_t> &vert,
-                 std::vector<unsigned int> &indices);
+    void addSolidFace(const BlockType &block,
+                      uint8_t humidity,
+                      uint8_t temperature,
+                      Direction dir,
+                      glm::ivec3 localPos,
+                      const Chunk &chunk,
+                      const std::array<const Chunk *, 4> &neighbors,
+                      std::vector<uint32_t> &vert,
+                      std::vector<unsigned int> &indices);
+
+    void addWaterFace(const BlockType &block,
+                      uint8_t humidity,
+                      uint8_t temperature,
+                      Direction dir,
+                      glm::ivec3 localPos,
+                      const Chunk &chunk,
+                      const std::array<const Chunk *, 4> &neighbors,
+                      std::vector<uint32_t> &vert,
+                      std::vector<unsigned int> &indices);
 
     glm::ivec3 wrapCoords(int x, int y, int z);
 
@@ -52,8 +62,9 @@ private:
     // e.g. at a chunk corner) -- out of Y bounds or diagonally out of chunk bounds is treated
     // as "not solid" (air), which is an accepted simplification since `neighbors` only tracks
     // the 4 cardinal chunks, not diagonal ones.
-    bool
-    isSolidNeighbor(glm::ivec3 pos, const Chunk &chunk, std::array<const Chunk *, 4> neighbors);
+    bool isSolidNeighbor(glm::ivec3 pos,
+                         const Chunk &chunk,
+                         std::array<const Chunk *, 4> neighbors);
 
     // 0..3 occlusion count for one corner of a face (0 = fully lit, 3 = most occluded).
     // see: https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/

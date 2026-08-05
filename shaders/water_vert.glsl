@@ -1,0 +1,111 @@
+#version 330 core
+
+// see ChunkMesher::mesh() in chunk_mesher.cpp to see the packing format in detail
+layout (location = 0) in uvec2 packedData;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+uniform float time;
+
+uniform sampler2D colormap;
+
+out float vAO;
+out vec4 vFragPosWorld;
+out float vViewDepth;
+
+// mirrors CUBE_FACE_CORNERS in chunk_mesher.cpp: for each direction, the position offset
+// (0/1 per axis) of each corner (BOTTOM_LEFT, TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT), flattened
+// to a 1D array (index = normalIdx * 4 + cornerIdx). Keep in sync if the winding ever changes.
+const vec3 FACE_CORNER_OFFSET[24] = vec3[24](
+    // NORTH
+    vec3(0, 0, 0), vec3(0, 1, 0), vec3(1, 1, 0), vec3(1, 0, 0),
+    // SOUTH
+    vec3(0, 0, 1), vec3(0, 1, 1), vec3(1, 1, 1), vec3(1, 0, 1),
+    // EAST
+    vec3(1, 0, 0), vec3(1, 1, 0), vec3(1, 1, 1), vec3(1, 0, 1),
+    // WEST
+    vec3(0, 0, 0), vec3(0, 1, 0), vec3(0, 1, 1), vec3(0, 0, 1),
+    // TOP
+    vec3(0, 1, 0), vec3(0, 1, 1), vec3(1, 1, 1), vec3(1, 1, 0),
+    // BOTTOM
+    vec3(0, 0, 0), vec3(0, 0, 1), vec3(1, 0, 1), vec3(1, 0, 0)
+);
+const uint TOP_FACE_IDX = 4u; // index of TOP in the Direction enum order (see directions.h)
+
+const float AO_LEVELS[4] = float[4](1.0, 0.75, 0.5, 0.25);
+
+//* wave iterations -- MUST match water_frag.glsl's copy exactly, or the analytic normal
+//* there won't match the actual displacement happening here.
+//* same iteration count used for both vertex displacement (here) and the fragment normal
+//* -- matches how Photon's get_water_height/get_water_normal share one iteration count
+//* (default 6 in its settings) rather than using a separate coarse pass for geometry.
+const int WAVE_ITERATIONS = 5;
+const float GOLDEN_ANGLE = 2.399963; // radians = ~137.5 deg
+
+// FBM-style progression: each octave starts from a base amplitude/frequency/speed and
+// scales by GAIN/LACUNARITY compared to the previous one, instead of one hardcoded value
+// per octave -- tune 5 numbers instead of resizing 3 arrays whenever WAVE_ITERATIONS changes.
+// GAIN * LACUNARITY must stay <= 1, otherwise each octave's slope contribution (what the
+// normal is built from) grows instead of shrinking, and the highest (most alias-prone)
+// frequency ends up dominating the shading instead of fading into fine detail.
+const float BASE_AMPLITUDE = 0.2;
+const float BASE_K = 0.5;
+const float BASE_SPEED = 0.2;
+const float GAIN = 0.5;       // amplitude multiplier per octave (aka persistence)
+const float LACUNARITY = 1.4; // frequency (and speed) multiplier per octave
+
+float gerstner_wave(vec2 coord, vec2 wave_dir, float t, float k)
+{
+    const float g = 9.8;
+    float w = sqrt(g * k);
+    float x = w * t - k * dot(wave_dir, coord);
+    return pow((sin(x) * 0.5 + 0.5), 2);
+}
+
+float waveHeight(vec2 worldXZ)
+{
+    float amplitude = BASE_AMPLITUDE;
+    float k = BASE_K;
+    float speed = BASE_SPEED;
+    float height = 0.0;
+
+    for (int i = 0; i < WAVE_ITERATIONS; i++)
+    {
+        float angle = float(i) * GOLDEN_ANGLE;
+        vec2 waveDir = vec2(cos(angle), sin(angle));
+
+        height += amplitude * gerstner_wave(worldXZ, waveDir, speed * time, k);
+
+        amplitude *= GAIN;
+        k *= LACUNARITY;
+    }
+    return height;
+}
+
+
+void main()
+{
+    uint data1 = packedData.x;
+    uint data2 = packedData.y;
+
+    uint chunkX = (data1 >> 28) & 0xFu;
+    uint chunkY = (data1 >> 20) & 0xFFu;
+    uint chunkZ = (data1 >> 16) & 0xFu;
+    uint normalIdx = (data1 >> 13) & 0x7u;
+
+    uint cornerIdx = (data2 >> 14) & 0x3u;
+    uint aoValue = (data2 >> 12) & 0x3u;
+
+    vec3 chunkPos = vec3(float(chunkX), float(chunkY), float(chunkZ));
+    vec3 facePos = chunkPos + FACE_CORNER_OFFSET[normalIdx * 4u + cornerIdx];
+
+    vec2 worldXZ = (model * vec4(facePos, 1.0)).xz;
+    facePos.y += waveHeight(worldXZ) - 0.325;
+
+    vAO = AO_LEVELS[aoValue];
+    vFragPosWorld = model * vec4(facePos, 1.0);
+    vViewDepth = -(view * vFragPosWorld).z;
+
+    gl_Position = projection * view * vFragPosWorld;
+}

@@ -116,7 +116,7 @@ void TerrainGenerator::generateChunk(Chunk &chunk)
                     continue;
 
                 else if (y > height && y <= m_seaLvl)
-                    chunk.setBlock(Blocks::STONE, glm::ivec3(x, y, z));
+                    chunk.setBlock(Blocks::WATER, glm::ivec3(x, y, z));
 
                 else if (y == height)
                     chunk.setBlock(Blocks::GRASS, glm::ivec3(x, y, z));

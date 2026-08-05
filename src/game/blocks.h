@@ -29,6 +29,7 @@ inline uint16_t AIR;
 inline uint16_t STONE;
 inline uint16_t DIRT;
 inline uint16_t GRASS;
+inline uint16_t WATER;
 
 // add a new block here: declare its id above, then register it below.
 inline void registerAll()
@@ -62,6 +63,14 @@ inline void registerAll()
     DIRT = reg.registerBlock({
         .name = "dirt",
         .textures = uniform(atlas.getIndex("dirt")),
+    });
+
+    WATER = reg.registerBlock({
+        .name = "water",
+        .isSolid = false,
+        .isTransparent = true,
+        .isLiquid = true,
+        .textures = uniform(atlas.getIndex("water_still")),
     });
 }
 } // namespace Blocks

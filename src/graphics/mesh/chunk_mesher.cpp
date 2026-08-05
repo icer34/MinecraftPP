@@ -22,7 +22,7 @@ static constexpr std::array<ivec2, 4> CORNER_SIGNS = {{
 
 // the two axes that span a face's plane (perpendicular to its normal), used to walk
 // towards a corner from the face's center when sampling AO neighbors.
-static void getTangentAxes(Direction dir, ivec3 &uAxis, ivec3 &vAxis)
+static void getTangentAxes(const Direction dir, ivec3 &uAxis, ivec3 &vAxis)
 {
     switch (dir)
     {
@@ -90,7 +90,7 @@ void ChunkMesher::mesh(const Chunk &chunk,
                     uint16_t neighborBlockID = Blocks::AIR;
                     if (neighborPos.y < 0 || neighborPos.y >= Chunk::HEIGHT)
                     {
-                        // neighbor is out of bouds -> we treat it as air
+                        // neighbor is out of bounds -> we treat it as air
                     }
                     else if (neighborChunkDir.has_value())
                     {
@@ -113,33 +113,33 @@ void ChunkMesher::mesh(const Chunk &chunk,
                     auto neighborBlock = registry.get(neighborBlockID);
 
                     // cull useless faces
-                    if (block.isLiquid && neighborBlockID != Blocks::AIR)
+                    if (block.isLiquid && neighborBlock.isLiquid)
                         continue;
                     if (block.isSolid && neighborBlock.isSolid)
                         continue;
 
                     // add the face to the vectors
                     if (block.isSolid)
-                        addFace(block,
-                                humidity,
-                                temperature,
-                                dir,
-                                ivec3(x, y, z),
-                                chunk,
-                                neighbors,
-                                solidVert,
-                                solidIdx);
+                        addSolidFace(block,
+                                     humidity,
+                                     temperature,
+                                     dir,
+                                     ivec3(x, y, z),
+                                     chunk,
+                                     neighbors,
+                                     solidVert,
+                                     solidIdx);
 
                     if (block.isLiquid)
-                        addFace(block,
-                                humidity,
-                                temperature,
-                                dir,
-                                ivec3(x, y, z),
-                                chunk,
-                                neighbors,
-                                waterVert,
-                                waterIdx);
+                        addSolidFace(block,
+                                     humidity,
+                                     temperature,
+                                     dir,
+                                     ivec3(x, y, z),
+                                     chunk,
+                                     neighbors,
+                                     waterVert,
+                                     waterIdx);
                 }
             }
         }
@@ -155,15 +155,15 @@ void ChunkMesher::mesh(const Chunk &chunk,
  * - the final position of a vertex is computed in the vertex shader: (chunkPos + facePos)
  * modelMatrix where the model matrix shifts the vertex to the correct world coords
  */
-void ChunkMesher::addFace(const BlockType &block,
-                          uint8_t humidity,
-                          uint8_t temperature,
-                          Direction dir,
-                          ivec3 localPos,
-                          const Chunk &chunk,
-                          std::array<const Chunk *, 4> neighbors,
-                          std::vector<uint32_t> &vert,
-                          std::vector<unsigned int> &indices)
+void ChunkMesher::addSolidFace(const BlockType &block,
+                               const uint8_t humidity,
+                               const uint8_t temperature,
+                               Direction dir,
+                               const ivec3 localPos,
+                               const Chunk &chunk,
+                               const std::array<const Chunk *, 4> &neighbors,
+                               std::vector<uint32_t> &vert,
+                               std::vector<unsigned int> &indices)
 {
     auto &faceCorners = CUBE_FACE_CORNERS[static_cast<size_t>(dir)];
     uint8_t normalIdx = static_cast<unsigned int>(dir);
@@ -208,6 +208,19 @@ void ChunkMesher::addFace(const BlockType &block,
                         addedFaces + 2,
                         addedFaces + 3});
     }
+}
+
+void ChunkMesher::addWaterFace(const BlockType &block,
+                               uint8_t humidity,
+                               uint8_t temperature,
+                               Direction dir,
+                               glm::ivec3 localPos,
+                               const Chunk &chunk,
+                               const std::array<const Chunk *, 4> &neighbors,
+                               std::vector<uint32_t> &vert,
+                               std::vector<unsigned int> &indices)
+{
+    // TODO;
 }
 
 std::optional<Direction> ChunkMesher::posInChunk(int x, int y, int z)
