@@ -41,14 +41,17 @@ private:
     std::unique_ptr<Shader> m_blockShader;
     std::unique_ptr<Shader> m_depthShader;
     std::unique_ptr<Shader> m_waterShader;
+    std::unique_ptr<Shader> m_skyShader;
     std::unique_ptr<CascadedShadowMap> m_shadowMap;
     std::unique_ptr<FrameBuffer> m_frameBuffer;
 
     Texture m_blockTintTexture;
 
+    unsigned int m_skyVAO;
+
     int m_loadedChunks = 0;
     int m_renderedChunks = 0;
-    glm::vec3 m_lightDir = glm::normalize(glm::vec3(-0.3, -0.6, -0.3));
+    glm::vec3 m_lightDir = glm::normalize(glm::vec3(-0.8, -0.3, -0.6));
     bool m_shouldRegenerateWorld = false;
 
     float m_fps = 0.0f;

@@ -1,5 +1,8 @@
 **NEXT UP**
-- water and its shading
+- architectural refactoring 
+  - seperate engine / game --> better engine api
+  - abstract shader code 
+    - includes, quality of life features (cfr. acreola video)
 
 **GENERAL IDEAS**
 - gameplay
@@ -15,7 +18,6 @@
   - blue noise + accumulation temporelle sur les ombres -- need TAA d'abord (voir post processing)
 
 - post processing : (dificulty order)
-  - pipeline (FBO + fullscreen quad) -- prerequis pour tout le reste, render la scene dans une texture puis la dessiner sur un quad plein ecran avec un shader
   - gamma correction / tone mapping simple -- corrige l'image lineaire vers sRGB (+ tonemap basique)
   - vignette -- assombrit les coins de l'ecran selon la distance au centre
   - chromatic aberration -- decale les UV par canal (R/G/B) en s'eloignant du centre

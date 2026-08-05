@@ -47,6 +47,11 @@ Renderer::Renderer(const Window &window, const World &world)
     m_waterShader->use();
     m_waterShader->setVec3("lightDir", m_lightDir);
 
+    m_skyShader = std::make_unique<Shader>("shaders/sky_vert.glsl", "shaders/sky_frag.glsl");
+    m_skyShader->use();
+    m_skyShader->setVec3("lightDir", m_lightDir);
+    glGenVertexArrays(1, &m_skyVAO);
+
     m_depthShader = std::make_unique<Shader>("shaders/depth_vert.glsl", "shaders/depth_frag.glsl");
     m_depthShader->addGeometryShader("shaders/depth_geom.glsl");
     m_shadowMap = std::make_unique<CascadedShadowMap>();
@@ -135,7 +140,6 @@ void Renderer::renderWorld(Camera &cam)
         m_renderedChunks++;
     }
 
-    //* then draw the water meshes
     // copy the solid rendering in a frame buffer
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_frameBuffer->getFrameBufferID());
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
@@ -152,6 +156,7 @@ void Renderer::renderWorld(Camera &cam)
     // rebind the default frame buffer
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
+    //* then draw the water meshes
     m_waterShader->use();
 
     m_waterShader->setMat4("view", cam.getViewMatrix());
@@ -182,6 +187,14 @@ void Renderer::renderWorld(Camera &cam)
         m_waterShader->setMat4("model", model);
         mesh->drawWater();
     }
+
+    //* then render the sky
+    m_skyShader->use();
+    m_skyShader->setMat4("invProjection", glm::inverse(cam.getProjectionMatrix()));
+    m_skyShader->setMat4("invView", glm::inverse(cam.getViewMatrix()));
+    m_skyShader->setFloat("time", m_window.getTime());
+    glBindVertexArray(m_skyVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 void Renderer::renderBlockOutline(const RayCastResult &result, const Camera &cam)
