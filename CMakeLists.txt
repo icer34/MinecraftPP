@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # off by default (slower builds, and not compatible with /RTC or incremental linking) --
 # turn on with -DENABLE_ASAN=ON to hunt memory corruption/UB bugs
-option(ENABLE_ASAN "Build engine_lib/MinecraftPP/tests with AddressSanitizer" OFF)
+option(ENABLE_ASAN "Build engine_lib/game_lib/MinecraftPP/tests with AddressSanitizer" OFF)
 
 include(FetchContent)
 
@@ -86,23 +86,22 @@ FetchContent_MakeAvailable(bs_thread_pool)
 
 # ─── Glad (généré pour ce projet, pas de repo à fetch → reste committé) ──────
 add_library(glad STATIC
-    libs/glad/src/glad.c
+    engine/libs/glad/src/glad.c
 )
-target_include_directories(glad PUBLIC libs/glad/include)
+target_include_directories(glad PUBLIC engine/libs/glad/include)
 
-# ─── engine_lib (toute la logique du jeu, sans le point d'entrée) ────────────
-# séparée de l'exécutable principal pour qu'un autre binaire (tests/) puisse
-# linker dessus et appeler des fonctions individuelles sans passer par main()
-file(GLOB_RECURSE MINECRAFTPP_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
-list(REMOVE_ITEM MINECRAFTPP_SOURCES "${CMAKE_SOURCE_DIR}/src/main.cpp")
+# ─── engine_lib (voxel engine générique -- aucun code spécifique à MinecraftPP) ─
+# séparée du jeu pour pouvoir être réutilisée par un autre jeu, et pour que
+# tests/ puisse linker dessus seule (comme un deuxième "jeu" minimal)
+file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS "engine/src/*.cpp")
 
 add_library(engine_lib STATIC
-    ${MINECRAFTPP_SOURCES}
+    ${ENGINE_SOURCES}
 )
 
 target_include_directories(engine_lib PUBLIC
-    src
-    libs/glad/include
+    engine/src
+    engine/libs/glad/include
     ${glfw_SOURCE_DIR}/include
     ${glm_SOURCE_DIR}
     ${imgui_SOURCE_DIR}
@@ -123,18 +122,35 @@ target_link_libraries(engine_lib PUBLIC
 # S'assure qu'imgui/implot sont compilés avant engine_lib
 add_dependencies(engine_lib imgui implot)
 
-# ─── Exécutable principal ─────────────────────────────────────────────────────
-add_executable(${PROJECT_NAME}
-    src/main.cpp
+# ─── game_lib (logique spécifique à MinecraftPP : blocs, terrain, joueur) ────
+# séparée de l'exécutable principal pour la même raison qu'engine_lib/tests
+file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS "game/src/*.cpp")
+list(REMOVE_ITEM GAME_SOURCES "${CMAKE_SOURCE_DIR}/game/src/main.cpp")
+
+add_library(game_lib STATIC
+    ${GAME_SOURCES}
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
+target_include_directories(game_lib PUBLIC
+    game/src
+)
+
+target_link_libraries(game_lib PUBLIC
     engine_lib
 )
 
+# ─── Exécutable principal ─────────────────────────────────────────────────────
+add_executable(${PROJECT_NAME}
+    game/src/main.cpp
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    game_lib
+)
+
 # ─── Exécutable de tests ──────────────────────────────────────────────────────
-# main() séparé : #include n'importe quel header de src/ pour tester des
-# fonctions individuellement, sans passer par le main() du jeu ni ouvrir de fenêtre
+# linke uniquement engine_lib (pas game_lib) -- sert aussi de vérification que
+# l'engine reste utilisable seul, sans rien de spécifique à MinecraftPP
 file(GLOB_RECURSE MINECRAFTPP_TEST_SOURCES CONFIGURE_DEPENDS "tests/*.cpp")
 
 add_executable(tests
@@ -150,7 +166,7 @@ target_link_libraries(tests PRIVATE
 # pas besoin d'être instrumentées, et ça éviterait de tout recompiler pour rien)
 if(ENABLE_ASAN)
     if(MSVC)
-        foreach(target engine_lib ${PROJECT_NAME} tests)
+        foreach(target engine_lib game_lib ${PROJECT_NAME} tests)
             target_compile_options(${target} PRIVATE /fsanitize=address /Zi)
         endforeach()
         # ASan sous MSVC est incompatible avec /RTC (ajouté automatiquement en Debug)
@@ -159,7 +175,7 @@ if(ENABLE_ASAN)
         target_link_options(${PROJECT_NAME} PRIVATE /INCREMENTAL:NO)
         target_link_options(tests PRIVATE /INCREMENTAL:NO)
     else()
-        foreach(target engine_lib ${PROJECT_NAME} tests)
+        foreach(target engine_lib game_lib ${PROJECT_NAME} tests)
             target_compile_options(${target} PRIVATE -fsanitize=address -g)
             target_link_options(${target} PRIVATE -fsanitize=address)
         endforeach()
