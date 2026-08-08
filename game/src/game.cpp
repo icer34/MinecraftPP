@@ -3,14 +3,33 @@
 #include <iostream>
 
 #include "blocks.h"
-#include "util/key_codes.h"
+#include "engine.h"
+#include "terrain_generator.h"
 
 using glm::vec3;
 
+namespace
+{
+// TerrainGenerator stays alive for the whole program (static storage inside its own
+// singleton), so World can safely hold a non-owning shared_ptr to it -- no-op deleter,
+// nothing to free when the last reference drops.
+std::shared_ptr<ITerrainGenerator> gameTerrainGenerator()
+{
+    return std::shared_ptr<ITerrainGenerator>(&TerrainGenerator::instance(), [](ITerrainGenerator *) {});
+}
+} // namespace
+
 Game::Game()
     : m_player(vec3(-96.0f, 110.0f, 30.2f)),
-      m_world(World(67))
+      m_world(World(gameTerrainGenerator()))
 {
+    TerrainGenerator::instance().setSeed(67);
+
+    auto &chunkAttribReg = ChunkAttribRegistry::instance();
+    chunkAttribReg.registerAttrib<uint8_t>("temperature", AttribScope::PerColumn, 0);
+    chunkAttribReg.enableAttrib("temperature");
+    chunkAttribReg.registerAttrib<uint8_t>("humidity", AttribScope::PerColumn, 0);
+    chunkAttribReg.enableAttrib("humidity");
 }
 
 void Game::init(Window &window, Renderer &renderer)
@@ -101,8 +120,7 @@ void Game::update(float dt)
 
     m_player.update(dt, m_world);
 
-    m_castResult = m_rayCaster->cast(
-        m_player.getCam().getPos(), m_player.getCam().getFront(), m_player.getReach());
+    m_castResult = m_rayCaster->cast(m_player.getCam().getPos(), m_player.getCam().getFront(), m_player.getReach());
 
     m_world.update(m_player.getPos(), dt);
 }

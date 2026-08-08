@@ -2,21 +2,16 @@
 
 #include <memory>
 
-#include "app/application_interface.h"
+#include "core/world.h"
+#include "engine.h"
 #include "player.h"
-#include "world.h"
-#include "graphics/hud/hud.h"
-#include "graphics/hud/settings_menu.h"
-#include "graphics/renderer.h"
-#include "util/raycaster.h"
-#include "util/window.h"
 
 class Game : public IApplication
 {
 public:
     Game();
 
-    IVoxelWorld &getWorld() override { return m_world; }
+    World &getWorld() override { return m_world; }
     void init(Window &window, Renderer &renderer) override;
     void processInput(Window &window) override;
     void update(float dt) override;

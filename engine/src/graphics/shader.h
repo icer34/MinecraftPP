@@ -1,28 +1,41 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include <optional>
 #include <string>
+#include <variant>
+#include <vector>
+
+#include <glad/glad.h>
+
+enum class ShaderStage
+{
+    Vertex,
+    Fragment,
+    Geometry,
+};
+
+using UniformValue
+    = std::variant<float, int, glm::vec2, glm::vec3, glm::mat4, std::vector<float>, std::vector<glm::mat4>>;
 
 class Shader
 {
 public:
-    Shader(const char *vertPath, const char *fragPath);
-    ~Shader();
-
-    void addGeometryShader(const char *path);
-
-    void use();
-
-    void setMat4Array(const std::string &name, const std::vector<glm::mat4> &value);
-    void setMat4(const std::string &name, glm::mat4 value);
-    void setVec3(const std::string &name, glm::vec3 value);
-    void setInt(const std::string &name, int value);
-    void setFloat(const std::string &name, float value);
-    void setFloatArray(const std::string &name, const std::vector<float> &value);
+    Shader() = default;
+    // the shader role represents what the shader will draw (ex: block, water, hud, outline, ...)
+    void load(const std::string &role);
+    void bind();
+    const std::vector<std::pair<std::string, GLenum>> &getActiveUniforms() const;
+    template <typename T> void setIfChanged(const std::string &name, T value);
 
 private:
-    unsigned int m_programID;
-    unsigned int m_vertID;
-    unsigned int m_fragID;
-    unsigned int m_geomID = 0;
+    unsigned int m_programID = 0;
+
+    std::vector<std::pair<std::string, GLenum>> m_activeUniforms;
+    std::unordered_map<std::string, unsigned int> m_activeUniformLocations;
+    std::unordered_map<std::string, std::optional<UniformValue>> m_activeUniformValues;
 };
+
+#include "shader.inl"

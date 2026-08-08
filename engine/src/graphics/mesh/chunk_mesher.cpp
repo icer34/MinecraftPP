@@ -1,6 +1,7 @@
 #include "chunk_mesher.h"
 
 #include "core/block_registry.h"
+#include "core/chunk_attrib_registry.h"
 #include "graphics/block_texture_atlas.h"
 
 #include <glm/glm.hpp>
@@ -54,12 +55,10 @@ static constexpr std::array<std::array<Corner, 4>, 6> CUBE_FACE_CORNERS = {{
 }};
 
 //! neighbor chunks must be in order north, south, east, west, top, bottom
-void ChunkMesher::mesh(const Chunk &chunk,
-                       std::array<const Chunk *, 4> neighbors,
-                       ChunkMeshData &meshData)
+void ChunkMesher::mesh(const Chunk &chunk, std::array<const Chunk *, 4> neighbors, ChunkMeshData &meshData)
 {
     auto &registry = BlockRegistry::instance();
-    auto &atlas = BlockTextureAtlas::instance();
+    const auto &enabledAttribs = ChunkAttribRegistry::instance().getEnabledAttribs();
 
     std::vector<uint32_t> solidVert{};
     std::vector<uint32_t> waterVert{};
@@ -70,11 +69,18 @@ void ChunkMesher::mesh(const Chunk &chunk,
     {
         for (int z = 0; z < Chunk::SIZE; z++)
         {
-            uint8_t temperature = chunk.getTemp(ivec2(x, z));
-            uint8_t humidity = chunk.getHumidity(ivec2(x, z));
-
             for (int y = 0; y < Chunk::HEIGHT; y++)
             {
+                uint32_t attribBits = 0;
+                for (size_t i = 0; i < enabledAttribs.size(); i++)
+                {
+                    const auto &[name, info] = enabledAttribs[i];
+                    uint8_t value = (info.scope == AttribScope::PerColumn)
+                                      ? chunk.get<uint8_t>(name, glm::ivec2(x, z))
+                                      : chunk.get<uint8_t>(name, glm::ivec3(x, y, z));
+                    attribBits |= (uint32_t(value) << (24 - i * 8));
+                }
+
                 auto blockID = chunk.getBlock(ivec3(x, y, z));
                 auto &block = registry.get(blockID);
 
@@ -97,8 +103,7 @@ void ChunkMesher::mesh(const Chunk &chunk,
                         // neighbor is in another chunk
                         // convert coords into new chunk local coords
                         neighborPos = wrapCoords(neighborPos.x, neighborPos.y, neighborPos.z);
-                        auto neighborChunk
-                            = neighbors.at(static_cast<size_t>(neighborChunkDir.value()));
+                        auto neighborChunk = neighbors.at(static_cast<size_t>(neighborChunkDir.value()));
 
                         if (neighborChunk != nullptr)
                         {
@@ -110,7 +115,7 @@ void ChunkMesher::mesh(const Chunk &chunk,
                         neighborBlockID = chunk.getBlock(neighborPos);
                     }
 
-                    auto neighborBlock = registry.get(neighborBlockID);
+                    auto &neighborBlock = registry.get(neighborBlockID);
 
                     // cull useless faces
                     if (block.isLiquid && neighborBlock.isLiquid)
@@ -120,26 +125,10 @@ void ChunkMesher::mesh(const Chunk &chunk,
 
                     // add the face to the vectors
                     if (block.isSolid)
-                        addSolidFace(block,
-                                     humidity,
-                                     temperature,
-                                     dir,
-                                     ivec3(x, y, z),
-                                     chunk,
-                                     neighbors,
-                                     solidVert,
-                                     solidIdx);
+                        addSolidFace(block, attribBits, dir, ivec3(x, y, z), chunk, neighbors, solidVert, solidIdx);
 
                     if (block.isLiquid)
-                        addSolidFace(block,
-                                     humidity,
-                                     temperature,
-                                     dir,
-                                     ivec3(x, y, z),
-                                     chunk,
-                                     neighbors,
-                                     waterVert,
-                                     waterIdx);
+                        addSolidFace(block, attribBits, dir, ivec3(x, y, z), chunk, neighbors, waterVert, waterIdx);
                 }
             }
         }
@@ -151,13 +140,13 @@ void ChunkMesher::mesh(const Chunk &chunk,
 /**
  * the vertex data is packed in 2 32-bit integers in the following way:
  *? chunkX - chunkY - chunkZ - normalIdx - textureIdx - isTinted --> 4 - 8 - 4 - 3 - 12 - 1 = 32
- ** humidity - temperature - cornerIdx - ambientOcclusion - future use --> 8 - 8 - 2 - 2 - 12 = 32
+ ** enabledAttribs (one uint8 per attrib, packed by ChunkAttribRegistry::getEnabledAttribs()
+ ** order into attribBits, high byte first) - cornerIdx - ambientOcclusion - future use --> up to 16 - 2 - 2 - 12 = 32
  * - the final position of a vertex is computed in the vertex shader: (chunkPos + facePos)
  * modelMatrix where the model matrix shifts the vertex to the correct world coords
  */
 void ChunkMesher::addSolidFace(const BlockType &block,
-                               const uint8_t humidity,
-                               const uint8_t temperature,
+                               uint32_t attribBits,
                                Direction dir,
                                const ivec3 localPos,
                                const Chunk &chunk,
@@ -173,46 +162,57 @@ void ChunkMesher::addSolidFace(const BlockType &block,
     {
         const uint16_t &textureIdx = face.layers[layerIdx].textureIndex;
         bool isTinted = face.layers[layerIdx].tinted;
-        unsigned int addedFaces
-            = static_cast<unsigned int>(vert.size() / 2); //* 2 = number of uint32 per vertex
+        unsigned int addedFaces = static_cast<unsigned int>(vert.size() / 2); //* 2 = number of uint32 per vertex
 
         for (int i = 0; i < 4; i++)
         {
+            size_t N = ChunkAttribRegistry::instance().computeVertexWordCount();
+            std::vector<uint32_t> words(N, 0);
+
             Corner corner = faceCorners[i];
             uint8_t cornerIdx = static_cast<uint8_t>(corner);
             uint8_t aoValue = cornerAO(chunk, neighbors, localPos, dir, corner);
 
-            uint32_t data1 = 0;
-            data1 |= (static_cast<uint32_t>(localPos.x) & 0xF) << 28;
-            data1 |= (static_cast<uint32_t>(localPos.y) & 0xFF) << 20;
-            data1 |= (static_cast<uint32_t>(localPos.z) & 0xF) << 16;
-            data1 |= (normalIdx & 0x7) << 13;
-            data1 |= (textureIdx & 0xFFF) << 1;
-            data1 |= (static_cast<uint8_t>(isTinted) & 0x1);
+            words[0] |= (static_cast<uint32_t>(localPos.x) & 0xF) << 28;
+            words[0] |= (static_cast<uint32_t>(localPos.y) & 0xFF) << 20;
+            words[0] |= (static_cast<uint32_t>(localPos.z) & 0xF) << 16;
+            words[0] |= (normalIdx & 0x7) << 13;
+            words[0] |= (textureIdx & 0xFFF) << 1;
+            words[0] |= (static_cast<uint8_t>(isTinted) & 0x1);
 
-            uint32_t data2 = 0;
-            data2 |= (humidity & 0xFF) << 24;
-            data2 |= (temperature & 0xFF) << 16;
-            data2 |= (cornerIdx & 0x3) << 14;
-            data2 |= (aoValue & 0x3) << 12;
+            uint32_t bitCursor = 0;
+            auto packBits = [&](uint32_t value, uint32_t width)
+            {
+                size_t wordIdx = 1 + bitCursor / 32;
+                size_t shift = bitCursor % 32;
+                words[wordIdx] |= (value & ((1u << width) - 1)) << shift;
+                bitCursor += width;
+            };
 
-            vert.push_back(data1);
-            vert.push_back(data2);
+            packBits(cornerIdx, 2);
+            packBits(aoValue, 2);
+
+            const auto &enabledAttribs = ChunkAttribRegistry::instance().getEnabledAttribs();
+            for (size_t i = 0; i < enabledAttribs.size(); i++)
+            {
+                auto &[name, info] = enabledAttribs[i];
+                uint8_t value = (info.scope == AttribScope::PerColumn)
+                                  ? chunk.get<uint8_t>(name, glm::ivec2(localPos.x, localPos.z))
+                                  : chunk.get<uint8_t>(name, localPos);
+                packBits(value, 8);
+            }
+
+            for (uint32_t w : words)
+                vert.push_back(w);
         }
 
         indices.insert(indices.end(),
-                       {addedFaces,
-                        addedFaces + 1,
-                        addedFaces + 2,
-                        addedFaces,
-                        addedFaces + 2,
-                        addedFaces + 3});
+                       {addedFaces, addedFaces + 1, addedFaces + 2, addedFaces, addedFaces + 2, addedFaces + 3});
     }
 }
 
 void ChunkMesher::addWaterFace(const BlockType &block,
-                               uint8_t humidity,
-                               uint8_t temperature,
+                               uint32_t attribBits,
                                Direction dir,
                                glm::ivec3 localPos,
                                const Chunk &chunk,
@@ -246,9 +246,7 @@ ivec3 ChunkMesher::wrapCoords(int x, int y, int z)
     return ivec3(newX, y, newZ);
 }
 
-bool ChunkMesher::isSolidNeighbor(ivec3 pos,
-                                  const Chunk &chunk,
-                                  std::array<const Chunk *, 4> neighbors)
+bool ChunkMesher::isSolidNeighbor(ivec3 pos, const Chunk &chunk, std::array<const Chunk *, 4> neighbors)
 {
     if (pos.y < 0 || pos.y >= Chunk::HEIGHT)
         return false; // above/below the world -> air
@@ -279,11 +277,8 @@ bool ChunkMesher::isSolidNeighbor(ivec3 pos,
     return BlockRegistry::instance().get(blockID).isSolid;
 }
 
-uint8_t ChunkMesher::cornerAO(const Chunk &chunk,
-                              std::array<const Chunk *, 4> neighbors,
-                              ivec3 localPos,
-                              Direction dir,
-                              Corner corner)
+uint8_t ChunkMesher::cornerAO(
+    const Chunk &chunk, std::array<const Chunk *, 4> neighbors, ivec3 localPos, Direction dir, Corner corner)
 {
     ivec3 normalOffset = getDirectionVector(dir);
 
@@ -300,6 +295,5 @@ uint8_t ChunkMesher::cornerAO(const Chunk &chunk,
     if (side1 && side2)
         return 3; // fully occluded regardless of the diagonal, avoids lighting seams
 
-    return static_cast<uint8_t>(side1) + static_cast<uint8_t>(side2)
-         + static_cast<uint8_t>(cornerSolid);
+    return static_cast<uint8_t>(side1) + static_cast<uint8_t>(side2) + static_cast<uint8_t>(cornerSolid);
 }

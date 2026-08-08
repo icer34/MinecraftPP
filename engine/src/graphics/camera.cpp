@@ -13,9 +13,9 @@ Camera::Camera(vec3 position)
       m_worldUp(0.0f, 1.0f, 0.0f),
       m_yaw(-90.0f),
       m_pitch(0.0f),
-      m_fovDeg(70.0f),
       m_zNear(0.1f),
       m_zFar(500.0f),
+      m_fovDeg(70.0f),
       m_sens(0.1f)
 {
     auto &reg = SettingsRegistry::instance();

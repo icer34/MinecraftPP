@@ -1,8 +1,6 @@
 #pragma once
 
-#include "core/entity.h"
-
-#include "graphics/camera.h"
+#include "engine.h"
 
 struct InputData
 {
@@ -17,7 +15,7 @@ class Player : public Entity
 public:
     Player(glm::vec3 pos);
 
-    void update(float dt, IVoxelWorld &world) override;
+    void update(float dt, World &world) override;
 
     void consumeInput(const InputData &inputData);
 

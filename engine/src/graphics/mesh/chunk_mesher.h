@@ -37,8 +37,7 @@ private:
      * @param localPos position of the block inside the chunk (in [0, Chunk::SIZE[)
      */
     void addSolidFace(const BlockType &block,
-                      uint8_t humidity,
-                      uint8_t temperature,
+                      uint32_t attribBits,
                       Direction dir,
                       glm::ivec3 localPos,
                       const Chunk &chunk,
@@ -47,8 +46,7 @@ private:
                       std::vector<unsigned int> &indices);
 
     void addWaterFace(const BlockType &block,
-                      uint8_t humidity,
-                      uint8_t temperature,
+                      uint32_t attribBits,
                       Direction dir,
                       glm::ivec3 localPos,
                       const Chunk &chunk,

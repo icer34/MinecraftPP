@@ -1,9 +1,12 @@
 #include "terrain_generator.h"
 
 #include "blocks.h"
-#include "core/settings_registry.h"
+#include "engine.h"
 
 #include <algorithm>
+
+using glm::ivec2;
+using glm::ivec3;
 
 TerrainGenerator::TerrainGenerator()
     : m_pvSpline(Spline(-1.0, 1.0, 0.0, (float)Chunk::HEIGHT)),
@@ -32,13 +35,17 @@ TerrainGenerator::TerrainGenerator()
 
     auto setPoints = [](Spline &spline, std::initializer_list<std::pair<float, float>> points)
     {
-        // the Spline constructor already added 2 default points at (xMin, mid) and (xMax, mid)
-        // -- clear them so we can lay down the exact curve below
-        spline.removePoint(0);
-        spline.removePoint(0);
+        // Spline's constructor already added 2 default points, at (xMin, mid) and (xMax, mid)
+        // -- removePoint refuses to go below 2 points, so instead of remove+re-add, move
+        // those two directly onto the curve's first/last point (always at xMin/xMax here)
+        // and addPoint everything in between.
+        std::vector<std::pair<float, float>> pts(points);
 
-        for (auto &[x, y] : points)
-            spline.addPoint(x, y);
+        spline.setPoint(0, pts.front().first, pts.front().second);
+        spline.setPoint(1, pts.back().first, pts.back().second);
+
+        for (size_t i = 1; i + 1 < pts.size(); i++)
+            spline.addPoint(pts[i].first, pts[i].second);
     };
 
     setPoints(m_continentalnessSpline,
@@ -88,13 +95,12 @@ TerrainGenerator::TerrainGenerator()
     m_humidityNoise.updateSettings(2, 0.5, 2.0, 0.0015);
 
     auto &reg = SettingsRegistry::instance();
-    reg.addSpline(
-        SettingCategory::WorldGen, "", "Continentalness spline", &m_continentalnessSpline, "TODO");
+    reg.addSpline(SettingCategory::WorldGen, "", "Continentalness spline", &m_continentalnessSpline, "TODO");
     reg.addSpline(SettingCategory::WorldGen, "", "Erosion spline", &m_erosionSpline, "TODO");
     reg.addSpline(SettingCategory::WorldGen, "", "Peaks & Valleys spline", &m_pvSpline, "TODO");
 }
 
-void TerrainGenerator::generateChunk(Chunk &chunk)
+void TerrainGenerator::generateChunk(Chunk &chunk) const
 {
     ChunkCoord coord = chunk.getCoords();
 
@@ -107,9 +113,8 @@ void TerrainGenerator::generateChunk(Chunk &chunk)
 
             int height = getHeight(worldX, worldZ);
 
-            chunk.setTemp(abs(m_temperatureNoise.sample(worldX, worldZ) * 255.0), glm::ivec2(x, z));
-            chunk.setHumidity(abs(m_humidityNoise.sample(worldX, worldZ) * 255.0),
-                              glm::ivec2(x, z));
+            chunk.set<uint8_t>("temperature", ivec2(x, z), abs(m_temperatureNoise.sample(worldX, worldZ) * 255.0));
+            chunk.set<uint8_t>("humidity", ivec2(x, z), abs(m_humidityNoise.sample(worldX, worldZ) * 255.0));
 
             for (int y = 0; y < Chunk::HEIGHT; y++)
             {
@@ -117,19 +122,19 @@ void TerrainGenerator::generateChunk(Chunk &chunk)
                     continue;
 
                 else if (y > height && y <= m_seaLvl)
-                    chunk.setBlock(Blocks::WATER, glm::ivec3(x, y, z));
+                    chunk.setBlock(Blocks::WATER, ivec3(x, y, z));
 
                 else if (y == height)
-                    chunk.setBlock(Blocks::GRASS, glm::ivec3(x, y, z));
+                    chunk.setBlock(Blocks::GRASS, ivec3(x, y, z));
 
                 else
-                    chunk.setBlock(Blocks::DIRT, glm::ivec3(x, y, z));
+                    chunk.setBlock(Blocks::DIRT, ivec3(x, y, z));
             }
         }
     }
 }
 
-int TerrainGenerator::getHeight(int worldX, int worldZ)
+int TerrainGenerator::getHeight(int worldX, int worldZ) const
 {
     float contNoise = m_continentalnessNoise.sample(worldX, worldZ);
     float pvNoise = m_pvNoise.sample(worldX, worldZ);

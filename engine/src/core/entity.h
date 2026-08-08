@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 
-#include "core/voxel_world.h"
+#include "core/world.h"
 #include "util/aabb.h"
 #include "util/directions.h"
 
@@ -18,7 +18,7 @@ public:
     }
 
     virtual ~Entity() = default;
-    virtual void update(float dt, IVoxelWorld &world) = 0;
+    virtual void update(float dt, World &world) = 0;
 
     const AABB &getHitBox() const { return m_hitBox; }
 
@@ -30,7 +30,7 @@ protected:
 
     bool m_onGround;
 
-    void moveAndCollide(glm::vec3 delta, IVoxelWorld &world)
+    void moveAndCollide(glm::vec3 delta, World &world)
     {
         //*resolve collisions for each axis independantly to avoid being stuck in a corner
         m_pos.x += delta.x;
@@ -45,7 +45,7 @@ protected:
     }
 
 private:
-    void resolveAxisCollision(Axis axis, float delta, IVoxelWorld &world)
+    void resolveAxisCollision(Axis axis, float delta, World &world)
     {
         glm::vec3 min = m_hitBox.getMin(m_pos);
         glm::vec3 max = m_hitBox.getMax(m_pos);

@@ -11,6 +11,18 @@
 #include <vector>
 namespace fs = std::filesystem;
 
+namespace
+{
+// same override convention as shaders: the game's own textures win if present, otherwise
+// fall back to whatever the engine ships by default.
+std::string resolveBlockTexturesDir()
+{
+    if (fs::exists("game/assets/textures/block") && fs::is_directory("game/assets/textures/block"))
+        return "game/assets/textures/block";
+    return "engine/assets/textures/block";
+}
+} // namespace
+
 BlockTextureAtlas::BlockTextureAtlas()
 {
     glGenTextures(1, &m_textureID);
@@ -56,7 +68,7 @@ void BlockTextureAtlas::loadAllTextures()
 
     std::vector<unsigned char> padded(CELL_STRIDE * CELL_STRIDE * 4);
 
-    for (const auto &entry : fs::directory_iterator("assets/textures/block"))
+    for (const auto &entry : fs::directory_iterator(resolveBlockTexturesDir()))
     {
         // remove other directories and files
         if (!entry.is_regular_file())

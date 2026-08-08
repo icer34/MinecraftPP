@@ -1,24 +1,24 @@
 #pragma once
 
 #include "mesh/block_outline.h"
+#include "shader.h"
 #include "texture.h"
 #include "util/spline.h"
 #include <memory>
 
 #include <iostream>
 
-class IVoxelWorld;
+class World;
 class Camera;
 class Window;
 class CascadedShadowMap;
-class Shader;
 class FrameBuffer;
 struct RayCastResult;
 
 class Renderer
 {
 public:
-    Renderer(const Window &window, const IVoxelWorld &world);
+    Renderer(const Window &window, const World &world);
     ~Renderer();
 
     void renderWorld(Camera &cam);
@@ -35,13 +35,13 @@ public:
 
 private:
     const Window &m_window;
-    const IVoxelWorld &m_world;
+    const World &m_world;
     BlockOutline m_blockOutline;
 
-    std::unique_ptr<Shader> m_blockShader;
-    std::unique_ptr<Shader> m_depthShader;
-    std::unique_ptr<Shader> m_waterShader;
-    std::unique_ptr<Shader> m_skyShader;
+    Shader m_blockShader;
+    Shader m_depthShader;
+    Shader m_waterShader;
+    Shader m_skyShader;
     std::unique_ptr<CascadedShadowMap> m_shadowMap;
     std::unique_ptr<FrameBuffer> m_frameBuffer;
 

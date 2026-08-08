@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "core/block_registry.h"
-#include "core/voxel_world.h"
+#include "core/world.h"
 
 struct RayCastResult
 {
@@ -18,7 +18,7 @@ struct RayCastResult
 class RayCaster
 {
 public:
-    RayCaster(const IVoxelWorld &world)
+    RayCaster(const World &world)
         : m_world(world)
     {
     }
@@ -94,5 +94,5 @@ public:
     }
 
 private:
-    const IVoxelWorld &m_world;
+    const World &m_world;
 };

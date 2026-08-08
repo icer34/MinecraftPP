@@ -3,6 +3,8 @@
 #include <glad/glad.h>
 #include <iostream>
 
+#include "core/chunk_attrib_registry.h"
+
 Mesh::Mesh()
 {
     // create the buffers
@@ -29,13 +31,11 @@ void Mesh::update(const MeshData &data)
     glBufferData(GL_ARRAY_BUFFER, m_nVert * sizeof(GLuint), data.vertices.data(), GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 m_nIdx * sizeof(GLuint),
-                 data.indices.data(),
-                 GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_nIdx * sizeof(GLuint), data.indices.data(), GL_STATIC_DRAW);
 
-    // packed data inside 2 32-bit unsigned integers
-    glVertexAttribIPointer(0, 2, GL_UNSIGNED_INT, 0, 0);
+    size_t N = ChunkAttribRegistry::instance().computeVertexWordCount();
+    glVertexAttribIPointer(
+        0, static_cast<GLint>(N), GL_UNSIGNED_INT, static_cast<GLsizei>(N * sizeof(uint32_t)), (void *)0);
     glEnableVertexAttribArray(0);
 
     glBindVertexArray(0);

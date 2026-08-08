@@ -1,11 +1,10 @@
 #version 330 core
 
-// see ChunkMesher::mesh() in chunk_mesher.cpp to see the packing format in detail
-layout (location = 0) in uvec2 packedData;
+#include "chunk_vertex_format"
 
-uniform mat4 model;
+uniform mat4 chunkModel;
 uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 perspProj;
 uniform float time;
 
 uniform sampler2D colormap;
@@ -86,26 +85,15 @@ float waveHeight(vec2 worldXZ)
 
 void main()
 {
-    uint data1 = packedData.x;
-    uint data2 = packedData.y;
-
-    uint chunkX = (data1 >> 28) & 0xFu;
-    uint chunkY = (data1 >> 20) & 0xFFu;
-    uint chunkZ = (data1 >> 16) & 0xFu;
-    uint normalIdx = (data1 >> 13) & 0x7u;
-
-    uint cornerIdx = (data2 >> 14) & 0x3u;
-    uint aoValue = (data2 >> 12) & 0x3u;
-
     vec3 chunkPos = vec3(float(chunkX), float(chunkY), float(chunkZ));
     vec3 facePos = chunkPos + FACE_CORNER_OFFSET[normalIdx * 4u + cornerIdx];
 
-    vec2 worldXZ = (model * vec4(facePos, 1.0)).xz;
+    vec2 worldXZ = (chunkModel * vec4(facePos, 1.0)).xz;
     facePos.y += waveHeight(worldXZ) - 0.325;
 
     vAO = AO_LEVELS[aoValue];
-    vFragPosWorld = model * vec4(facePos, 1.0);
+    vFragPosWorld = chunkModel * vec4(facePos, 1.0);
     vViewDepth = -(view * vFragPosWorld).z;
 
-    gl_Position = projection * view * vFragPosWorld;
+    gl_Position = perspProj * view * vFragPosWorld;
 }

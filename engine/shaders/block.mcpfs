@@ -7,7 +7,7 @@ in float vAO;
 in vec4 vFragPosWorld;
 in float vViewDepth;
 
-uniform sampler2D atlas;
+uniform sampler2D blockAtlas;
 uniform sampler2DArray shadowMap;
 uniform vec3 lightDir;
 uniform mat4 lightSpaceMatrices[5];
@@ -107,5 +107,5 @@ void main()
 
     // FragColor = vec4(vec3(shadowFactor), 1.0);
 
-    FragColor = texture(atlas, vTexCoord) * vec4(vTint, 1.0) * vec4(vec3(vAO), 1.0) * vec4(lighting, 1.0);
+    FragColor = texture(blockAtlas, vTexCoord) * vec4(vTint, 1.0) * vec4(vec3(vAO), 1.0) * vec4(lighting, 1.0);
 }

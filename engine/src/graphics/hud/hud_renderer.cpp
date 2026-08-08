@@ -11,13 +11,16 @@ namespace fs = std::filesystem;
 
 #include "stb_image.h"
 
+#include "graphics/uniform_manager.h"
+
 using glm::mat4;
 using glm::vec2;
 using glm::vec4;
 
 HudRenderer::HudRenderer()
-    : m_shader("shaders/hud_vert.glsl", "shaders/hud_frag.glsl")
 {
+    m_shader.load("hud");
+
     loadFont();
 
     loadIconAtlas();
@@ -43,36 +46,18 @@ void HudRenderer::setupBuffers(unsigned int &vao, unsigned int &vbo, unsigned in
 
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 MAX_QUADS * 6 * sizeof(unsigned int),
-                 nullptr,
-                 GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, MAX_QUADS * 6 * sizeof(unsigned int), nullptr, GL_DYNAMIC_DRAW);
 
     // pos
-    glVertexAttribPointer(0,
-                          2,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(HudVertex),
-                          (void *)offsetof(HudVertex, pos));
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(HudVertex), (void *)offsetof(HudVertex, pos));
     glEnableVertexAttribArray(0);
 
     // uv
-    glVertexAttribPointer(1,
-                          2,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(HudVertex),
-                          (void *)offsetof(HudVertex, uv));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(HudVertex), (void *)offsetof(HudVertex, uv));
     glEnableVertexAttribArray(1);
 
     // color
-    glVertexAttribPointer(2,
-                          4,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(HudVertex),
-                          (void *)offsetof(HudVertex, color));
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(HudVertex), (void *)offsetof(HudVertex, color));
     glEnableVertexAttribArray(2);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -84,7 +69,7 @@ void HudRenderer::loadFont()
     // create the font's texture and the lookup for the correct UVs
     int w, h, chan;
     stbi_set_flip_vertically_on_load(false);
-    unsigned char *fontData = stbi_load("assets/textures/font/ascii.png", &w, &h, &chan, 4);
+    unsigned char *fontData = stbi_load("game/assets/textures/font/ascii.png", &w, &h, &chan, 4);
     if (!fontData)
     {
         std::cout << "HUD_RENDERER_FAILURE::COULD NOT LOAD THE FONT FILE" << std::endl;
@@ -159,7 +144,7 @@ void HudRenderer::loadIconAtlas()
 
     // 1. load all the png files
     std::vector<IconData> iconData;
-    for (const auto &entry : fs::recursive_directory_iterator("assets/textures/gui"))
+    for (const auto &entry : fs::recursive_directory_iterator("game/assets/textures/gui"))
     {
         if (entry.path().extension() != ".png")
             continue;
@@ -176,23 +161,15 @@ void HudRenderer::loadIconAtlas()
         }
 
         // store the width / height
-        iconData.push_back(
-            IconData(fileName,
-                     std::vector<unsigned char>(fileData, fileData + (width * height * 4)),
-                     width,
-                     height,
-                     0,
-                     0));
+        iconData.push_back(IconData(
+            fileName, std::vector<unsigned char>(fileData, fileData + (width * height * 4)), width, height, 0, 0));
         stbi_image_free(fileData);
     }
     // add a white pixel for the colored quads
-    iconData.push_back(
-        IconData{"white_pixel", std::vector<unsigned char>{255, 255, 255, 255}, 1, 1, 0, 0});
+    iconData.push_back(IconData{"white_pixel", std::vector<unsigned char>{255, 255, 255, 255}, 1, 1, 0, 0});
 
     // 2. sort the data obtained by height
-    std::sort(iconData.begin(),
-              iconData.end(),
-              [](const IconData &a, const IconData &b) { return a.h < b.h; });
+    std::sort(iconData.begin(), iconData.end(), [](const IconData &a, const IconData &b) { return a.h < b.h; });
 
     // 3. pack the images in the atlas --> first look at how they are packed (assign each IconData
     // it's x, y)
@@ -255,10 +232,7 @@ void HudRenderer::flushBatch(unsigned int vao,
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertData.size() * sizeof(HudVertex), vertData.data());
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-                    0,
-                    idxData.size() * sizeof(unsigned int),
-                    idxData.data());
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, idxData.size() * sizeof(unsigned int), idxData.data());
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureID);
@@ -297,23 +271,16 @@ void HudRenderer::end(int screenWidth, int screenHeight, std::optional<glm::vec4
 
     mat4 projection = glm::ortho(0.0f, (float)screenWidth, (float)screenHeight, 0.0f, -1.0f, 1.0f);
 
-    m_shader.use();
-    m_shader.setMat4("projection", projection);
-    m_shader.setInt("atlas", 0);
+    auto &uniforms = UniformManager::instance();
+    uniforms.setValue("orthProj", projection);
+    uniforms.setValue("hudAtlas", 0);
 
-    flushBatch(m_iconVao,
-               m_iconVbo,
-               m_iconEbo,
-               m_iconVertData,
-               m_iconIdxData,
-               m_iconAtlasTexture.getID());
+    m_shader.bind();
+    uniforms.applyTo(m_shader);
 
-    flushBatch(m_textVao,
-               m_textVbo,
-               m_textEbo,
-               m_textVertData,
-               m_textIdxData,
-               m_fontTexture.getID());
+    flushBatch(m_iconVao, m_iconVbo, m_iconEbo, m_iconVertData, m_iconIdxData, m_iconAtlasTexture.getID());
+
+    flushBatch(m_textVao, m_textVbo, m_textEbo, m_textVertData, m_textIdxData, m_fontTexture.getID());
 
     if (scissorRect.has_value())
         glDisable(GL_SCISSOR_TEST);
@@ -334,12 +301,8 @@ void HudRenderer::drawIcon(const std::string &name, vec2 pos, vec2 size, vec4 co
     drawQuad_h(pos, size, uv, color);
 }
 
-void HudRenderer::drawIconSliced(const std::string &name,
-                                 vec2 pos,
-                                 vec2 size,
-                                 int borderPxNative,
-                                 float pixelScale,
-                                 vec4 color)
+void HudRenderer::drawIconSliced(
+    const std::string &name, vec2 pos, vec2 size, int borderPxNative, float pixelScale, vec4 color)
 {
     UVRect uv = m_iconUV.at(name);
 
@@ -380,14 +343,11 @@ void HudRenderer::drawText(const std::string &text, vec2 pos, float scale, vec4 
         // uv.y0 is the top of the glyph, uv.y1 the bottom (see loadFont/loadIconAtlas: y grows
         // downward, matching screen-space y, since the textures aren't flipped on load)
         m_textVertData.push_back(HudVertex{charPos, vec2(uv.x0, uv.y0), color}); // top left
-        m_textVertData.push_back(HudVertex{vec2(charPos.x + charSize.x, charPos.y),
-                                           vec2(uv.x1, uv.y0),
-                                           color}); // top right
         m_textVertData.push_back(
-            HudVertex{charPos + charSize, vec2(uv.x1, uv.y1), color}); // bot right
-        m_textVertData.push_back(HudVertex{vec2(charPos.x, charPos.y + charSize.y),
-                                           vec2(uv.x0, uv.y1),
-                                           color}); // bot left
+            HudVertex{vec2(charPos.x + charSize.x, charPos.y), vec2(uv.x1, uv.y0), color}); // top right
+        m_textVertData.push_back(HudVertex{charPos + charSize, vec2(uv.x1, uv.y1), color}); // bot right
+        m_textVertData.push_back(
+            HudVertex{vec2(charPos.x, charPos.y + charSize.y), vec2(uv.x0, uv.y1), color}); // bot left
 
         m_textIdxData.insert(m_textIdxData.end(),
                              {
@@ -420,12 +380,10 @@ void HudRenderer::drawQuad_h(vec2 pos, vec2 size, UVRect uv, vec4 color)
 
     // uv.y0 is the top of the source image, uv.y1 the bottom (see loadIconAtlas: y grows
     // downward while packing, matching screen-space y, since icons aren't flipped on load)
-    m_iconVertData.push_back(HudVertex{pos, vec2(uv.x0, uv.y0), color}); // top left
-    m_iconVertData.push_back(
-        HudVertex{vec2(pos.x + size.x, pos.y), vec2(uv.x1, uv.y0), color});     // top right
-    m_iconVertData.push_back(HudVertex{pos + size, vec2(uv.x1, uv.y1), color}); // bot right
-    m_iconVertData.push_back(
-        HudVertex{vec2(pos.x, pos.y + size.y), vec2(uv.x0, uv.y1), color}); // bot left
+    m_iconVertData.push_back(HudVertex{pos, vec2(uv.x0, uv.y0), color});                         // top left
+    m_iconVertData.push_back(HudVertex{vec2(pos.x + size.x, pos.y), vec2(uv.x1, uv.y0), color}); // top right
+    m_iconVertData.push_back(HudVertex{pos + size, vec2(uv.x1, uv.y1), color});                  // bot right
+    m_iconVertData.push_back(HudVertex{vec2(pos.x, pos.y + size.y), vec2(uv.x0, uv.y1), color}); // bot left
 
     m_iconIdxData.insert(m_iconIdxData.end(),
                          {
@@ -438,10 +396,7 @@ void HudRenderer::drawQuad_h(vec2 pos, vec2 size, UVRect uv, vec4 color)
                          });
 }
 
-void HudRenderer::drawQuad(vec2 pos, vec2 size, vec4 color)
-{
-    drawQuad_h(pos, size, getWhitePixelUV(), color);
-}
+void HudRenderer::drawQuad(vec2 pos, vec2 size, vec4 color) { drawQuad_h(pos, size, getWhitePixelUV(), color); }
 
 UVRect HudRenderer::getIconUV(const std::string &name) const { return m_iconUV.at(name); }
 

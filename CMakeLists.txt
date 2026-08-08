@@ -165,7 +165,11 @@ target_link_libraries(tests PRIVATE
 # applique uniquement à notre code (pas aux libs fetch -- glfw/imgui/implot/glad n'ont
 # pas besoin d'être instrumentées, et ça éviterait de tout recompiler pour rien)
 if(ENABLE_ASAN)
-    if(MSVC)
+    # MSVC est vrai pour cl.exe ET pour clang-cl (qui simule son frontend) -- il faut donc
+    # exclure explicitement Clang ici pour ne prendre la branche /fsanitize (syntaxe cl.exe)
+    # que pour le vrai cl.exe ; clang-cl passe par la branche -fsanitize (syntaxe Clang) comme
+    # n'importe quel Clang, plus fiable que de compter sur sa compat avec la syntaxe à slash.
+    if(MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         foreach(target engine_lib game_lib ${PROJECT_NAME} tests)
             target_compile_options(${target} PRIVATE /fsanitize=address /Zi)
         endforeach()
@@ -194,13 +198,15 @@ target_compile_definitions(tests PRIVATE
 # (sinon modifier un .glsl seul ne recopie jamais rien, vu qu'aucun .cpp n'a changé)
 add_custom_target(copy_runtime_files ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders
+        ${CMAKE_SOURCE_DIR}/engine/shaders $<TARGET_FILE_DIR:${PROJECT_NAME}>/engine/shaders
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/assets  $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
+        ${CMAKE_SOURCE_DIR}/engine/assets $<TARGET_FILE_DIR:${PROJECT_NAME}>/engine/assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:tests>/shaders
+        ${CMAKE_SOURCE_DIR}/game/assets $<TARGET_FILE_DIR:${PROJECT_NAME}>/game/assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/assets  $<TARGET_FILE_DIR:tests>/assets
+        ${CMAKE_SOURCE_DIR}/engine/shaders $<TARGET_FILE_DIR:tests>/engine/shaders
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/engine/assets $<TARGET_FILE_DIR:tests>/engine/assets
     COMMENT "Copying shaders and assets to build output directories"
 )
 add_dependencies(${PROJECT_NAME} copy_runtime_files)

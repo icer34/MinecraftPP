@@ -1,12 +1,4 @@
-#version 330 core
-
-uniform float time;
 uniform vec3 lightDir;
-uniform mat4 invProjection;
-uniform mat4 invView;
-
-in vec2 vNdc;
-out vec4 FragColor;
 
 vec3 sky(vec3 worldDir)
 {
@@ -20,15 +12,4 @@ vec3 sky(vec3 worldDir)
     float sunAmount = max(dot(worldDir, -lightDir), 0.0);
     float sunDisc = pow(sunAmount, 2000.0);
     return skyColor + sunDisc * sunColor;
-}
-
-void main()
-{
-    float temp = time;
-
-    vec4 viewDir4 = invProjection * vec4(vNdc.xy, 1.0, 1.0);
-    vec3 viewDir = viewDir4.xyz / viewDir4.w;
-    vec3 worldDir = normalize(mat3(invView) * viewDir); 
-
-    FragColor = vec4(sky(worldDir), 1.0);
 }

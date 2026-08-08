@@ -1,0 +1,21 @@
+#version 330 core
+
+#include "sky.mcpis"
+
+uniform float time;
+uniform mat4 invPerspProj;
+uniform mat4 invView;
+
+in vec2 vNdc;
+out vec4 FragColor;
+
+void main()
+{
+    float temp = time;
+
+    vec4 viewDir4 = invPerspProj * vec4(vNdc.xy, 1.0, 1.0);
+    vec3 viewDir = viewDir4.xyz / viewDir4.w;
+    vec3 worldDir = normalize(mat3(invView) * viewDir); 
+
+    FragColor = vec4(sky(worldDir), 1.0);
+}

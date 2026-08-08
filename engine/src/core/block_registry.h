@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -28,10 +29,7 @@ struct FaceTexture
     std::array<TextureLayer, 2> layers{};
     unsigned int count = 0;
 
-    void add(const uint16_t &idx, bool tinted = false)
-    {
-        layers[count++] = TextureLayer{idx, tinted};
-    }
+    void add(const uint16_t &idx, bool tinted = false) { layers[count++] = TextureLayer{idx, tinted}; }
 };
 
 struct BlockType
@@ -69,7 +67,16 @@ public:
         return m_types.back().id;
     }
 
-    BlockType &get(uint16_t id) { return m_types[id]; }
+    BlockType &get(uint16_t id)
+    {
+        if (id >= m_types.size())
+        {
+            std::cerr << "BlockRegistry::get: id invalide " << id << " (seulement " << m_types.size() << " enregistrés)"
+                      << std::endl;
+            std::abort();
+        }
+        return m_types[id];
+    }
 
     BlockType &get(const std::string &name) { return m_types[getIdByName(name)]; }
 

@@ -14,7 +14,7 @@ PerlinNoise::PerlinNoise(const unsigned int seed)
 {
 }
 
-float PerlinNoise::sample(float x, float y)
+float PerlinNoise::sample(float x, float y) const
 {
     float amp = 1.0f;
     float sum = 0.0f;
@@ -43,7 +43,7 @@ void PerlinNoise::updateSettings(unsigned int octaves,
     m_freq = frequency;
 }
 
-float PerlinNoise::noise(float x, float y)
+float PerlinNoise::noise(float x, float y) const
 {
     int cellX = std::floor(x);
     int cellZ = std::floor(y);
@@ -101,13 +101,13 @@ void PerlinNoise::generateImage(unsigned char *data, int width, int height, floa
     }
 }
 
-unsigned int PerlinNoise::hash(int x, int z, const unsigned int seed)
+unsigned int PerlinNoise::hash(int x, int z, const unsigned int seed) const
 {
     unsigned int firstHash = squirrel3_hash(z, seed);
     return squirrel3_hash(x, firstHash);
 }
 
-unsigned int PerlinNoise::squirrel3_hash(int x, const unsigned int seed)
+unsigned int PerlinNoise::squirrel3_hash(int x, const unsigned int seed) const
 {
     const unsigned int BIT_NOISE_1 = 0xB5297A4D;
     const unsigned int BIT_NOISE_2 = 0x68561969;
@@ -124,6 +124,6 @@ unsigned int PerlinNoise::squirrel3_hash(int x, const unsigned int seed)
     return mangled;
 }
 
-float PerlinNoise::lerp(float a, float b, float frac) { return a + frac * (b - a); }
+float PerlinNoise::lerp(float a, float b, float frac) const { return a + frac * (b - a); }
 
-float PerlinNoise::smoothstep(float t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+float PerlinNoise::smoothstep(float t) const { return t * t * t * (t * (t * 6 - 15) + 10); }

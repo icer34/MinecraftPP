@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <chrono>
+#include <format>
+#include <iostream>
 #include <unordered_set>
 
 #include "core/block_registry.h"
-#include "blocks.h"
+#include "graphics/mesh/chunk_mesher.h"
 #include "util/directions.h"
 
 using glm::ivec3;
@@ -14,12 +16,13 @@ using glm::vec3;
 namespace
 {
 //! Runs on a worker thread. Never touches World's shared maps -- everything it needs
-//! (the chunk's own previous data, if any, and its neighbors) is passed in as shared_ptr
-//! handles (cheap refcount bump), not copied -- a Chunk is never mutated once inserted
-//! into World::m_chunks, so sharing read-only ownership across threads is safe.
+//! (the chunk's own previous data, if any, its neighbors, and the generator) is passed in
+//! as shared_ptr handles (cheap refcount bump), not copied -- a Chunk is never mutated once
+//! inserted into World::m_chunks, so sharing read-only ownership across threads is safe.
 ChunkBuildResult buildChunk(ChunkCoord coord,
                             std::shared_ptr<const Chunk> existingChunk,
-                            std::array<std::shared_ptr<const Chunk>, 4> neighborCopies)
+                            std::array<std::shared_ptr<const Chunk>, 4> neighborCopies,
+                            std::shared_ptr<ITerrainGenerator> generator)
 {
     bool isNew = existingChunk == nullptr;
 
@@ -29,7 +32,7 @@ ChunkBuildResult buildChunk(ChunkCoord coord,
     if (isNew)
     {
         newChunk = std::make_shared<Chunk>(coord);
-        TerrainGenerator::instance().generateChunk(*newChunk);
+        generator->generateChunk(*newChunk);
         chunkPtr = newChunk.get();
     }
     else
@@ -51,11 +54,10 @@ ChunkBuildResult buildChunk(ChunkCoord coord,
 }
 } // namespace
 
-World::World(unsigned long seed)
-    : m_seed(seed),
-      m_pool(10)
+World::World(std::shared_ptr<ITerrainGenerator> generator)
+    : m_terrainGenerator(std::move(generator)),
+      m_pool(20)
 {
-    TerrainGenerator::instance().setSeed(m_seed);
 }
 
 std::array<std::shared_ptr<const Chunk>, 4> World::copyNeighbors(ChunkCoord coord) const
@@ -79,8 +81,8 @@ void World::scheduleGenerate(ChunkCoord coord)
 {
     auto neighborCopies = copyNeighbors(coord);
 
-    m_pending[coord] = m_pool.submit_task([coord, neighborCopies]()
-                                          { return buildChunk(coord, nullptr, neighborCopies); });
+    m_pending[coord] = m_pool.submit_task([coord, neighborCopies, generator = m_terrainGenerator]()
+                                          { return buildChunk(coord, nullptr, neighborCopies, generator); });
 }
 
 void World::scheduleRemesh(ChunkCoord coord)
@@ -92,15 +94,13 @@ void World::scheduleRemesh(ChunkCoord coord)
     std::shared_ptr<const Chunk> existingChunk = it->second.chunk; // cheap: refcount bump
     auto neighborCopies = copyNeighbors(coord);
 
-    m_pending[coord]
-        = m_pool.submit_task([coord, existingChunk, neighborCopies]()
-                             { return buildChunk(coord, existingChunk, neighborCopies); });
+    m_pending[coord] = m_pool.submit_task([coord, existingChunk, neighborCopies, generator = m_terrainGenerator]()
+                                          { return buildChunk(coord, existingChunk, neighborCopies, generator); });
 }
 
 void World::update(vec3 playerPos, float dt)
 {
-    m_playerCoord
-        = ChunkCoord{(int)floor(playerPos.x / Chunk::SIZE), (int)floor(playerPos.z / Chunk::SIZE)};
+    m_playerCoord = ChunkCoord{(int)floor(playerPos.x / Chunk::SIZE), (int)floor(playerPos.z / Chunk::SIZE)};
     ChunkCoord playerCoord = m_playerCoord;
 
     //* unload chunks out of range (LOAD_DISTANCE, not RENDER_DISTANCE -- see getChunkMeshes)
@@ -235,8 +235,7 @@ void World::breakBlock(glm::vec3 wPos)
     if (!localPos.has_value())
         return;
 
-    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE),
-                     (int)floor((float)wPos.z / Chunk::SIZE)};
+    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE), (int)floor((float)wPos.z / Chunk::SIZE)};
 
     auto it = m_chunks.find(coord);
     if (it == m_chunks.end())
@@ -244,7 +243,7 @@ void World::breakBlock(glm::vec3 wPos)
 
     auto block = BlockRegistry::instance().get(getBlock(wPos));
 
-    it->second.chunk->setBlock(Blocks::AIR, ivec3(localPos.value()));
+    it->second.chunk->setBlock(EMPTY_BLOCK_ID, ivec3(localPos.value()));
 
     block.onBreak(*this, wPos);
 
@@ -274,8 +273,7 @@ void World::placeBlock(uint16_t blockID, glm::vec3 wPos)
     if (!localPos.has_value())
         return;
 
-    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE),
-                     (int)floor((float)wPos.z / Chunk::SIZE)};
+    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE), (int)floor((float)wPos.z / Chunk::SIZE)};
 
     auto it = m_chunks.find(coord);
     if (it == m_chunks.end())
@@ -312,14 +310,13 @@ void World::regenerate() { m_chunks.clear(); }
 uint16_t World::getBlock(vec3 wPos) const
 {
     if (wPos.y < 0 || wPos.y >= Chunk::HEIGHT)
-        return Blocks::AIR;
+        return EMPTY_BLOCK_ID;
 
-    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE),
-                     (int)floor((float)wPos.z / Chunk::SIZE)};
+    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE), (int)floor((float)wPos.z / Chunk::SIZE)};
 
     auto it = m_chunks.find(coord);
     if (it == m_chunks.end())
-        return Blocks::AIR;
+        return EMPTY_BLOCK_ID;
 
     int lx = wPos.x - coord.x * Chunk::SIZE;
     int lz = wPos.z - coord.z * Chunk::SIZE;
@@ -331,8 +328,7 @@ bool World::isBlockSolid(vec3 wPos) const
     if (wPos.y < 0 || wPos.y >= Chunk::HEIGHT)
         return false; // above/below the world -> air
 
-    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE),
-                     (int)floor((float)wPos.z / Chunk::SIZE)};
+    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE), (int)floor((float)wPos.z / Chunk::SIZE)};
 
     auto it = m_chunks.find(coord);
     if (it == m_chunks.end())
@@ -382,8 +378,7 @@ std::optional<glm::ivec3> World::getLocalPos(glm::vec3 wPos) const
     if (wPos.y < 0 || wPos.y >= Chunk::HEIGHT)
         return std::nullopt;
 
-    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE),
-                     (int)floor((float)wPos.z / Chunk::SIZE)};
+    ChunkCoord coord{(int)floor((float)wPos.x / Chunk::SIZE), (int)floor((float)wPos.z / Chunk::SIZE)};
 
     auto it = m_chunks.find(coord);
     if (it == m_chunks.end())
@@ -394,8 +389,7 @@ std::optional<glm::ivec3> World::getLocalPos(glm::vec3 wPos) const
 
     if (lx < 0 || lx >= Chunk::SIZE || lz < 0 || lz >= Chunk::SIZE)
     {
-        std::cout << "[world coords conversion error]" << std::format("%d, %d, %d", lx, wPos.y, lz)
-                  << std::endl;
+        std::cout << "[world coords conversion error]" << std::format("%d, %d, %d", lx, wPos.y, lz) << std::endl;
         return std::nullopt;
     }
 

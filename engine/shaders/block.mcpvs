@@ -1,11 +1,10 @@
 #version 330 core
 
-// see ChunkMesher::mesh() in chunk_mesher.cpp to see the packing format in detail
-layout (location = 0) in uvec2 packedData;
+#include "chunk_vertex_format"
 
-uniform mat4 model;
+uniform mat4 chunkModel;
 uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 perspProj;
 
 uniform sampler2D colormap;
 
@@ -88,21 +87,6 @@ vec3 sampleColorMap(uint humidity, uint temperature)
 
 void main()
 {
-    uint data1 = packedData.x;
-    uint data2 = packedData.y;
-
-    uint chunkX = (data1 >> 28) & 0xFu;
-    uint chunkY = (data1 >> 20) & 0xFFu;
-    uint chunkZ = (data1 >> 16) & 0xFu;
-    uint normalIdx = (data1 >> 13) & 0x7u; //* also encodes the direction, thus the face Idx.
-    uint textureIdx = (data1 >> 1) & 0xFFFu;
-    bool isTinted = bool(data1 & 0x1u);
-
-    uint temperature = (data2 >> 24) & 0xFFu;
-    uint humidity = (data2 >> 16) & 0xFFu;
-    uint cornerIdx = (data2 >> 14) & 0x3u;
-    uint aoValue = (data2 >> 12) & 0x3u;
-
     vec3 chunkPos = vec3(float(chunkX), float(chunkY), float(chunkZ));
     vec3 facePos = chunkPos + FACE_CORNER_OFFSET[normalIdx * 4u + cornerIdx];
 
@@ -110,8 +94,8 @@ void main()
     vTexCoord = uvFromTextureIndex(textureIdx, cornerIdx);
     vTint = isTinted ? sampleColorMap(humidity, temperature) : vec3(1.0);
     vAO = AO_LEVELS[aoValue];
-    vFragPosWorld = model * vec4(facePos, 1.0);
-    vViewDepth = -(view * model * vec4(facePos, 1.0)).z;
+    vFragPosWorld = chunkModel * vec4(facePos, 1.0);
+    vViewDepth = -(view * chunkModel * vec4(facePos, 1.0)).z;
 
-    gl_Position = projection * view * model * vec4(facePos, 1.0);
+    gl_Position = perspProj * view * chunkModel * vec4(facePos, 1.0);
 }

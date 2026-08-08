@@ -1,6 +1,6 @@
 #include "player.h"
 
-#include "core/settings_registry.h"
+#include "engine.h"
 
 using glm::vec3;
 
@@ -23,7 +23,7 @@ Player::Player(vec3 pos)
     reg.addFloat(SettingCategory::Gameplay, "", "jump_vel", &m_jumpVel, 1.0f, 15.0f);
 }
 
-void Player::update(float dt, IVoxelWorld &world)
+void Player::update(float dt, World &world)
 {
     m_vel.x = m_moveInput.x * m_walkSpeed;
     m_vel.z = m_moveInput.z * m_walkSpeed;

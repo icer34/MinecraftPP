@@ -4,15 +4,14 @@
 #include <future>
 #include <glm/glm.hpp>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
 #include "BS_thread_pool.hpp"
-#include "core/chunk.h"
+#include "chunk.h"
 #include "graphics/mesh/chunk_mesh.h"
-#include "graphics/mesh/chunk_mesher.h"
 #include "terrain_generator.h"
-#include "core/voxel_world.h"
 
 // a chunk and its GPU mesh always exist/disappear together, so they're kept as one
 // map entry instead of two separately-synced maps.
@@ -31,10 +30,10 @@ struct ChunkBuildResult
     std::unique_ptr<ChunkMeshData> meshData;
 };
 
-class World : public IVoxelWorld
+class World
 {
 public:
-    World(unsigned long seed);
+    World(std::shared_ptr<ITerrainGenerator> generator);
 
     void update(glm::vec3 playerPos, float dt);
     void regenerate();
@@ -42,17 +41,17 @@ public:
     void breakBlock(glm::vec3 wPos);
     void placeBlock(uint16_t block, glm::vec3 wPos);
 
-    uint16_t getBlock(glm::vec3 wPos) const override;
-    bool isBlockSolid(glm::vec3 wPos) const override;
+    uint16_t getBlock(glm::vec3 wPos) const;
+    bool isBlockSolid(glm::vec3 wPos) const;
 
-    std::vector<ChunkMesh *> getChunkMeshes() const override;
-    std::vector<Chunk *> getChunks() const override;
+    std::vector<ChunkMesh *> getChunkMeshes() const;
+    std::vector<Chunk *> getChunks() const;
 
 private:
-    static constexpr int RENDER_DISTANCE = 12;
+    static constexpr int RENDER_DISTANCE = 10;
     static constexpr int LOAD_DISTANCE = RENDER_DISTANCE + 1;
 
-    unsigned long m_seed;
+    std::shared_ptr<ITerrainGenerator> m_terrainGenerator;
 
     std::optional<glm::ivec3> getLocalPos(glm::vec3 wPos) const;
 

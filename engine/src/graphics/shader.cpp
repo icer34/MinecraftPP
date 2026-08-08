@@ -1,219 +1,223 @@
 #include "shader.h"
 
+#include <filesystem>
 #include <fstream>
+namespace fs = std::filesystem;
 #include <iostream>
 #include <sstream>
-#include <stdexcept>
-#include <string>
 
-#include <glad/glad.h>
-#include <glm/gtc/type_ptr.hpp>
+#include "core/chunk_attrib_registry.h"
 
-using glm::mat4;
-using glm::vec3;
-
-Shader::Shader(const char *vertPath, const char *fragPath)
+namespace
 {
-    // load the shader file contents
-    std::string vertexCode;
-    std::string fragmentCode;
-    std::ifstream vShaderFile;
-    std::ifstream fShaderFile;
-    // ensure ifstream objects can throw exceptions:
-    vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    try
+// look if the shader path is written by the game, if it is take the game shader, otherwise take the default engine one
+std::vector<std::string> g_shaderIncludePaths = {"game/shaders/", "engine/shaders/"};
+std::string resolveShaderPath(const std::string &filename)
+{
+    for (const auto &includePath : g_shaderIncludePaths)
     {
-        // open files
-        vShaderFile.open(vertPath);
-        fShaderFile.open(fragPath);
-        std::stringstream vShaderStream, fShaderStream;
-        // read file's buffer contents into streams
-        vShaderStream << vShaderFile.rdbuf();
-        fShaderStream << fShaderFile.rdbuf();
-        // close file handlers
-        vShaderFile.close();
-        fShaderFile.close();
-        // convert stream into string
-        vertexCode = vShaderStream.str();
-        fragmentCode = fShaderStream.str();
+        std::string candidate = includePath + filename;
+        if (fs::exists(candidate))
+            return candidate;
     }
-    catch (const std::ifstream::failure &e)
+
+    return "";
+}
+
+std::string stageExtention(ShaderStage stage)
+{
+    switch (stage)
     {
-        throw std::runtime_error("ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ: "
-                                 + std::string(vertPath) + " / " + std::string(fragPath));
+    case ShaderStage::Vertex:
+        return ".mcpvs";
+    case ShaderStage::Fragment:
+        return ".mcpfs";
+    case ShaderStage::Geometry:
+        return ".mcpgs";
     }
-    const char *vShaderCode = vertexCode.c_str();
-    const char *fShaderCode = fragmentCode.c_str();
 
-    // vertex shader compilation
-    m_vertID = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(m_vertID, 1, &vShaderCode, NULL);
-    glCompileShader(m_vertID);
+    return "";
+}
 
+std::string generateVertexFormat()
+{
+    size_t N = ChunkAttribRegistry::instance().computeVertexWordCount();
+    std::string glslType = (N == 2) ? "uvec2" : (N == 3) ? "uvec3" : "uvec4";
+
+    std::stringstream out;
+    out << "layout (location = 0) in " << glslType << " packedData;\n";
+
+    out << "uint chunkX = (packedData[0] >> 28) & 0xFu;\n";
+    out << "uint chunkY = (packedData[0] >> 20) & 0xFFu;\n";
+    out << "uint chunkZ = (packedData[0] >> 16) & 0xFu;\n";
+    out << "uint normalIdx = (packedData[0] >> 13) & 0x7u;\n";
+    out << "uint textureIdx = (packedData[0] >> 1) & 0xFFFu;\n";
+    out << "bool isTinted = bool(packedData[0] & 0x1u);\n";
+
+    uint32_t bitCursor = 0;
+    auto unpackBits = [&](const std::string &name, uint32_t width)
+    {
+        size_t wordIdx = 1 + bitCursor / 32;
+        size_t shift = bitCursor % 32;
+        uint32_t mask = (1u << width) - 1u;
+        out << "uint " << name << " = (packedData[" << wordIdx << "] >> " << shift << "u) & 0x" << std::hex << mask
+            << std::dec << "u;\n";
+        bitCursor += width;
+    };
+
+    unpackBits("cornerIdx", 2);
+    unpackBits("aoValue", 2);
+    for (const auto &[name, info] : ChunkAttribRegistry::instance().getEnabledAttribs())
+        unpackBits(name, 8);
+
+    return out.str();
+}
+
+// handles the include directives, while keeping the #version <...> on the first line
+std::string resolveShaderSource(const std::string &path, std::vector<std::string> &stack)
+{
+    // check for circular include
+    if (std::find(stack.begin(), stack.end(), path) != stack.end())
+        throw std::runtime_error("Circular include detected: " + path);
+
+    stack.push_back(path);
+
+    std::ifstream file(path);
+
+    if (!file.is_open())
+        throw std::runtime_error("Could not open shader file: " + path);
+
+    std::string line;
+    std::string word, includePath;
+    std::stringstream out;
+    while (std::getline(file, line))
+    {
+        if (line.starts_with("#include"))
+        {
+            std::stringstream ss(line);
+            while (ss >> word)
+            {
+                includePath = word.substr(1, word.size() - 2);
+            }
+
+            if (includePath == "chunk_vertex_format")
+                out << generateVertexFormat() << '\n';
+            else
+                out << resolveShaderSource(resolveShaderPath(includePath), stack) << '\n';
+        }
+        else
+        {
+            out << line << '\n';
+        }
+    }
+
+    stack.pop_back();
+    return out.str();
+}
+}; // namespace
+
+void Shader::load(const std::string &role)
+{
+    //* 1. retrieve the full src code of the shaders
+    std::string vertPath = resolveShaderPath(role + stageExtention(ShaderStage::Vertex));
+    std::string fragPath = resolveShaderPath(role + stageExtention(ShaderStage::Fragment));
+    std::string geomPath = resolveShaderPath(role + stageExtention(ShaderStage::Geometry));
+
+    std::vector<std::string> paths{vertPath, fragPath};
+    if (fs::exists(geomPath))
+        paths.push_back(geomPath);
+
+    std::vector<std::string> sources;
+    for (auto &path : paths)
+    {
+        std::vector<std::string> stack{};
+        sources.push_back(resolveShaderSource(path, stack));
+    }
+
+    std::vector<const char *> shaderSources;
+    for (auto &source : sources)
+        shaderSources.push_back(source.c_str());
+
+    //* 2. create the actual OpenGL shader
+    unsigned int vertID, fragID, geomID = 0;
     int success;
-    char logBuffer[512];
-    glGetShaderiv(m_vertID, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(m_vertID, 512, NULL, logBuffer);
-        throw std::runtime_error("ERROR::SHADER::VERTEX_NOT_COMPILED\n" + std::string(logBuffer));
-    }
+    char infoLog[512];
 
-    // fragment shader compilation
-    m_fragID = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(m_fragID, 1, &fShaderCode, NULL);
-    glCompileShader(m_fragID);
-
-    glGetShaderiv(m_fragID, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(m_fragID, 512, NULL, logBuffer);
-        throw std::runtime_error("ERROR::SHADER::FRAGMENT_NOT_COMPILED\n" + std::string(logBuffer));
-    }
-
-    // program creation and linking
     m_programID = glCreateProgram();
-    glAttachShader(m_programID, m_vertID);
-    glAttachShader(m_programID, m_fragID);
+
+    vertID = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertID, 1, &shaderSources[0], nullptr);
+    glCompileShader(vertID);
+    glGetShaderiv(vertID, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertID, 512, nullptr, infoLog);
+        std::cout << "[" << role << "] " << "vertex shader compilation error: " << infoLog << std::endl;
+    }
+    glAttachShader(m_programID, vertID);
+
+    fragID = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragID, 1, &shaderSources[1], nullptr);
+    glCompileShader(fragID);
+    glGetShaderiv(fragID, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fragID, 512, nullptr, infoLog);
+        std::cout << "[" << role << "] " << "fragment shader compilation error: " << infoLog << std::endl;
+    }
+    glAttachShader(m_programID, fragID);
+
+    // compile geometry shader only if it exists
+    if (shaderSources.size() >= 3)
+    {
+        geomID = glCreateShader(GL_GEOMETRY_SHADER);
+        glShaderSource(geomID, 1, &shaderSources[2], nullptr);
+        glCompileShader(geomID);
+        glGetShaderiv(geomID, GL_COMPILE_STATUS, &success);
+        if (!success)
+        {
+            glGetShaderInfoLog(geomID, 512, nullptr, infoLog);
+            std::cout << "[" << role << "] " << "geometry shader compilation error: " << infoLog << std::endl;
+        }
+        glAttachShader(m_programID, geomID);
+    }
+
     glLinkProgram(m_programID);
     glGetProgramiv(m_programID, GL_LINK_STATUS, &success);
     if (!success)
     {
-        glGetProgramInfoLog(m_programID, 512, NULL, logBuffer);
-        throw std::runtime_error("ERROR::SHADER::SHADER_NOT_LINKED\n" + std::string(logBuffer));
+        glGetProgramInfoLog(m_programID, 512, nullptr, infoLog);
+        std::cout << "[" << role << "] " << "shader linking error: " << infoLog << std::endl;
+    }
+
+    glDeleteShader(vertID);
+    glDeleteShader(fragID);
+    glDeleteShader(geomID);
+
+    //* 3. cache the active uniforms and their location
+    int count;
+    glGetProgramiv(m_programID, GL_ACTIVE_UNIFORMS, &count);
+    for (int i = 0; i < count; i++)
+    {
+        char name[256];
+        int length, size;
+        GLenum type;
+        glGetActiveUniform(m_programID, i, 256, &length, &size, &type, name);
+
+        // if the uniform is an array, openGL sends back "<varName>[0]" as the variable name instead of <varName>. so we
+        // strip the bracket part before saving the uniform name
+        std::string cleanName = name;
+        size_t bracketPos = cleanName.find('[');
+        if (bracketPos != std::string::npos)
+            cleanName = cleanName.substr(0, bracketPos);
+
+        m_activeUniforms.push_back({cleanName, type});
+        m_activeUniformLocations[cleanName] = glGetUniformLocation(m_programID, name);
+
+        // first value is default for every uniform
+        m_activeUniformValues[cleanName] = std::nullopt;
     }
 }
 
-Shader::~Shader()
-{
-    glDeleteProgram(m_programID);
-    glDeleteShader(m_vertID);
-    glDeleteShader(m_fragID);
-    glDeleteShader(m_geomID);
-}
-
-void Shader::addGeometryShader(const char *path)
-{
-    std::ifstream geomFile;
-    geomFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-
-    std::string geomCodeString;
-    try
-    {
-        // open files
-        geomFile.open(path);
-        std::stringstream geomShaderStream;
-        // read file's buffer contents into streams
-        geomShaderStream << geomFile.rdbuf();
-        // close file handlers
-        geomFile.close();
-        // convert stream into string
-        geomCodeString = geomShaderStream.str();
-    }
-    catch (const std::ifstream::failure &e)
-    {
-        throw std::runtime_error("ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ: " + std::string(path));
-    }
-
-    const char *geomCode = geomCodeString.c_str();
-
-    m_geomID = glCreateShader(GL_GEOMETRY_SHADER);
-    glShaderSource(m_geomID, 1, &geomCode, NULL);
-    glCompileShader(m_geomID);
-
-    int success;
-    char logBuffer[512];
-    glGetShaderiv(m_geomID, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(m_geomID, 512, NULL, logBuffer);
-        throw std::runtime_error("ERROR::SHADER::GEOM_NOT_COMPILED\n" + std::string(logBuffer));
-    }
-
-    glDeleteProgram(m_programID);
-
-    m_programID = glCreateProgram();
-    glAttachShader(m_programID, m_vertID);
-    glAttachShader(m_programID, m_geomID);
-    glAttachShader(m_programID, m_fragID);
-
-    glLinkProgram(m_programID);
-
-    glGetProgramiv(m_programID, GL_LINK_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(m_programID, 512, NULL, logBuffer);
-        throw std::runtime_error("ERROR::SHADER::SHADER_NOT_LINKED\n" + std::string(logBuffer));
-    }
-}
-
-void Shader::use() { glUseProgram(m_programID); }
-
-void Shader::setMat4(const std::string &name, mat4 mat)
-{
-    int loc = glGetUniformLocation(m_programID, name.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(mat));
-}
-
-void Shader::setMat4Array(const std::string &name, const std::vector<mat4> &value)
-{
-    std::string locName = name + "[0]";
-    int loc = glGetUniformLocation(m_programID, locName.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniformMatrix4fv(loc, value.size(), GL_FALSE, glm::value_ptr(value[0]));
-}
-
-void Shader::setVec3(const std::string &name, vec3 value)
-{
-    int loc = glGetUniformLocation(m_programID, name.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniform3f(loc, value.x, value.y, value.z);
-}
-
-void Shader::setInt(const std::string &name, int value)
-{
-    int loc = glGetUniformLocation(m_programID, name.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniform1i(loc, value);
-}
-
-void Shader::setFloat(const std::string &name, float value)
-{
-    int loc = glGetUniformLocation(m_programID, name.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniform1f(loc, value);
-}
-
-void Shader::setFloatArray(const std::string &name, const std::vector<float> &value)
-{
-    std::string locName = name + "[0]";
-    int loc = glGetUniformLocation(m_programID, locName.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniform1fv(loc, value.size(), &value[0]);
-}
+void Shader::bind() { glUseProgram(m_programID); }
+const std::vector<std::pair<std::string, GLenum>> &Shader::getActiveUniforms() const { return m_activeUniforms; }

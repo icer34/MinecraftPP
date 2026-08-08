@@ -2,7 +2,7 @@
 
 class Window;
 class Renderer;
-class IVoxelWorld;
+class World;
 
 // lifecycle a game implements to run on top of the engine -- the engine owns the window
 // and the main loop (see Application), the game only reacts to these calls.
@@ -13,7 +13,7 @@ public:
 
     // called before the window/renderer exist, so Application can construct the
     // renderer against this world -- must be safe to call before init()
-    virtual IVoxelWorld &getWorld() = 0;
+    virtual World &getWorld() = 0;
 
     // called once, right after the engine has created the window and renderer
     virtual void init(Window &window, Renderer &renderer) = 0;

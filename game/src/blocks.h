@@ -3,9 +3,7 @@
 #include <array>
 #include <cstdint>
 
-#include "core/block_registry.h"
-#include "graphics/block_texture_atlas.h"
-#include "util/directions.h"
+#include "engine.h"
 
 namespace
 {

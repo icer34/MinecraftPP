@@ -13,7 +13,7 @@ public:
     /**
      * @returns the noise value (always in [-1, 1])
      */
-    float sample(float x, float z);
+    float sample(float x, float z) const;
     void updateSettings(unsigned int octaves, float gain, float lacunarity, float frequency);
     /**
      * @param worldSpan how many world blocks the image covers (image resolution stays
@@ -29,11 +29,11 @@ private:
     float m_lacunarity = 2.0f;
     float m_freq = 0.02f;
 
-    float noise(float x, float y);
+    float noise(float x, float y) const;
 
-    unsigned int hash(int x, int z, const unsigned int seed);
-    unsigned int squirrel3_hash(int x, const unsigned int seed);
+    unsigned int hash(int x, int z, const unsigned int seed) const;
+    unsigned int squirrel3_hash(int x, const unsigned int seed) const;
 
-    float lerp(float a, float b, float frac);
-    float smoothstep(float t);
+    float lerp(float a, float b, float frac) const;
+    float smoothstep(float t) const;
 };

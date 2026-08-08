@@ -14,12 +14,13 @@
 #include "block_texture_atlas.h"
 #include "camera.h"
 #include "cascaded_shadow_map.h"
-#include "frame_buffer.h"
 #include "core/chunk.h"
-#include "core/voxel_world.h"
+#include "core/world.h"
+#include "frame_buffer.h"
 #include "mesh/block_outline.h"
 #include "mesh/chunk_mesh.h"
 #include "shader.h"
+#include "uniform_manager.h"
 
 #include "util/frustum.h"
 #include "util/perlin_noise.h"
@@ -31,30 +32,25 @@ using glm::vec2;
 using glm::vec3;
 using glm::vec4;
 
-Renderer::Renderer(const Window &window, const IVoxelWorld &world)
-    : m_blockTintTexture(Texture("assets/textures/colormap/grass.png")),
-      m_window(window),
+Renderer::Renderer(const Window &window, const World &world)
+    : m_window(window),
+      m_blockTintTexture(Texture("game/assets/textures/colormap/grass.png")),
       m_world(world),
       m_blockOutline(BlockOutline())
 {
     auto &textureAtlas = BlockTextureAtlas::instance();
     textureAtlas.loadAllTextures();
 
-    m_blockShader = std::make_unique<Shader>("shaders/block_vert.glsl", "shaders/block_frag.glsl");
-    m_blockShader->use();
-    m_blockShader->setVec3("lightDir", m_lightDir);
+    auto &uniforms = UniformManager::instance();
+    uniforms.setValue("lightDir", m_lightDir);
 
-    m_waterShader = std::make_unique<Shader>("shaders/water_vert.glsl", "shaders/water_frag.glsl");
-    m_waterShader->use();
-    m_waterShader->setVec3("lightDir", m_lightDir);
+    m_blockShader.load("block");
+    m_waterShader.load("water");
+    m_skyShader.load("sky");
+    m_depthShader.load("depth");
 
-    m_skyShader = std::make_unique<Shader>("shaders/sky_vert.glsl", "shaders/sky_frag.glsl");
-    m_skyShader->use();
-    m_skyShader->setVec3("lightDir", m_lightDir);
     glGenVertexArrays(1, &m_skyVAO);
 
-    m_depthShader = std::make_unique<Shader>("shaders/depth_vert.glsl", "shaders/depth_frag.glsl");
-    m_depthShader->addGeometryShader("shaders/depth_geom.glsl");
     m_shadowMap = std::make_unique<CascadedShadowMap>();
 
     m_frameBuffer = std::make_unique<FrameBuffer>(m_window.getWidth(), m_window.getHeight());
@@ -84,20 +80,24 @@ void Renderer::renderWorld(Camera &cam)
     m_loadedChunks = m_world.getChunks().size();
     m_camPos = cam.getPos();
 
+    auto &uniforms = UniformManager::instance();
+
     //* ========== PRE PROCESSING - SHADOW PASS ==========
     m_shadowMap->update(cam, m_lightDir);
+    uniforms.setValue("lightSpaceMatrices", m_shadowMap->getLightVPMatrices());
+    uniforms.setValue("cutoffDist", m_shadowMap->getCutoffDists());
 
     glViewport(0, 0, m_shadowMap->size(), m_shadowMap->size());
     glBindFramebuffer(GL_FRAMEBUFFER, m_shadowMap->getFrameBufferID());
     glClear(GL_DEPTH_BUFFER_BIT);
-    m_depthShader->use();
-    m_depthShader->setMat4Array("lightSpaceMatrices", m_shadowMap->getLightVPMatrices());
+    m_depthShader.bind();
     for (auto &mesh : m_world.getChunkMeshes())
     {
         ChunkCoord coord = mesh->getCoords();
 
         mat4 model = glm::translate(mat4(1.0f), vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
-        m_depthShader->setMat4("model", model);
+        uniforms.setValue("chunkModel", model);
+        uniforms.applyTo(m_depthShader);
         mesh->drawSolid();
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -107,23 +107,22 @@ void Renderer::renderWorld(Camera &cam)
     //* First draw the solid meshes
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-    m_blockShader->use();
-    m_blockShader->setMat4("view", cam.getViewMatrix());
-    m_blockShader->setMat4("projection", cam.getProjectionMatrix());
-    m_blockShader->setMat4Array("lightSpaceMatrices", m_shadowMap->getLightVPMatrices());
-    m_blockShader->setFloatArray("cutoffDist", m_shadowMap->getCutoffDists());
+    uniforms.setValue("view", cam.getViewMatrix());
+    uniforms.setValue("perspProj", cam.getProjectionMatrix());
+
+    m_blockShader.bind();
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, BlockTextureAtlas::instance().getID());
-    m_blockShader->setInt("atlas", 0);
+    uniforms.setValue("blockAtlas", 0);
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_blockTintTexture.getID());
-    m_blockShader->setInt("colormap", 1);
+    uniforms.setValue("colormap", 1);
 
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_shadowMap->getTextureID());
-    m_blockShader->setInt("shadowMap", 2);
+    uniforms.setValue("shadowMap", 2);
 
     m_renderedChunks = 0;
     for (auto &mesh : m_world.getChunkMeshes())
@@ -136,7 +135,8 @@ void Renderer::renderWorld(Camera &cam)
         }
 
         mat4 model = glm::translate(mat4(1.0f), vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
-        m_blockShader->setMat4("model", model);
+        uniforms.setValue("chunkModel", model);
+        uniforms.applyTo(m_blockShader);
         mesh->drawSolid();
         m_renderedChunks++;
     }
@@ -158,22 +158,20 @@ void Renderer::renderWorld(Camera &cam)
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
     //* then draw the water meshes
-    m_waterShader->use();
+    m_waterShader.bind();
 
-    m_waterShader->setMat4("view", cam.getViewMatrix());
-    m_waterShader->setMat4("projection", cam.getProjectionMatrix());
-    m_waterShader->setFloat("time", m_window.getTime());
-    m_waterShader->setVec3("camPos", cam.getPos());
-    m_waterShader->setFloat("zNear", cam.getZNear());
-    m_waterShader->setFloat("zFar", cam.getZFar());
+    uniforms.setValue("time", m_window.getTime());
+    uniforms.setValue("camPos", cam.getPos());
+    uniforms.setValue("zNear", cam.getZNear());
+    uniforms.setValue("zFar", cam.getZFar());
 
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, m_frameBuffer->getColorTextureID());
-    m_waterShader->setInt("solidColor", 3);
+    uniforms.setValue("solidColor", 3);
 
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, m_frameBuffer->getDepthTextureID());
-    m_waterShader->setInt("solidDepth", 4);
+    uniforms.setValue("solidDepth", 4);
 
     for (auto &mesh : m_world.getChunkMeshes())
     {
@@ -185,15 +183,17 @@ void Renderer::renderWorld(Camera &cam)
         }
 
         mat4 model = glm::translate(mat4(1.0f), vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
-        m_waterShader->setMat4("model", model);
+        uniforms.setValue("chunkModel", model);
+        uniforms.applyTo(m_waterShader);
         mesh->drawWater();
     }
 
     //* then render the sky
-    m_skyShader->use();
-    m_skyShader->setMat4("invProjection", glm::inverse(cam.getProjectionMatrix()));
-    m_skyShader->setMat4("invView", glm::inverse(cam.getViewMatrix()));
-    m_skyShader->setFloat("time", m_window.getTime());
+    uniforms.setValue("invPerspProj", glm::inverse(cam.getProjectionMatrix()));
+    uniforms.setValue("invView", glm::inverse(cam.getViewMatrix()));
+
+    m_skyShader.bind();
+    uniforms.applyTo(m_skyShader);
     glBindVertexArray(m_skyVAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }

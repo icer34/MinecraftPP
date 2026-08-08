@@ -1,8 +1,6 @@
 #pragma once
 
-#include "core/chunk.h"
-#include "util/perlin_noise.h"
-#include "util/spline.h"
+#include "engine.h"
 
 #include <vector>
 
@@ -18,7 +16,7 @@ struct NamedSpline
     Spline *spline;
 };
 
-class TerrainGenerator
+class TerrainGenerator : public ITerrainGenerator
 {
 public:
     static TerrainGenerator &instance()
@@ -42,7 +40,7 @@ public:
     const std::vector<NamedNoise> &getNoises() const { return m_noises; }
     const std::vector<NamedSpline> &getSplines() const { return m_splines; }
 
-    void generateChunk(Chunk &chunk);
+    void generateChunk(Chunk &chunk) const override;
 
     void setSeed(unsigned int seed) { m_seed = seed; }
 
@@ -63,7 +61,7 @@ private:
     std::vector<NamedNoise> m_noises;
     std::vector<NamedSpline> m_splines;
 
-    int getHeight(int worldX, int worldZ);
+    int getHeight(int worldX, int worldZ) const;
 
     TerrainGenerator();
     TerrainGenerator(TerrainGenerator &registry) = delete;

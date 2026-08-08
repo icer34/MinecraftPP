@@ -6,6 +6,8 @@
 using glm::mat4;
 using glm::vec3;
 
+#include "graphics/uniform_manager.h"
+
 // 12 edges of a unit cube, laid out flat (2 vertices per edge, corners duplicated across
 // shared edges, 3 floats per vertex) so glDrawArrays(GL_LINES, ...) can consume it directly --
 // no EBO needed. sizeof(CUBE_EDGE_VERTICES) / (3 * sizeof(float)) == 24 vertices == 12 edges.
@@ -30,8 +32,9 @@ static const float CUBE_EDGE_VERTICES[24 * 3] = {
 // clang-format on
 
 BlockOutline::BlockOutline()
-    : m_shader("shaders/outline_vert.glsl", "shaders/outline_frag.glsl")
 {
+    m_shader.load("outline");
+
     glGenVertexArrays(1, &m_vao);
     glBindVertexArray(m_vao);
 
@@ -46,11 +49,12 @@ BlockOutline::BlockOutline()
 
 void BlockOutline::draw(glm::vec3 pos, const Camera &cam)
 {
-    m_shader.use();
-    m_shader.setMat4("projection", cam.getProjectionMatrix());
-    m_shader.setMat4("view", cam.getViewMatrix());
-    mat4 model = glm::translate(mat4(1.0f), pos);
-    m_shader.setMat4("model", model);
+    auto &uniforms = UniformManager::instance();
+    uniforms.setValue("outlineModel", glm::translate(mat4(1.0f), pos));
+
+    m_shader.bind();
+
+    uniforms.applyTo(m_shader);
 
     glBindVertexArray(m_vao);
     glLineWidth(3.0f);
