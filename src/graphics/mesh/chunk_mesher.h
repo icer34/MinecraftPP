@@ -1,3 +1,8 @@
+/**
+ * @file chunk_mesher.h
+ * @brief Converts chunk block data into renderable mesh data.
+ */
+
 #pragma once
 
 #include "chunk_mesh.h"
@@ -8,9 +13,12 @@
 #include <array>
 #include <optional>
 
-//* which corner of the texture (in the atlas cell) each vertex of a face maps to.
-//* the vertex shader turns this into an actual UV offset from the cell origin --
-//* nothing CPU-side ever deals with a raw UV value.
+/**
+ * @brief Corner of the atlas cell that a face vertex maps to.
+ *
+ * The vertex shader turns this into an actual UV offset from the cell origin, so nothing on
+ * the CPU side ever deals with a raw UV value.
+ */
 enum class Corner : uint8_t
 {
     BOTTOM_LEFT = 0,
@@ -19,9 +27,26 @@ enum class Corner : uint8_t
     BOTTOM_RIGHT = 3,
 };
 
+/**
+ * @brief Builds the opaque and water meshes of a chunk, one face per visible block side.
+ *
+ * A face is emitted only when the neighboring block does not hide it, including across chunk
+ * borders thanks to the neighboring chunks. Each vertex also stores its ambient occlusion
+ * value and the column's temperature / humidity (for tinting).
+ *
+ * Has no GL dependency and no shared state, so it can run on worker threads.
+ */
 class ChunkMesher
 {
 public:
+    /**
+     * @brief Meshes one chunk.
+     *
+     * @param chunk the chunk to mesh
+     * @param neighbors the four neighboring chunks, in CARDINAL_DIRECTIONS order; an entry is
+     * nullptr if that neighbor is not loaded, in which case its blocks are treated as air
+     * @param meshData receives the opaque and water geometry
+     */
     void mesh(const Chunk &chunk, std::array<const Chunk *, 4> neighbors, ChunkMeshData &meshData);
 
 private:

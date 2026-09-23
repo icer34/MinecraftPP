@@ -1,4 +1,4 @@
-#version 330 core
+#version 460 core
 
 // no "invocations" qualifier -- that needs GLSL 400/GL_ARB_gpu_shader5, not available in
 // plain #version 330 core. Instead, a single invocation loops over every cascade itself and

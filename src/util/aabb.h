@@ -1,25 +1,56 @@
+/**
+ * @file aabb.h
+ * @brief Axis-aligned bounding box used for entity hitboxes.
+ */
+
 #pragma once
 
+/**
+ * @brief Axis-aligned bounding box anchored at an entity's feet.
+ *
+ * The box only stores its size: its position is passed to each method. That position is the
+ * bottom-center of the box (the entity's feet), not its geometric center. The box spans
+ * `pos.y` to `pos.y + 2 * halfExtents.y` vertically.
+ */
 class AABB
 {
 public:
-    AABB(glm::vec3 halfExtents) { m_halfExtents = halfExtents; }
+    /**
+     * @param halfExtents half of the box size on each axis
+     */
+    AABB(glm::vec3 halfExtents) { _halfExtents = halfExtents; }
 
-    // pos is the entity's feet (bottom-center), not the box's geometric center
+    /**
+     * @brief Minimum corner of the box.
+     *
+     * @param pos the entity's feet (bottom-center), not the box's geometric center
+     */
     glm::vec3 getMin(glm::vec3 pos) const
     {
-        return glm::vec3(pos.x - m_halfExtents.x, pos.y, pos.z - m_halfExtents.z);
+        return glm::vec3(pos.x - _halfExtents.x, pos.y, pos.z - _halfExtents.z);
     }
 
+    /**
+     * @brief Maximum corner of the box.
+     *
+     * @param pos the entity's feet (bottom-center), not the box's geometric center
+     */
     glm::vec3 getMax(glm::vec3 pos) const
     {
-        return glm::vec3(pos.x + m_halfExtents.x,
-                         pos.y + 2.0f * m_halfExtents.y,
-                         pos.z + m_halfExtents.z);
+        return glm::vec3(
+            pos.x + _halfExtents.x, pos.y + 2.0f * _halfExtents.y, pos.z + _halfExtents.z);
     }
 
-    glm::vec3 getHalfExtents() const { return m_halfExtents; }
+    /** @brief Half of the box size on each axis. */
+    glm::vec3 getHalfExtents() const { return _halfExtents; }
 
+    /**
+     * @brief Tests whether this box overlaps another one. Touching boxes do not overlap.
+     *
+     * @param other the other box
+     * @param posA feet position of this box
+     * @param posB feet position of the other box
+     */
     bool intersects(const AABB &other, glm::vec3 posA, glm::vec3 posB) const
     {
         glm::vec3 minA = getMin(posA), maxA = getMax(posA);
@@ -30,5 +61,5 @@ public:
     }
 
 private:
-    glm::vec3 m_halfExtents;
+    glm::vec3 _halfExtents;
 };

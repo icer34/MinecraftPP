@@ -5,28 +5,28 @@
 #include <algorithm>
 
 TerrainGenerator::TerrainGenerator()
-    : m_pvSpline(Spline(-1.0, 1.0, 0.0, (float)Chunk::HEIGHT)),
+    : _pvSpline(Spline(-1.0, 1.0, 0.0, (float)Chunk::HEIGHT)),
       // erosion is a 0..1 factor (how much PV is allowed to sculpt the terrain)
-      m_erosionSpline(Spline(-1.0, 1.0, 0.0, 1.0)),
-      m_continentalnessSpline(Spline(-1.0, 1.0, 0.0, (float)Chunk::HEIGHT)),
-      m_continentalnessNoise(PerlinNoise(m_seed)),
-      m_erosionNoise(PerlinNoise(m_seed + 1)),
-      m_pvNoise(PerlinNoise(m_seed + 2)),
-      m_temperatureNoise(PerlinNoise(m_seed + 3)),
-      m_humidityNoise(PerlinNoise(m_seed + 4))
+      _erosionSpline(Spline(-1.0, 1.0, 0.0, 1.0)),
+      _continentalnessSpline(Spline(-1.0, 1.0, 0.0, (float)Chunk::HEIGHT)),
+      _continentalnessNoise(PerlinNoise(_seed)),
+      _erosionNoise(PerlinNoise(_seed + 1)),
+      _pvNoise(PerlinNoise(_seed + 2)),
+      _temperatureNoise(PerlinNoise(_seed + 3)),
+      _humidityNoise(PerlinNoise(_seed + 4))
 {
-    m_noises = {
-        {"Continentalness", &m_continentalnessNoise},
-        {"Erosion", &m_erosionNoise},
-        {"Peaks & Valleys", &m_pvNoise},
-        {"Temperature", &m_temperatureNoise},
-        {"Humidity", &m_humidityNoise},
+    _noises = {
+        {"Continentalness", &_continentalnessNoise},
+        {"Erosion", &_erosionNoise},
+        {"Peaks & Valleys", &_pvNoise},
+        {"Temperature", &_temperatureNoise},
+        {"Humidity", &_humidityNoise},
     };
 
-    m_splines = {
-        {"Continentalness", &m_continentalnessSpline},
-        {"Erosion", &m_erosionSpline},
-        {"Peaks & Valleys", &m_pvSpline},
+    _splines = {
+        {"Continentalness", &_continentalnessSpline},
+        {"Erosion", &_erosionSpline},
+        {"Peaks & Valleys", &_pvSpline},
     };
 
     auto setPoints = [](Spline &spline, std::initializer_list<std::pair<float, float>> points)
@@ -40,7 +40,7 @@ TerrainGenerator::TerrainGenerator()
             spline.addPoint(x, y);
     };
 
-    setPoints(m_continentalnessSpline,
+    setPoints(_continentalnessSpline,
               {
                   {-1.0f, 248.0f},
                   {-0.9f, 10.0f},
@@ -52,7 +52,7 @@ TerrainGenerator::TerrainGenerator()
                   {1.0f, 250.0f},
               });
 
-    setPoints(m_erosionSpline,
+    setPoints(_erosionSpline,
               {
                   {-1.0f, 1.0f},
                   {-0.75f, 0.78f},
@@ -66,7 +66,7 @@ TerrainGenerator::TerrainGenerator()
                   {1.0f, 0.0f},
               });
 
-    setPoints(m_pvSpline,
+    setPoints(_pvSpline,
               {
                   {-1.0f, 5.0f},
                   {-0.75f, 40.0f},
@@ -80,17 +80,29 @@ TerrainGenerator::TerrainGenerator()
                   {1.0f, 248.0f},
               });
 
-    m_continentalnessNoise.updateSettings(3, 0.5, 2.0, 0.002);
-    m_erosionNoise.updateSettings(3, 0.5, 2.0, 0.003);
-    m_pvNoise.updateSettings(5, 0.5, 2.0, 0.01);
-    m_temperatureNoise.updateSettings(2, 0.5, 2.0, 0.0015);
-    m_humidityNoise.updateSettings(2, 0.5, 2.0, 0.0015);
+    _continentalnessNoise.updateSettings(3, 0.5, 2.0, 0.002);
+    _erosionNoise.updateSettings(3, 0.5, 2.0, 0.003);
+    _pvNoise.updateSettings(5, 0.5, 2.0, 0.01);
+    _temperatureNoise.updateSettings(2, 0.5, 2.0, 0.0015);
+    _humidityNoise.updateSettings(2, 0.5, 2.0, 0.0015);
 
     auto &reg = SettingsRegistry::instance();
     reg.addSpline(
-        SettingCategory::WorldGen, "", "Continentalness spline", &m_continentalnessSpline, "TODO");
-    reg.addSpline(SettingCategory::WorldGen, "", "Erosion spline", &m_erosionSpline, "TODO");
-    reg.addSpline(SettingCategory::WorldGen, "", "Peaks & Valleys spline", &m_pvSpline, "TODO");
+        SettingCategory::WorldGen, "", "Continentalness spline", &_continentalnessSpline, "TODO");
+    reg.addSpline(SettingCategory::WorldGen, "", "Erosion spline", &_erosionSpline, "TODO");
+    reg.addSpline(SettingCategory::WorldGen, "", "Peaks & Valleys spline", &_pvSpline, "TODO");
+}
+
+void TerrainGenerator::setSeed(unsigned int seed)
+{
+    _seed = seed;
+
+    // same per-noise offsets as in the constructor, so a given seed always gives the same world
+    _continentalnessNoise.setSeed(_seed);
+    _erosionNoise.setSeed(_seed + 1);
+    _pvNoise.setSeed(_seed + 2);
+    _temperatureNoise.setSeed(_seed + 3);
+    _humidityNoise.setSeed(_seed + 4);
 }
 
 void TerrainGenerator::generateChunk(Chunk &chunk)
@@ -106,16 +118,17 @@ void TerrainGenerator::generateChunk(Chunk &chunk)
 
             int height = getHeight(worldX, worldZ);
 
-            chunk.setTemp(abs(m_temperatureNoise.sample(worldX, worldZ) * 255.0), glm::ivec2(x, z));
-            chunk.setHumidity(abs(m_humidityNoise.sample(worldX, worldZ) * 255.0),
+            chunk.setTemp(std::abs(_temperatureNoise.sample(worldX, worldZ) * 255.0),
+                          glm::ivec2(x, z));
+            chunk.setHumidity(std::abs(_humidityNoise.sample(worldX, worldZ) * 255.0),
                               glm::ivec2(x, z));
 
             for (int y = 0; y < Chunk::HEIGHT; y++)
             {
-                if (y > height && y > m_seaLvl)
+                if (y > height && y > _seaLvl)
                     continue;
 
-                else if (y > height && y <= m_seaLvl)
+                else if (y > height && y <= _seaLvl)
                     chunk.setBlock(Blocks::WATER, glm::ivec3(x, y, z));
 
                 else if (y == height)
@@ -130,13 +143,13 @@ void TerrainGenerator::generateChunk(Chunk &chunk)
 
 int TerrainGenerator::getHeight(int worldX, int worldZ)
 {
-    float contNoise = m_continentalnessNoise.sample(worldX, worldZ);
-    float pvNoise = m_pvNoise.sample(worldX, worldZ);
-    float erosionNoise = m_erosionNoise.sample(worldX, worldZ);
+    float contNoise = _continentalnessNoise.sample(worldX, worldZ);
+    float pvNoise = _pvNoise.sample(worldX, worldZ);
+    float erosionNoise = _erosionNoise.sample(worldX, worldZ);
 
-    float baseHeight = m_continentalnessSpline.get(contNoise);
-    float pvHeight = m_pvSpline.get(pvNoise);
-    float erosionFactor = m_erosionSpline.get(erosionNoise); // 0 = flat/eroded, 1 = full jaggedness
+    float baseHeight = _continentalnessSpline.get(contNoise);
+    float pvHeight = _pvSpline.get(pvNoise);
+    float erosionFactor = _erosionSpline.get(erosionNoise); // 0 = flat/eroded, 1 = full jaggedness
 
     // erosion controls how much peaks & valleys is allowed to pull the terrain away from the
     // continentalness base height, instead of being averaged in independently -- otherwise 3

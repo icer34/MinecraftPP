@@ -1,14 +1,11 @@
-**NEXT UP**
-- architectural refactoring 
-  - seperate engine / game --> better engine api
-  - abstract shader code 
-    - includes, quality of life features (cfr. acreola video)
+- abstract shader code 
+  - includes, quality of life features (cfr. acreola video)
 
 **GENERAL IDEAS**
 - gameplay
   - player -> item system
 
-- hud / settings (voir docs/hud_and_settings_architecture.md)
+- hud / settings
   - Hud : chat (historique des messages + timers d'affichage, purge des expires)
   - ItemRenderer : rendu live d'un item-bloc en 3D (hotbar, inventaire, item lache au sol)
   - Hud : hotbar (une fois ItemRenderer + inventaire dispo)

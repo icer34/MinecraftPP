@@ -30,13 +30,13 @@ static const float CUBE_EDGE_VERTICES[24 * 3] = {
 // clang-format on
 
 BlockOutline::BlockOutline()
-    : m_shader("shaders/outline_vert.glsl", "shaders/outline_frag.glsl")
+    : _shader("shaders/outline_vert.glsl", "shaders/outline_frag.glsl")
 {
-    glGenVertexArrays(1, &m_vao);
-    glBindVertexArray(m_vao);
+    glGenVertexArrays(1, &_vao);
+    glBindVertexArray(_vao);
 
-    glGenBuffers(1, &m_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    glGenBuffers(1, &_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(CUBE_EDGE_VERTICES), CUBE_EDGE_VERTICES, GL_STATIC_DRAW);
 
@@ -46,13 +46,13 @@ BlockOutline::BlockOutline()
 
 void BlockOutline::draw(glm::vec3 pos, const Camera &cam)
 {
-    m_shader.use();
-    m_shader.setMat4("projection", cam.getProjectionMatrix());
-    m_shader.setMat4("view", cam.getViewMatrix());
+    _shader.use();
+    _shader.setMat4("projection", cam.getProjectionMatrix());
+    _shader.setMat4("view", cam.getViewMatrix());
     mat4 model = glm::translate(mat4(1.0f), pos);
-    m_shader.setMat4("model", model);
+    _shader.setMat4("model", model);
 
-    glBindVertexArray(m_vao);
+    glBindVertexArray(_vao);
     glLineWidth(3.0f);
 
     glEnable(GL_POLYGON_OFFSET_LINE);

@@ -6,8 +6,8 @@
 FrameBuffer::FrameBuffer(int screenW, int screenH)
 {
     //* color texture
-    glGenTextures(1, &m_colorTexID);
-    glBindTexture(GL_TEXTURE_2D, m_colorTexID);
+    glGenTextures(1, &_colorTexID);
+    glBindTexture(GL_TEXTURE_2D, _colorTexID);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
@@ -18,8 +18,8 @@ FrameBuffer::FrameBuffer(int screenW, int screenH)
         GL_TEXTURE_2D, 0, GL_RGBA8, screenW, screenH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
     //* depth texture
-    glGenTextures(1, &m_depthTexID);
-    glBindTexture(GL_TEXTURE_2D, m_depthTexID);
+    glGenTextures(1, &_depthTexID);
+    glBindTexture(GL_TEXTURE_2D, _depthTexID);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -36,10 +36,10 @@ FrameBuffer::FrameBuffer(int screenW, int screenH)
                  GL_FLOAT,
                  nullptr);
 
-    glGenFramebuffers(1, &m_fboID);
-    glBindFramebuffer(GL_FRAMEBUFFER, m_fboID);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, m_colorTexID, 0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, m_depthTexID, 0);
+    glGenFramebuffers(1, &_fboID);
+    glBindFramebuffer(GL_FRAMEBUFFER, _fboID);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _colorTexID, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depthTexID, 0);
 
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE)
@@ -51,7 +51,7 @@ FrameBuffer::FrameBuffer(int screenW, int screenH)
 
 FrameBuffer::~FrameBuffer()
 {
-    glDeleteTextures(1, &m_colorTexID);
-    glDeleteTextures(1, &m_depthTexID);
-    glDeleteFramebuffers(1, &m_fboID);
+    glDeleteTextures(1, &_colorTexID);
+    glDeleteTextures(1, &_depthTexID);
+    glDeleteFramebuffers(1, &_fboID);
 }

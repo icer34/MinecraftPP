@@ -16,20 +16,24 @@ using glm::vec2;
 using glm::vec4;
 
 HudRenderer::HudRenderer()
-    : m_shader("shaders/hud_vert.glsl", "shaders/hud_frag.glsl")
+    : _shader("shaders/hud_vert.glsl", "shaders/hud_frag.glsl")
 {
     loadFont();
 
     loadIconAtlas();
 
-    setupBuffers(m_iconVao, m_iconVbo, m_iconEbo);
-    setupBuffers(m_textVao, m_textVbo, m_textEbo);
+    setupBuffers(_iconVao, _iconVbo, _iconEbo);
+    setupBuffers(_textVao, _textVbo, _textEbo);
 }
 
-HudRenderer &HudRenderer::instance()
+HudRenderer::~HudRenderer()
 {
-    static HudRenderer renderer;
-    return renderer;
+    glDeleteVertexArrays(1, &_iconVao);
+    glDeleteBuffers(1, &_iconVbo);
+    glDeleteBuffers(1, &_iconEbo);
+    glDeleteVertexArrays(1, &_textVao);
+    glDeleteBuffers(1, &_textVbo);
+    glDeleteBuffers(1, &_textEbo);
 }
 
 void HudRenderer::setupBuffers(unsigned int &vao, unsigned int &vbo, unsigned int &ebo)
@@ -43,36 +47,22 @@ void HudRenderer::setupBuffers(unsigned int &vao, unsigned int &vbo, unsigned in
 
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 MAX_QUADS * 6 * sizeof(unsigned int),
-                 nullptr,
-                 GL_DYNAMIC_DRAW);
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER, MAX_QUADS * 6 * sizeof(unsigned int), nullptr, GL_DYNAMIC_DRAW);
 
     // pos
-    glVertexAttribPointer(0,
-                          2,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(HudVertex),
-                          (void *)offsetof(HudVertex, pos));
+    glVertexAttribPointer(
+        0, 2, GL_FLOAT, GL_FALSE, sizeof(HudVertex), (void *)offsetof(HudVertex, pos));
     glEnableVertexAttribArray(0);
 
     // uv
-    glVertexAttribPointer(1,
-                          2,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(HudVertex),
-                          (void *)offsetof(HudVertex, uv));
+    glVertexAttribPointer(
+        1, 2, GL_FLOAT, GL_FALSE, sizeof(HudVertex), (void *)offsetof(HudVertex, uv));
     glEnableVertexAttribArray(1);
 
     // color
-    glVertexAttribPointer(2,
-                          4,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          sizeof(HudVertex),
-                          (void *)offsetof(HudVertex, color));
+    glVertexAttribPointer(
+        2, 4, GL_FLOAT, GL_FALSE, sizeof(HudVertex), (void *)offsetof(HudVertex, color));
     glEnableVertexAttribArray(2);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -90,7 +80,7 @@ void HudRenderer::loadFont()
         std::cout << "HUD_RENDERER_FAILURE::COULD NOT LOAD THE FONT FILE" << std::endl;
         return;
     }
-    m_fontTexture = Texture(fontData, w, h, GL_RGBA8, GL_RGBA);
+    _fontTexture = Texture(fontData, w, h, GL_RGBA8, GL_RGBA);
 
     // every ascii char as an int is the index in the texture, and is in a 8x8 square
     for (int i = 32; i < 127; i++)
@@ -139,11 +129,11 @@ void HudRenderer::loadFont()
             x1 = (float)(maxX + 1) / FONT_TEXTURE_SIZE;
         }
 
-        m_charWidth.insert({(char)i, charWidth});
-        m_charUV.insert({(char)i, UVRect{x0, x1, y0, y1}});
+        _charWidth.insert({(char)i, charWidth});
+        _charUV.insert({(char)i, UVRect{x0, x1, y0, y1}});
     }
 
-    m_fontTexture.setFilters(GL_NEAREST, GL_NEAREST);
+    _fontTexture.setFilters(GL_NEAREST, GL_NEAREST);
 
     stbi_image_free(fontData);
 }
@@ -215,30 +205,30 @@ void HudRenderer::loadIconAtlas()
         curX += icon.w;
     }
 
-    m_atlasHeight = curY + rowHeight;
+    _atlasHeight = curY + rowHeight;
 
     // 4. create the texture and add all the icons now that they're packed correctly
-    m_iconAtlasTexture = Texture(nullptr, ATLAS_WIDTH, m_atlasHeight, GL_RGBA8, GL_RGBA);
+    _iconAtlasTexture = Texture(nullptr, ATLAS_WIDTH, _atlasHeight, GL_RGBA8, GL_RGBA);
     for (auto &icon : iconData)
     {
-        m_iconAtlasTexture.addSubImage(icon.x, icon.y, icon.w, icon.h, icon.data.data());
+        _iconAtlasTexture.addSubImage(icon.x, icon.y, icon.w, icon.h, icon.data.data());
 
         // save the icons UVs for later use -- normalized to [0, 1]
-        m_iconUV.insert({icon.name,
-                         UVRect{(float)icon.x / ATLAS_WIDTH,
-                                (float)(icon.x + icon.w) / ATLAS_WIDTH,
-                                (float)icon.y / m_atlasHeight,
-                                (float)(icon.y + icon.h) / m_atlasHeight}});
+        _iconUV.insert({icon.name,
+                        UVRect{(float)icon.x / ATLAS_WIDTH,
+                               (float)(icon.x + icon.w) / ATLAS_WIDTH,
+                               (float)icon.y / _atlasHeight,
+                               (float)(icon.y + icon.h) / _atlasHeight}});
     }
-    m_iconAtlasTexture.setFilters(GL_NEAREST, GL_NEAREST);
+    _iconAtlasTexture.setFilters(GL_NEAREST, GL_NEAREST);
 }
 
 void HudRenderer::begin()
 {
-    m_iconVertData.clear();
-    m_iconIdxData.clear();
-    m_textVertData.clear();
-    m_textIdxData.clear();
+    _iconVertData.clear();
+    _iconIdxData.clear();
+    _textVertData.clear();
+    _textIdxData.clear();
 }
 
 void HudRenderer::flushBatch(unsigned int vao,
@@ -255,10 +245,8 @@ void HudRenderer::flushBatch(unsigned int vao,
     glBufferSubData(GL_ARRAY_BUFFER, 0, vertData.size() * sizeof(HudVertex), vertData.data());
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-                    0,
-                    idxData.size() * sizeof(unsigned int),
-                    idxData.data());
+    glBufferSubData(
+        GL_ELEMENT_ARRAY_BUFFER, 0, idxData.size() * sizeof(unsigned int), idxData.data());
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureID);
@@ -297,23 +285,14 @@ void HudRenderer::end(int screenWidth, int screenHeight, std::optional<glm::vec4
 
     mat4 projection = glm::ortho(0.0f, (float)screenWidth, (float)screenHeight, 0.0f, -1.0f, 1.0f);
 
-    m_shader.use();
-    m_shader.setMat4("projection", projection);
-    m_shader.setInt("atlas", 0);
+    _shader.use();
+    _shader.setMat4("projection", projection);
+    _shader.setInt("atlas", 0);
 
-    flushBatch(m_iconVao,
-               m_iconVbo,
-               m_iconEbo,
-               m_iconVertData,
-               m_iconIdxData,
-               m_iconAtlasTexture.getID());
+    flushBatch(
+        _iconVao, _iconVbo, _iconEbo, _iconVertData, _iconIdxData, _iconAtlasTexture.getID());
 
-    flushBatch(m_textVao,
-               m_textVbo,
-               m_textEbo,
-               m_textVertData,
-               m_textIdxData,
-               m_fontTexture.getID());
+    flushBatch(_textVao, _textVbo, _textEbo, _textVertData, _textIdxData, _fontTexture.getID());
 
     if (scissorRect.has_value())
         glDisable(GL_SCISSOR_TEST);
@@ -330,21 +309,17 @@ void HudRenderer::end(int screenWidth, int screenHeight, std::optional<glm::vec4
 
 void HudRenderer::drawIcon(const std::string &name, vec2 pos, vec2 size, vec4 color)
 {
-    UVRect uv = m_iconUV.at(name);
+    UVRect uv = _iconUV.at(name);
     drawQuad_h(pos, size, uv, color);
 }
 
-void HudRenderer::drawIconSliced(const std::string &name,
-                                 vec2 pos,
-                                 vec2 size,
-                                 int borderPxNative,
-                                 float pixelScale,
-                                 vec4 color)
+void HudRenderer::drawIconSliced(
+    const std::string &name, vec2 pos, vec2 size, int borderPxNative, float pixelScale, vec4 color)
 {
-    UVRect uv = m_iconUV.at(name);
+    UVRect uv = _iconUV.at(name);
 
     float uBorder = borderPxNative / (float)ATLAS_WIDTH;
-    float vBorder = borderPxNative / (float)m_atlasHeight;
+    float vBorder = borderPxNative / (float)_atlasHeight;
 
     float u[4] = {uv.x0, uv.x0 + uBorder, uv.x1 - uBorder, uv.x1};
     float v[4] = {uv.y0, uv.y0 + vBorder, uv.y1 - vBorder, uv.y1};
@@ -371,35 +346,33 @@ void HudRenderer::drawText(const std::string &text, vec2 pos, float scale, vec4 
     for (size_t i = 0; i < text.length(); i++)
     {
         char c = text.at(i);
-        UVRect uv = m_charUV.at(c);
+        UVRect uv = _charUV.at(c);
         vec2 charPos = vec2(pos.x + xOffset * scale, pos.y);
-        vec2 charSize = vec2(m_charWidth.at(c) * scale, FONT_CHAR_SIZE * scale);
+        vec2 charSize = vec2(_charWidth.at(c) * scale, FONT_CHAR_SIZE * scale);
 
-        unsigned int addedVertices = (unsigned int)m_textVertData.size();
+        unsigned int addedVertices = (unsigned int)_textVertData.size();
 
         // uv.y0 is the top of the glyph, uv.y1 the bottom (see loadFont/loadIconAtlas: y grows
         // downward, matching screen-space y, since the textures aren't flipped on load)
-        m_textVertData.push_back(HudVertex{charPos, vec2(uv.x0, uv.y0), color}); // top left
-        m_textVertData.push_back(HudVertex{vec2(charPos.x + charSize.x, charPos.y),
-                                           vec2(uv.x1, uv.y0),
-                                           color}); // top right
-        m_textVertData.push_back(
+        _textVertData.push_back(HudVertex{charPos, vec2(uv.x0, uv.y0), color}); // top left
+        _textVertData.push_back(HudVertex{
+            vec2(charPos.x + charSize.x, charPos.y), vec2(uv.x1, uv.y0), color}); // top right
+        _textVertData.push_back(
             HudVertex{charPos + charSize, vec2(uv.x1, uv.y1), color}); // bot right
-        m_textVertData.push_back(HudVertex{vec2(charPos.x, charPos.y + charSize.y),
-                                           vec2(uv.x0, uv.y1),
-                                           color}); // bot left
+        _textVertData.push_back(HudVertex{
+            vec2(charPos.x, charPos.y + charSize.y), vec2(uv.x0, uv.y1), color}); // bot left
 
-        m_textIdxData.insert(m_textIdxData.end(),
-                             {
-                                 addedVertices,
-                                 addedVertices + 1,
-                                 addedVertices + 2,
-                                 addedVertices,
-                                 addedVertices + 2,
-                                 addedVertices + 3,
-                             });
+        _textIdxData.insert(_textIdxData.end(),
+                            {
+                                addedVertices,
+                                addedVertices + 1,
+                                addedVertices + 2,
+                                addedVertices,
+                                addedVertices + 2,
+                                addedVertices + 3,
+                            });
 
-        xOffset += m_charWidth.at(c) + 1;
+        xOffset += _charWidth.at(c) + 1;
     }
 }
 
@@ -416,26 +389,26 @@ void HudRenderer::drawQuad_h(vec2 pos, vec2 size, UVRect uv, vec4 color)
     // texture
     pos = glm::floor(pos);
 
-    unsigned int addedVertices = (unsigned int)m_iconVertData.size();
+    unsigned int addedVertices = (unsigned int)_iconVertData.size();
 
     // uv.y0 is the top of the source image, uv.y1 the bottom (see loadIconAtlas: y grows
     // downward while packing, matching screen-space y, since icons aren't flipped on load)
-    m_iconVertData.push_back(HudVertex{pos, vec2(uv.x0, uv.y0), color}); // top left
-    m_iconVertData.push_back(
-        HudVertex{vec2(pos.x + size.x, pos.y), vec2(uv.x1, uv.y0), color});     // top right
-    m_iconVertData.push_back(HudVertex{pos + size, vec2(uv.x1, uv.y1), color}); // bot right
-    m_iconVertData.push_back(
+    _iconVertData.push_back(HudVertex{pos, vec2(uv.x0, uv.y0), color}); // top left
+    _iconVertData.push_back(
+        HudVertex{vec2(pos.x + size.x, pos.y), vec2(uv.x1, uv.y0), color});    // top right
+    _iconVertData.push_back(HudVertex{pos + size, vec2(uv.x1, uv.y1), color}); // bot right
+    _iconVertData.push_back(
         HudVertex{vec2(pos.x, pos.y + size.y), vec2(uv.x0, uv.y1), color}); // bot left
 
-    m_iconIdxData.insert(m_iconIdxData.end(),
-                         {
-                             addedVertices,
-                             addedVertices + 1,
-                             addedVertices + 2,
-                             addedVertices,
-                             addedVertices + 2,
-                             addedVertices + 3,
-                         });
+    _iconIdxData.insert(_iconIdxData.end(),
+                        {
+                            addedVertices,
+                            addedVertices + 1,
+                            addedVertices + 2,
+                            addedVertices,
+                            addedVertices + 2,
+                            addedVertices + 3,
+                        });
 }
 
 void HudRenderer::drawQuad(vec2 pos, vec2 size, vec4 color)
@@ -443,18 +416,18 @@ void HudRenderer::drawQuad(vec2 pos, vec2 size, vec4 color)
     drawQuad_h(pos, size, getWhitePixelUV(), color);
 }
 
-UVRect HudRenderer::getIconUV(const std::string &name) const { return m_iconUV.at(name); }
+UVRect HudRenderer::getIconUV(const std::string &name) const { return _iconUV.at(name); }
 
-UVRect HudRenderer::getCharUV(char c) const { return m_charUV.at(c); }
+UVRect HudRenderer::getCharUV(char c) const { return _charUV.at(c); }
 
-UVRect HudRenderer::getWhitePixelUV() const { return m_iconUV.at("white_pixel"); }
+UVRect HudRenderer::getWhitePixelUV() const { return _iconUV.at("white_pixel"); }
 
 int HudRenderer::textWidth(const std::string &text)
 {
     int w = 0;
     for (char c : text)
     {
-        w += m_charWidth.at(c) + 1;
+        w += _charWidth.at(c) + 1;
     }
     return w;
 }

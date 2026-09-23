@@ -1,3 +1,19 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
 /.vscode
+/.idea
+/.vs
+
+# Build
 /build
+/out
+/cmake-build-*
+
+# Runtime
 imgui.ini
+
+# Documentation générée
+/docs/html

@@ -1,6 +1,5 @@
-#version 330 core
+#version 460 core
 
-uniform float time;
 uniform vec3 lightDir;
 uniform mat4 invProjection;
 uniform mat4 invView;
@@ -24,8 +23,6 @@ vec3 sky(vec3 worldDir)
 
 void main()
 {
-    float temp = time;
-
     vec4 viewDir4 = invProjection * vec4(vNdc.xy, 1.0, 1.0);
     vec3 viewDir = viewDir4.xyz / viewDir4.w;
     vec3 worldDir = normalize(mat3(invView) * viewDir); 

@@ -1,3 +1,8 @@
+/**
+ * @file frustum.h
+ * @brief Camera view frustum, used to cull chunks that are off-screen.
+ */
+
 #pragma once
 
 #include "glm/glm.hpp"
@@ -9,12 +14,20 @@
 
 #include "graphics/camera.h"
 
+/**
+ * @brief Plane in Hessian normal form: the points p with `dot(normal, p) + dist == 0`.
+ *
+ * Points with a positive signed distance are on the side the normal points to.
+ */
 struct Plane
 {
-    glm::vec3 normal;
-    float dist; // distance between the origin and the nearest point on the plane
+    glm::vec3 normal; ///< Unit normal of the plane.
+    float dist;       ///< Signed distance term: `dot(normal, p) + dist` is the distance of p.
 
-    // builds a normalized Plane from the raw (A,B,C,D) coefficients of Ax+By+Cz+D=0
+    /**
+     * @brief Builds a normalized Plane from the raw (A, B, C, D) coefficients of
+     * Ax + By + Cz + D = 0.
+     */
     static Plane fromCoefficients(glm::vec4 coeffs)
     {
         float length = glm::length(glm::vec3(coeffs));
@@ -22,57 +35,58 @@ struct Plane
     }
 };
 
+/**
+ * @brief Names of the six frustum planes.
+ */
 enum class FrustumPlane : uint8_t
 {
-    TOP = 0,
+    LEFT = 0,
+    RIGHT,
+    TOP,
     BOTTOM,
     NEAR,
-    FAR,
-    LEFT,
-    RIGHT
+    FAR
 };
 
+/**
+ * @brief The six planes of a camera's view frustum, with normals pointing inwards.
+ *
+ * Built from the camera's view-projection matrix (Gribb-Hartmann method). Only valid for
+ * the camera state at construction time: build a new one every frame.
+ */
 class Frustum
 {
 public:
+    /**
+     * @brief Extracts the frustum planes from the camera's current view and projection.
+     */
     Frustum(const Camera &cam)
     {
         glm::mat4 proj = cam.getProjectionMatrix();
         glm::mat4 view = cam.getViewMatrix();
         glm::mat4 m = proj * view;
 
-        // temporary: catch the exact frame a degenerate/NaN VP matrix shows up
-        bool hasNan = false;
-        for (int col = 0; col < 4 && !hasNan; col++)
-            for (int row = 0; row < 4; row++)
-                if (std::isnan(m[col][row]) || std::isinf(m[col][row]))
-                {
-                    hasNan = true;
-                    break;
-                }
-        if (hasNan)
-        {
-            glm::vec3 pos = cam.getPos();
-            glm::vec3 front = cam.getFront();
-            std::cout << "[frustum-debug] NaN/Inf in VP matrix! pos=(" << pos.x << "," << pos.y
-                      << "," << pos.z << ") front=(" << front.x << "," << front.y << "," << front.z
-                      << ") yaw=" << cam.getYaw() << " pitch=" << cam.getPitch()
-                      << " aspect=" << cam.getAspectRatio() << " fov=" << cam.getFOV() << std::endl;
-        }
-
         glm::vec4 row0 = glm::row(m, 0);
         glm::vec4 row1 = glm::row(m, 1);
         glm::vec4 row2 = glm::row(m, 2);
         glm::vec4 row3 = glm::row(m, 3); // the "w" row
 
-        m_left = Plane::fromCoefficients(row3 + row0);
-        m_right = Plane::fromCoefficients(row3 - row0);
-        m_bottom = Plane::fromCoefficients(row3 + row1);
-        m_top = Plane::fromCoefficients(row3 - row1);
-        m_near = Plane::fromCoefficients(row3 + row2);
-        m_far = Plane::fromCoefficients(row3 - row2);
+        _planes[0] = Plane::fromCoefficients(row3 + row0); // left
+        _planes[1] = Plane::fromCoefficients(row3 - row0); // right
+        _planes[2] = Plane::fromCoefficients(row3 - row1); // top
+        _planes[3] = Plane::fromCoefficients(row3 + row1); // bottom
+        _planes[4] = Plane::fromCoefficients(row3 + row2); // near
+        _planes[5] = Plane::fromCoefficients(row3 - row2); // far
     }
 
+    /**
+     * @brief Tests whether a chunk's bounding box is at least partly inside the frustum.
+     *
+     * Conservative: it can return true for a box that is actually just outside the frustum
+     * near a corner, but never returns false for a visible box.
+     *
+     * @param coord coordinates of the chunk; its box spans the full world height
+     */
     bool isChunkInside(const ChunkCoord coord)
     {
         glm::vec3 minBox = glm::vec3(coord.x * Chunk::SIZE, 0.0f, coord.z * Chunk::SIZE);
@@ -94,60 +108,16 @@ public:
         return true;
     }
 
-    // temporary debug helper -- prints each plane's normal/dist and the AABB test result
-    // for one chunk, to catch the exact frustum state when everything gets culled.
-    void debugDumpChunk(const ChunkCoord coord) const
-    {
-        glm::vec3 minBox = glm::vec3(coord.x * Chunk::SIZE, 0.0f, coord.z * Chunk::SIZE);
-        glm::vec3 maxBox
-            = glm::vec3((coord.x + 1) * Chunk::SIZE, Chunk::HEIGHT, (coord.z + 1) * Chunk::SIZE);
+    /**
+     * @brief Returns one plane of the frustum.
+     */
+    Plane getPlane(FrustumPlane planeDir) { return _planes[static_cast<size_t>(planeDir)]; }
 
-        static constexpr const char *names[6] = {"near", "far", "top", "bottom", "left", "right"};
-
-        int i = 0;
-        for (const Plane &plane : planes())
-        {
-            glm::vec3 positiveVertex(plane.normal.x >= 0.0f ? maxBox.x : minBox.x,
-                                     plane.normal.y >= 0.0f ? maxBox.y : minBox.y,
-                                     plane.normal.z >= 0.0f ? maxBox.z : minBox.z);
-            float result = glm::dot(plane.normal, positiveVertex) + plane.dist;
-
-            std::cout << "  [" << names[i] << "] normal=(" << plane.normal.x << ","
-                      << plane.normal.y << "," << plane.normal.z << ") dist=" << plane.dist
-                      << " -> test=" << result << (result < 0.0f ? " FAIL" : " pass") << std::endl;
-            i++;
-        }
-    }
-
-    Plane getPlane(FrustumPlane planeDir)
-    {
-        switch (planeDir)
-        {
-        case FrustumPlane::TOP:
-            return m_top;
-        case FrustumPlane::BOTTOM:
-            return m_bottom;
-        case FrustumPlane::NEAR:
-            return m_near;
-        case FrustumPlane::FAR:
-            return m_far;
-        case FrustumPlane::LEFT:
-            return m_left;
-        case FrustumPlane::RIGHT:
-            return m_right;
-        }
-    }
-
-    std::vector<Plane> planes() const
-    {
-        return std::vector<Plane>{m_near, m_far, m_top, m_bottom, m_left, m_right};
-    }
+    /**
+     * @brief All six planes, in the order left, right, top, bottom, near, far.
+     */
+    std::array<Plane, 6> planes() const { return _planes; }
 
 private:
-    Plane m_near;
-    Plane m_far;
-    Plane m_top;
-    Plane m_bottom;
-    Plane m_left;
-    Plane m_right;
+    std::array<Plane, 6> _planes;
 };

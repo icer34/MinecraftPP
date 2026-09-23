@@ -6,33 +6,31 @@
 Mesh::Mesh()
 {
     // create the buffers
-    glGenVertexArrays(1, &m_vao);
-    glGenBuffers(1, &m_vbo);
-    glGenBuffers(1, &m_ebo);
+    glGenVertexArrays(1, &_vao);
+    glGenBuffers(1, &_vbo);
+    glGenBuffers(1, &_ebo);
 }
 
 Mesh::~Mesh()
 {
-    glDeleteVertexArrays(1, &m_vao);
-    glDeleteBuffers(1, &m_vbo);
-    glDeleteBuffers(1, &m_ebo);
+    glDeleteVertexArrays(1, &_vao);
+    glDeleteBuffers(1, &_vbo);
+    glDeleteBuffers(1, &_ebo);
 }
 
 void Mesh::update(const MeshData &data)
 {
-    m_nVert = data.vertices.size();
-    m_nIdx = data.indices.size();
+    _nVert = data.vertices.size();
+    _nIdx = data.indices.size();
 
-    glBindVertexArray(m_vao);
+    glBindVertexArray(_vao);
 
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, m_nVert * sizeof(GLuint), data.vertices.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+    glBufferData(GL_ARRAY_BUFFER, _nVert * sizeof(GLuint), data.vertices.data(), GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 m_nIdx * sizeof(GLuint),
-                 data.indices.data(),
-                 GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER, _nIdx * sizeof(GLuint), data.indices.data(), GL_STATIC_DRAW);
 
     // packed data inside 2 32-bit unsigned integers
     glVertexAttribIPointer(0, 2, GL_UNSIGNED_INT, 0, 0);
@@ -43,6 +41,6 @@ void Mesh::update(const MeshData &data)
 
 void Mesh::draw()
 {
-    glBindVertexArray(m_vao);
-    glDrawElements(GL_TRIANGLES, m_nIdx, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(_vao);
+    glDrawElements(GL_TRIANGLES, _nIdx, GL_UNSIGNED_INT, 0);
 }

@@ -12,31 +12,30 @@
 using glm::vec2;
 using glm::vec4;
 
-SettingsMenu::SettingsMenu()
-    : m_renderer(HudRenderer::instance()),
-      m_settings(SettingsRegistry::instance())
+SettingsMenu::SettingsMenu(HudRenderer &renderer)
+    : _renderer(renderer),
+      _settings(SettingsRegistry::instance())
 {
-    m_settings.addEnum(
-        SettingCategory::Graphics, "", "Hud Scale", &m_scaleIndex, {"1", "2", "3", "4"});
-    m_settings.addFloat(
-        SettingCategory::Gameplay, "", "Scroll Speed", &m_scrollSpeed, 10.0f, 40.0f);
+    _settings.addEnum(
+        SettingCategory::Graphics, "", "Hud Scale", &_scaleIndex, {"1", "2", "3", "4"});
+    _settings.addFloat(SettingCategory::Gameplay, "", "Scroll Speed", &_scrollSpeed, 10.0f, 40.0f);
 }
 
 bool SettingsMenu::render(
     int screenW, int screenH, glm::vec2 cursorPos, bool justClicked, bool isHeld, float scroll)
 {
-    m_screenW = screenW;
-    m_screenH = screenH;
-    m_cursorPos = cursorPos;
-    m_justClicked = justClicked;
-    m_isHeld = isHeld;
-    m_scrollOffset -= scroll * m_scrollSpeed;
+    _screenW = screenW;
+    _screenH = screenH;
+    _cursorPos = cursorPos;
+    _justClicked = justClicked;
+    _isHeld = isHeld;
+    _scrollOffset -= scroll * _scrollSpeed;
     bool closeRequested = false;
-    vec2 screenCenter{m_screenW / 2.0f, m_screenH / 2.0f};
+    vec2 screenCenter{_screenW / 2.0f, _screenH / 2.0f};
 
-    if (!m_activeCategory.has_value())
+    if (!_activeCategory.has_value())
     {
-        m_renderer.begin();
+        _renderer.begin();
 
         float centerHeightGap = 1.5f * widgetSpacing() + widgetSize().y;
         vec2 backToGamePos = vec2(screenCenter.x - widgetSize().x / 2.0f,
@@ -70,28 +69,28 @@ bool SettingsMenu::render(
             vec2 buttonSize = vec2(widgetSize().x / 2.0f - widgetSpacing(), widgetSize().y);
 
             if (drawButton(label, true, buttonsPos[i], buttonSize))
-                m_activeCategory = category;
+                _activeCategory = category;
         }
 
-        m_renderer.end(m_screenW, m_screenH);
+        _renderer.end(_screenW, _screenH);
     }
     else
     {
         //* first pass: scrollable list (scissored if needed)
-        bool needsScroll = getSettingsHeight(m_activeCategory.value());
+        bool needsScroll = getSettingsHeight(_activeCategory.value());
 
-        m_renderer.begin();
-        renderCategoryDetails(m_activeCategory.value());
-        m_renderer.end(
-            m_screenW,
-            m_screenH,
-            m_maxScroll > 0.0f
+        _renderer.begin();
+        renderCategoryDetails(_activeCategory.value());
+        _renderer.end(
+            _screenW,
+            _screenH,
+            _maxScroll > 0.0f
                 ? std::optional(
-                      vec4(0.0f, visibleTop(), (float)m_screenW, visibleBottom() - visibleTop()))
+                      vec4(0.0f, visibleTop(), (float)_screenW, visibleBottom() - visibleTop()))
                 : std::nullopt);
 
         //* second pass: Done button + scrollbar -> never scissored
-        m_renderer.begin();
+        _renderer.begin();
 
         if (needsScroll)
         {
@@ -103,8 +102,8 @@ bool SettingsMenu::render(
                        vec2(screenCenter.x - widgetSize().x / 2.0f,
                             screenH - widgetSpacing() - widgetSize().y),
                        widgetSize()))
-            m_activeCategory = std::nullopt;
-        m_renderer.end(m_screenW, m_screenH);
+            _activeCategory = std::nullopt;
+        _renderer.end(_screenW, _screenH);
     }
 
     return closeRequested;
@@ -113,7 +112,7 @@ bool SettingsMenu::render(
 bool SettingsMenu::getSettingsHeight(SettingCategory category)
 {
     float totalHeight = 0.0f;
-    std::vector<Setting> settings = m_settings.getByCategory(category);
+    std::vector<Setting> settings = _settings.getByCategory(category);
 
     // 2 settings (spline or not) per row -- rowHeight tracks whichever type is currently seen,
     // and the row's height is committed every 2 settings, matching renderCategoryDetails
@@ -140,22 +139,22 @@ bool SettingsMenu::getSettingsHeight(SettingCategory category)
     if (settings.size() % 2 == 1)
         totalHeight += rowHeight + widgetSpacing();
 
-    m_totalContentHeight = totalHeight;
+    _totalContentHeight = totalHeight;
 
     float visibleHeight = visibleBottom() - visibleTop();
-    m_maxScroll = std::max(0.0f, m_totalContentHeight - visibleHeight);
-    m_scrollOffset = std::clamp(m_scrollOffset, 0.0f, m_maxScroll);
+    _maxScroll = std::max(0.0f, _totalContentHeight - visibleHeight);
+    _scrollOffset = std::clamp(_scrollOffset, 0.0f, _maxScroll);
 
-    return m_maxScroll > 0.0f;
+    return _maxScroll > 0.0f;
 }
 
 void SettingsMenu::renderCategoryDetails(SettingCategory category)
 {
-    vec2 screenCenter{m_screenW / 2.0f, m_screenH / 2.0f};
-    std::vector<Setting> settings = m_settings.getByCategory(category);
+    vec2 screenCenter{_screenW / 2.0f, _screenH / 2.0f};
+    std::vector<Setting> settings = _settings.getByCategory(category);
     float xPos[2]
         = {screenCenter.x - widgetSize().x - widgetSpacing(), screenCenter.x + widgetSpacing()};
-    vec2 pos = vec2(xPos[0], 3 * widgetSpacing() - m_scrollOffset);
+    vec2 pos = vec2(xPos[0], 3 * widgetSpacing() - _scrollOffset);
 
     for (int i = 0; i < settings.size(); i++)
     {
@@ -200,8 +199,8 @@ bool SettingsMenu::drawButton(const std::string &label, bool enabled, glm::vec2 
 {
     std::string buttonWidget = "button";
 
-    bool insideX = m_cursorPos.x >= pos.x && m_cursorPos.x < pos.x + size.x;
-    bool insideY = m_cursorPos.y >= pos.y && m_cursorPos.y < pos.y + size.y;
+    bool insideX = _cursorPos.x >= pos.x && _cursorPos.x < pos.x + size.x;
+    bool insideY = _cursorPos.y >= pos.y && _cursorPos.y < pos.y + size.y;
     bool isHovered = insideX && insideY;
 
     if (!enabled)
@@ -209,15 +208,15 @@ bool SettingsMenu::drawButton(const std::string &label, bool enabled, glm::vec2 
     else if (isHovered)
         buttonWidget = "button_highlighted";
 
-    m_renderer.drawIconSliced(buttonWidget, pos, size, 2, pixelScale());
+    _renderer.drawIconSliced(buttonWidget, pos, size, 2, pixelScale());
 
     vec2 buttonCenter = vec2(pos.x + size.x / 2, pos.y + size.y / 2);
-    float labelWidth = m_renderer.textWidth(label);
+    float labelWidth = _renderer.textWidth(label);
     vec2 textSize = vec2(labelWidth * textScale(), HudRenderer::TEXT_HEIGHT * textScale());
     vec2 textPos = vec2(buttonCenter.x - textSize.x / 2, buttonCenter.y - textSize.y / 2);
-    m_renderer.drawShadowedText(label, textPos, textScale());
+    _renderer.drawShadowedText(label, textPos, textScale());
 
-    return m_justClicked && isHovered;
+    return _justClicked && isHovered;
 }
 
 bool SettingsMenu::drawCheckBox(const std::string &label,
@@ -227,8 +226,8 @@ bool SettingsMenu::drawCheckBox(const std::string &label,
 {
     std::string texture = "checkbox";
 
-    bool insideX = m_cursorPos.x >= pos.x && m_cursorPos.x < pos.x + size.x;
-    bool insideY = m_cursorPos.y >= pos.y && m_cursorPos.y < pos.y + size.y;
+    bool insideX = _cursorPos.x >= pos.x && _cursorPos.x < pos.x + size.x;
+    bool insideY = _cursorPos.y >= pos.y && _cursorPos.y < pos.y + size.y;
     bool isHovered = insideX && insideY;
 
     if (isHovered && value)
@@ -240,39 +239,39 @@ bool SettingsMenu::drawCheckBox(const std::string &label,
 
     vec2 textAreaSize = vec2(widgetSize().x - checkboxSize().x, widgetSize().y);
 
-    m_renderer.drawIcon(texture, pos + vec2(textAreaSize.x, 0.0f), checkboxSize());
+    _renderer.drawIcon(texture, pos + vec2(textAreaSize.x, 0.0f), checkboxSize());
 
-    float textWidth = m_renderer.textWidth(label);
+    float textWidth = _renderer.textWidth(label);
     vec2 textSize = vec2(textWidth * textScale(), HudRenderer::TEXT_HEIGHT * textScale());
     vec2 center = vec2(pos.x + size.x / 2, pos.y + size.y / 2);
     vec2 textPos = vec2(center.x - textSize.x / 2, center.y - textSize.y / 2);
-    m_renderer.drawShadowedText(label, textPos, textScale());
+    _renderer.drawShadowedText(label, textPos, textScale());
 
-    if (isHovered && m_justClicked)
+    if (isHovered && _justClicked)
         value = !value;
 
-    return m_justClicked && isHovered;
+    return _justClicked && isHovered;
 }
 
 bool SettingsMenu::drawSliderFloat(
     const std::string &label, float &value, float min, float max, glm::vec2 pos, glm::vec2 size)
 {
-    bool insideX = m_cursorPos.x >= pos.x && m_cursorPos.x < pos.x + size.x;
-    bool insideY = m_cursorPos.y >= pos.y && m_cursorPos.y < pos.y + size.y;
+    bool insideX = _cursorPos.x >= pos.x && _cursorPos.x < pos.x + size.x;
+    bool insideY = _cursorPos.y >= pos.y && _cursorPos.y < pos.y + size.y;
     bool isHovered = insideX && insideY;
-    bool isActive = m_activeSliderFloat == &value;
+    bool isActive = _activeSliderFloat == &value;
 
     // value updating logic
-    if (m_justClicked && isHovered)
-        m_activeSliderFloat = &value;
+    if (_justClicked && isHovered)
+        _activeSliderFloat = &value;
 
-    if (!m_isHeld)
-        m_activeSliderFloat = nullptr;
+    if (!_isHeld)
+        _activeSliderFloat = nullptr;
 
     bool changed = false;
     if (isActive)
     {
-        float t = std::clamp((m_cursorPos.x - pos.x) / size.x, 0.0f, 1.0f);
+        float t = std::clamp((_cursorPos.x - pos.x) / size.x, 0.0f, 1.0f);
         float newVal = min + t * (max - min);
         if (newVal != value)
         {
@@ -287,21 +286,21 @@ bool SettingsMenu::drawSliderFloat(
     if (isHovered || isActive)
         baseTexture = "slider_highlighted";
 
-    if (m_isHeld && isActive)
+    if (_isHeld && isActive)
         handleTexture = "slider_handle_highlighted";
 
-    m_renderer.drawIcon(baseTexture, pos, size);
+    _renderer.drawIcon(baseTexture, pos, size);
 
     float t = (value - min) / (max - min);
     vec2 handlePos = vec2((pos.x + t * size.x) - (sliderHandleSize().x / 2), pos.y);
-    m_renderer.drawIcon(handleTexture, handlePos, sliderHandleSize());
+    _renderer.drawIcon(handleTexture, handlePos, sliderHandleSize());
 
     std::string displayLabel = std::format("{}: {:.2f}", label, value);
-    float textWidth = m_renderer.textWidth(displayLabel);
+    float textWidth = _renderer.textWidth(displayLabel);
     vec2 textSize = vec2(textWidth * textScale(), HudRenderer::TEXT_HEIGHT * textScale());
     vec2 center = vec2(pos.x + size.x / 2, pos.y + size.y / 2);
     vec2 textPos = vec2(center.x - textSize.x / 2, center.y - textSize.y / 2);
-    m_renderer.drawShadowedText(displayLabel, textPos, textScale());
+    _renderer.drawShadowedText(displayLabel, textPos, textScale());
 
     return changed;
 }
@@ -309,22 +308,22 @@ bool SettingsMenu::drawSliderFloat(
 bool SettingsMenu::drawSliderInt(
     const std::string &label, int &value, int min, int max, glm::vec2 pos, glm::vec2 size)
 {
-    bool insideX = m_cursorPos.x >= pos.x && m_cursorPos.x < pos.x + size.x;
-    bool insideY = m_cursorPos.y >= pos.y && m_cursorPos.y < pos.y + size.y;
+    bool insideX = _cursorPos.x >= pos.x && _cursorPos.x < pos.x + size.x;
+    bool insideY = _cursorPos.y >= pos.y && _cursorPos.y < pos.y + size.y;
     bool isHovered = insideX && insideY;
-    bool isActive = m_activeSliderInt == &value;
+    bool isActive = _activeSliderInt == &value;
 
     // value updating logic
-    if (m_justClicked && isHovered)
-        m_activeSliderInt = &value;
+    if (_justClicked && isHovered)
+        _activeSliderInt = &value;
 
-    if (!m_isHeld)
-        m_activeSliderInt = nullptr;
+    if (!_isHeld)
+        _activeSliderInt = nullptr;
 
     bool changed = false;
     if (isActive)
     {
-        float t = std::clamp((m_cursorPos.x - pos.x) / size.x, 0.0f, 1.0f);
+        float t = std::clamp((_cursorPos.x - pos.x) / size.x, 0.0f, 1.0f);
         int newVal = min + static_cast<int>(std::round(t * (max - min)));
         if (newVal != value)
         {
@@ -339,21 +338,21 @@ bool SettingsMenu::drawSliderInt(
     if (isHovered || isActive)
         baseTexture = "slider_highlighted";
 
-    if (m_isHeld && isActive)
+    if (_isHeld && isActive)
         handleTexture = "slider_handle_highlighted";
 
-    m_renderer.drawIcon(baseTexture, pos, size);
+    _renderer.drawIcon(baseTexture, pos, size);
 
     float t = float(value - min) / float(max - min);
     vec2 handlePos = vec2((pos.x + t * size.x) - (sliderHandleSize().x / 2), pos.y);
-    m_renderer.drawIcon(handleTexture, handlePos, sliderHandleSize());
+    _renderer.drawIcon(handleTexture, handlePos, sliderHandleSize());
 
     std::string displayLabel = std::format("{}: {}", label, value);
-    float textWidth = m_renderer.textWidth(displayLabel);
+    float textWidth = _renderer.textWidth(displayLabel);
     vec2 textSize = vec2(textWidth * textScale(), HudRenderer::TEXT_HEIGHT * textScale());
     vec2 center = vec2(pos.x + size.x / 2, pos.y + size.y / 2);
     vec2 textPos = vec2(center.x - textSize.x / 2, center.y - textSize.y / 2);
-    m_renderer.drawShadowedText(displayLabel, textPos, textScale());
+    _renderer.drawShadowedText(displayLabel, textPos, textScale());
 
     return changed;
 }
@@ -400,7 +399,7 @@ void SettingsMenu::drawSpline(const std::string &label,
     // clip reel : intersecte la fenetre avec la zone visible du panneau
     float clipMinY = std::max(pos.y, visibleTop());
     float clipMaxY = std::min(pos.y + size.y, visibleBottom());
-    ImGui::PushClipRect(ImVec2(0.0f, clipMinY), ImVec2((float)m_screenW, clipMaxY), true);
+    ImGui::PushClipRect(ImVec2(0.0f, clipMinY), ImVec2((float)_screenW, clipMaxY), true);
 
     //? ImGui::Text("%s", label); --> custom text ?
     if (!description.empty())
@@ -502,42 +501,42 @@ void SettingsMenu::drawSpline(const std::string &label,
 
 void SettingsMenu::drawScrollbar()
 {
-    if (m_maxScroll <= 0.0f)
+    if (_maxScroll <= 0.0f)
     {
-        m_scrollbarActive = false;
+        _scrollbarActive = false;
         return;
     }
 
     float visibleHeight = visibleBottom() - visibleTop();
-    float trackX = m_screenW - widgetSpacing() - scrollbarWidth();
+    float trackX = _screenW - widgetSpacing() - scrollbarWidth();
     vec2 trackPos = vec2(trackX, visibleTop());
     vec2 trackSize = vec2(scrollbarWidth(), visibleHeight);
 
-    float handleRatio = visibleHeight / m_totalContentHeight;
+    float handleRatio = visibleHeight / _totalContentHeight;
     float handleHeight = std::max(20.0f, trackSize.y * handleRatio);
-    float scrollRatio = m_scrollOffset / m_maxScroll;
+    float scrollRatio = _scrollOffset / _maxScroll;
     vec2 handlePos = vec2(trackX, visibleTop() + scrollRatio * (trackSize.y - handleHeight));
     vec2 handleSize = vec2(scrollbarWidth(), handleHeight);
 
-    bool insideX = m_cursorPos.x >= handlePos.x && m_cursorPos.x < handlePos.x + handleSize.x;
-    bool insideY = m_cursorPos.y >= handlePos.y && m_cursorPos.y < handlePos.y + handleSize.y;
+    bool insideX = _cursorPos.x >= handlePos.x && _cursorPos.x < handlePos.x + handleSize.x;
+    bool insideY = _cursorPos.y >= handlePos.y && _cursorPos.y < handlePos.y + handleSize.y;
 
-    if (m_justClicked && insideX && insideY)
-        m_scrollbarActive = true;
+    if (_justClicked && insideX && insideY)
+        _scrollbarActive = true;
 
-    if (!m_isHeld)
-        m_scrollbarActive = false;
+    if (!_isHeld)
+        _scrollbarActive = false;
 
-    if (m_scrollbarActive)
+    if (_scrollbarActive)
     {
         // position of the cursor in the range [0..1]
-        float t = std::clamp((m_cursorPos.y - visibleTop() - handleSize.y / 2.0f)
+        float t = std::clamp((_cursorPos.y - visibleTop() - handleSize.y / 2.0f)
                                  / (trackSize.y - handleSize.y),
                              0.0f,
                              1.0f);
-        m_scrollOffset = t * m_maxScroll;
+        _scrollOffset = t * _maxScroll;
     }
 
-    m_renderer.drawIconSliced("scroller_background", trackPos, trackSize, 1, pixelScale());
-    m_renderer.drawIconSliced("scroller", handlePos, handleSize, 1, pixelScale());
+    _renderer.drawIconSliced("scroller_background", trackPos, trackSize, 1, pixelScale());
+    _renderer.drawIconSliced("scroller", handlePos, handleSize, 1, pixelScale());
 }

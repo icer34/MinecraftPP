@@ -1,3 +1,8 @@
+/**
+ * @file raycaster.h
+ * @brief Voxel raycasting, to find the block the player is looking at.
+ */
+
 #pragma once
 
 #include <cstdint>
@@ -7,22 +12,47 @@
 #include "game/block_registry.h"
 #include "game/world.h"
 
+/**
+ * @brief Result of RayCaster::cast().
+ *
+ * The other fields are only meaningful when `hit` is true.
+ */
 struct RayCastResult
 {
-    bool hit;
-    glm::vec3 targetPos;
+    bool hit;            ///< True if a solid block was found within reach.
+    glm::vec3 targetPos; ///< World position of the hit block (its minimum corner).
+    /// Normal of the face that was hit, pointing out of the block. Adding it to targetPos gives
+    /// the position where a new block would be placed. Zero if the ray starts inside the block.
     glm::vec3 targetNorm;
-    uint16_t targetBlockID;
+    uint16_t targetBlockID; ///< ID of the hit block.
 };
 
+/**
+ * @brief Casts rays through the voxel grid to find the first solid block.
+ *
+ * Uses the Amanatides & Woo grid traversal, so every block crossed by the ray is visited
+ * exactly once, in order.
+ */
 class RayCaster
 {
 public:
+    /**
+     * @param world world to cast rays into, must outlive the raycaster
+     */
     RayCaster(const World &world)
-        : m_world(world)
+        : _world(world)
     {
     }
 
+    /**
+     * @brief Finds the first solid block along a ray.
+     *
+     * @param origin start of the ray, in world space
+     * @param dir direction of the ray; does not need to be normalized
+     * @param reach maximum distance, in blocks
+     * @return the hit block, or a result with `hit == false` if none was found within reach
+     * (or if `dir` is zero)
+     */
     RayCastResult cast(glm::vec3 origin, glm::vec3 dir, float reach)
     {
         if (glm::length(dir) == 0.0f)
@@ -61,7 +91,7 @@ public:
         while (t <= reach)
         {
 
-            uint16_t blockID = m_world.getBlock(glm::vec3(x + 0.5f, y + 0.5f, z + 0.5f));
+            uint16_t blockID = _world.getBlock(glm::vec3(x + 0.5f, y + 0.5f, z + 0.5f));
             if (BlockRegistry::instance().get(blockID).isSolid)
             {
                 return RayCastResult{true, glm::vec3(x, y, z), hitNormal, blockID};
@@ -94,5 +124,5 @@ public:
     }
 
 private:
-    const World &m_world;
+    const World &_world;
 };

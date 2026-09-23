@@ -13,8 +13,8 @@ namespace fs = std::filesystem;
 
 BlockTextureAtlas::BlockTextureAtlas()
 {
-    glGenTextures(1, &m_textureID);
-    glBindTexture(GL_TEXTURE_2D, m_textureID);
+    glGenTextures(1, &_textureID);
+    glBindTexture(GL_TEXTURE_2D, _textureID);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -45,7 +45,7 @@ BlockTextureAtlas::BlockTextureAtlas()
 
 void BlockTextureAtlas::loadAllTextures()
 {
-    glBindTexture(GL_TEXTURE_2D, m_textureID);
+    glBindTexture(GL_TEXTURE_2D, _textureID);
 
     int row = 0, col = 0;
     const int texPerCol = ATLAS_COLUMNS;
@@ -118,7 +118,7 @@ void BlockTextureAtlas::loadAllTextures()
 
         stbi_image_free(data);
 
-        m_nameToIndex[fileName] = row * texPerCol + col;
+        _nameToIndex[fileName] = row * texPerCol + col;
 
         col++;
         if (col >= texPerCol)
@@ -157,7 +157,7 @@ std::vector<unsigned char> downsample(const std::vector<unsigned char> &src, int
 
 uint16_t BlockTextureAtlas::getIndex(const std::string &fileName) const
 {
-    return m_nameToIndex.at(fileName);
+    return _nameToIndex.at(fileName);
 }
 
-unsigned int BlockTextureAtlas::getID() const { return m_textureID; }
+unsigned int BlockTextureAtlas::getID() const { return _textureID; }

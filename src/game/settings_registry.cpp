@@ -32,13 +32,13 @@ void SettingsRegistry::addFloat(SettingCategory category,
                                 float min,
                                 float max)
 {
-    if (m_settings.find(label) != m_settings.end())
+    if (_settings.find(label) != _settings.end())
     {
         std::cout << "Cannot add an existing setting: [" << label << "]" << std::endl;
         return;
     }
 
-    m_settings[label] = FloatSetting{category, subPath, label, value, min, max};
+    _settings[label] = FloatSetting{category, subPath, label, value, min, max};
 }
 
 void SettingsRegistry::addInt(SettingCategory category,
@@ -48,13 +48,13 @@ void SettingsRegistry::addInt(SettingCategory category,
                               int min,
                               int max)
 {
-    if (m_settings.find(label) != m_settings.end())
+    if (_settings.find(label) != _settings.end())
     {
         std::cout << "Cannot add an existing setting: [" << label << "]" << std::endl;
         return;
     }
 
-    m_settings[label] = IntSetting{category, subPath, label, value, min, max};
+    _settings[label] = IntSetting{category, subPath, label, value, min, max};
 }
 
 void SettingsRegistry::addBool(SettingCategory category,
@@ -62,13 +62,13 @@ void SettingsRegistry::addBool(SettingCategory category,
                                const std::string &label,
                                bool *value)
 {
-    if (m_settings.find(label) != m_settings.end())
+    if (_settings.find(label) != _settings.end())
     {
         std::cout << "Cannot add an existing setting: [" << label << "]" << std::endl;
         return;
     }
 
-    m_settings[label] = BoolSetting{category, subPath, label, value};
+    _settings[label] = BoolSetting{category, subPath, label, value};
 }
 
 void SettingsRegistry::addEnum(SettingCategory category,
@@ -77,13 +77,13 @@ void SettingsRegistry::addEnum(SettingCategory category,
                                int *value,
                                std::vector<std::string> options)
 {
-    if (m_settings.find(label) != m_settings.end())
+    if (_settings.find(label) != _settings.end())
     {
         std::cout << "Cannot add an existing setting: [" << label << "]" << std::endl;
         return;
     }
 
-    m_settings[label] = EnumSetting{category, subPath, label, value, options};
+    _settings[label] = EnumSetting{category, subPath, label, value, options};
 }
 
 void SettingsRegistry::addSpline(SettingCategory category,
@@ -92,21 +92,21 @@ void SettingsRegistry::addSpline(SettingCategory category,
                                  Spline *value,
                                  const std::string &description)
 {
-    if (m_settings.find(label) != m_settings.end())
+    if (_settings.find(label) != _settings.end())
     {
         std::cout << "Cannot add an existing setting: [" << label << "]" << std::endl;
         return;
     }
 
-    m_settings[label] = SplineSetting{category, subPath, label, value, description};
+    _settings[label] = SplineSetting{category, subPath, label, value, description};
 }
 
-Setting SettingsRegistry::get(const std::string &label) { return m_settings.at(label); }
+Setting SettingsRegistry::get(const std::string &label) { return _settings.at(label); }
 
 std::vector<Setting> SettingsRegistry::getByCategory(SettingCategory category)
 {
     std::vector<Setting> result;
-    for (auto &[label, setting] : m_settings)
+    for (auto &[label, setting] : _settings)
     {
         SettingCategory cat = std::visit([](auto &s) { return s.category; }, setting);
         if (cat == category)

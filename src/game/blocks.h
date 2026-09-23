@@ -1,3 +1,8 @@
+/**
+ * @file blocks.h
+ * @brief IDs of the built-in blocks and their registration.
+ */
+
 #pragma once
 
 #include <array>
@@ -23,15 +28,27 @@ inline std::array<FaceTexture, 6> uniform(const uint16_t &index)
 }
 } // namespace
 
+/**
+ * @brief IDs of the built-in blocks, filled by registerAll().
+ *
+ * The IDs are only valid after registerAll() has been called.
+ */
 namespace Blocks
 {
-inline uint16_t AIR;
-inline uint16_t STONE;
-inline uint16_t DIRT;
-inline uint16_t GRASS;
-inline uint16_t WATER;
+inline uint16_t AIR;   ///< Empty space.
+inline uint16_t STONE; ///< Stone.
+inline uint16_t DIRT;  ///< Dirt.
+inline uint16_t GRASS; ///< Grass block (tinted top and side overlay).
+inline uint16_t WATER; ///< Still water.
 
-// add a new block here: declare its id above, then register it below.
+/**
+ * @brief Registers every built-in block in the BlockRegistry and stores their IDs.
+ *
+ * Must be called once, after BlockTextureAtlas::loadAllTextures() and before any chunk is
+ * generated.
+ *
+ * To add a new block: declare its ID above, then register it here.
+ */
 inline void registerAll()
 {
     auto &reg = BlockRegistry::instance();

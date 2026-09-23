@@ -6,11 +6,11 @@ using glm::vec3;
 using glm::vec4;
 
 CascadedShadowMap::CascadedShadowMap()
-    : m_lightVPMatrices(m_DEPTH),
-      m_cutoffDist(m_DEPTH)
+    : _lightVPMatrices(_depth),
+      _cutoffDist(_depth)
 {
-    glGenTextures(1, &m_texID);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, m_texID);
+    glGenTextures(1, &_texID);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, _texID);
 
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
@@ -23,17 +23,17 @@ CascadedShadowMap::CascadedShadowMap()
     glTexImage3D(GL_TEXTURE_2D_ARRAY,
                  0,
                  GL_DEPTH_COMPONENT,
-                 m_TEXTURE_SIZE,
-                 m_TEXTURE_SIZE,
-                 m_DEPTH,
+                 _textureSize,
+                 _textureSize,
+                 _depth,
                  0,
                  GL_DEPTH_COMPONENT,
                  GL_FLOAT,
                  nullptr);
 
-    glGenFramebuffers(1, &m_fboID);
-    glBindFramebuffer(GL_FRAMEBUFFER, m_fboID);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, m_texID, 0);
+    glGenFramebuffers(1, &_fboID);
+    glBindFramebuffer(GL_FRAMEBUFFER, _fboID);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _texID, 0);
 
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE)
@@ -48,8 +48,8 @@ CascadedShadowMap::CascadedShadowMap()
 
 CascadedShadowMap::~CascadedShadowMap()
 {
-    glDeleteTextures(1, &m_texID);
-    glDeleteFramebuffers(1, &m_fboID);
+    glDeleteTextures(1, &_texID);
+    glDeleteFramebuffers(1, &_fboID);
 }
 
 void CascadedShadowMap::update(const Camera &cam, const glm::vec3 &lightDir)
@@ -58,24 +58,24 @@ void CascadedShadowMap::update(const Camera &cam, const glm::vec3 &lightDir)
     float far = cam.getZFar();
 
     constexpr float lambda = 0.8f;
-    std::vector<float> splits(m_DEPTH + 1);
+    std::vector<float> splits(_depth + 1);
     splits[0] = near;
-    for (size_t i = 1; i <= m_DEPTH; i++)
+    for (size_t i = 1; i <= _depth; i++)
     {
-        float p = float(i) / float(m_DEPTH);
+        float p = float(i) / float(_depth);
         float logSplit = near * std::pow(far / near, p);
         float uniformSplit = near + (far - near) * p;
         splits[i] = lambda * logSplit + (1.0f - lambda) * uniformSplit;
     }
 
-    for (size_t i = 0; i < m_DEPTH; i++)
+    for (size_t i = 0; i < _depth; i++)
     {
         float splitNear = splits[i];
         float splitFar = splits[i + 1];
-        m_cutoffDist[i] = splitFar;
+        _cutoffDist[i] = splitFar;
 
         // compute the light VP matrix for that cascade
-        m_lightVPMatrices[i] = getLightVPMatrix(cam, splitNear, splitFar * 1.1f, lightDir);
+        _lightVPMatrices[i] = getLightVPMatrix(cam, splitNear, splitFar * 1.1f, lightDir);
     }
 }
 
@@ -121,7 +121,7 @@ mat4 CascadedShadowMap::getLightVPMatrix(const Camera &cam,
     vec3 lightRight = glm::normalize(glm::cross(vec3(0.0f, 1.0f, 0.0f), lightDir));
     vec3 lightUp = glm::normalize(glm::cross(lightDir, lightRight));
     // first we snap the center onto the texel grid
-    float texelSize = (radius * 2) / m_TEXTURE_SIZE;
+    float texelSize = (radius * 2) / _textureSize;
     float projRight = glm::dot(center, lightRight);
     float projUp = glm::dot(center, lightUp);
     // round to the closest multiple of texelSize

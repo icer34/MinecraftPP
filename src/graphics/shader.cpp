@@ -47,50 +47,50 @@ Shader::Shader(const char *vertPath, const char *fragPath)
     const char *fShaderCode = fragmentCode.c_str();
 
     // vertex shader compilation
-    m_vertID = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(m_vertID, 1, &vShaderCode, NULL);
-    glCompileShader(m_vertID);
+    _vertID = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(_vertID, 1, &vShaderCode, NULL);
+    glCompileShader(_vertID);
 
     int success;
     char logBuffer[512];
-    glGetShaderiv(m_vertID, GL_COMPILE_STATUS, &success);
+    glGetShaderiv(_vertID, GL_COMPILE_STATUS, &success);
     if (!success)
     {
-        glGetShaderInfoLog(m_vertID, 512, NULL, logBuffer);
+        glGetShaderInfoLog(_vertID, 512, NULL, logBuffer);
         throw std::runtime_error("ERROR::SHADER::VERTEX_NOT_COMPILED\n" + std::string(logBuffer));
     }
 
     // fragment shader compilation
-    m_fragID = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(m_fragID, 1, &fShaderCode, NULL);
-    glCompileShader(m_fragID);
+    _fragID = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(_fragID, 1, &fShaderCode, NULL);
+    glCompileShader(_fragID);
 
-    glGetShaderiv(m_fragID, GL_COMPILE_STATUS, &success);
+    glGetShaderiv(_fragID, GL_COMPILE_STATUS, &success);
     if (!success)
     {
-        glGetShaderInfoLog(m_fragID, 512, NULL, logBuffer);
+        glGetShaderInfoLog(_fragID, 512, NULL, logBuffer);
         throw std::runtime_error("ERROR::SHADER::FRAGMENT_NOT_COMPILED\n" + std::string(logBuffer));
     }
 
     // program creation and linking
-    m_programID = glCreateProgram();
-    glAttachShader(m_programID, m_vertID);
-    glAttachShader(m_programID, m_fragID);
-    glLinkProgram(m_programID);
-    glGetProgramiv(m_programID, GL_LINK_STATUS, &success);
+    _programID = glCreateProgram();
+    glAttachShader(_programID, _vertID);
+    glAttachShader(_programID, _fragID);
+    glLinkProgram(_programID);
+    glGetProgramiv(_programID, GL_LINK_STATUS, &success);
     if (!success)
     {
-        glGetProgramInfoLog(m_programID, 512, NULL, logBuffer);
+        glGetProgramInfoLog(_programID, 512, NULL, logBuffer);
         throw std::runtime_error("ERROR::SHADER::SHADER_NOT_LINKED\n" + std::string(logBuffer));
     }
 }
 
 Shader::~Shader()
 {
-    glDeleteProgram(m_programID);
-    glDeleteShader(m_vertID);
-    glDeleteShader(m_fragID);
-    glDeleteShader(m_geomID);
+    glDeleteProgram(_programID);
+    glDeleteShader(_vertID);
+    glDeleteShader(_fragID);
+    glDeleteShader(_geomID);
 }
 
 void Shader::addGeometryShader(const char *path)
@@ -118,41 +118,41 @@ void Shader::addGeometryShader(const char *path)
 
     const char *geomCode = geomCodeString.c_str();
 
-    m_geomID = glCreateShader(GL_GEOMETRY_SHADER);
-    glShaderSource(m_geomID, 1, &geomCode, NULL);
-    glCompileShader(m_geomID);
+    _geomID = glCreateShader(GL_GEOMETRY_SHADER);
+    glShaderSource(_geomID, 1, &geomCode, NULL);
+    glCompileShader(_geomID);
 
     int success;
     char logBuffer[512];
-    glGetShaderiv(m_geomID, GL_COMPILE_STATUS, &success);
+    glGetShaderiv(_geomID, GL_COMPILE_STATUS, &success);
     if (!success)
     {
-        glGetShaderInfoLog(m_geomID, 512, NULL, logBuffer);
+        glGetShaderInfoLog(_geomID, 512, NULL, logBuffer);
         throw std::runtime_error("ERROR::SHADER::GEOM_NOT_COMPILED\n" + std::string(logBuffer));
     }
 
-    glDeleteProgram(m_programID);
+    glDeleteProgram(_programID);
 
-    m_programID = glCreateProgram();
-    glAttachShader(m_programID, m_vertID);
-    glAttachShader(m_programID, m_geomID);
-    glAttachShader(m_programID, m_fragID);
+    _programID = glCreateProgram();
+    glAttachShader(_programID, _vertID);
+    glAttachShader(_programID, _geomID);
+    glAttachShader(_programID, _fragID);
 
-    glLinkProgram(m_programID);
+    glLinkProgram(_programID);
 
-    glGetProgramiv(m_programID, GL_LINK_STATUS, &success);
+    glGetProgramiv(_programID, GL_LINK_STATUS, &success);
     if (!success)
     {
-        glGetProgramInfoLog(m_programID, 512, NULL, logBuffer);
+        glGetProgramInfoLog(_programID, 512, NULL, logBuffer);
         throw std::runtime_error("ERROR::SHADER::SHADER_NOT_LINKED\n" + std::string(logBuffer));
     }
 }
 
-void Shader::use() { glUseProgram(m_programID); }
+void Shader::use() { glUseProgram(_programID); }
 
 void Shader::setMat4(const std::string &name, mat4 mat)
 {
-    int loc = glGetUniformLocation(m_programID, name.c_str());
+    int loc = glGetUniformLocation(_programID, name.c_str());
     if (loc == -1)
     {
         std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
@@ -164,7 +164,7 @@ void Shader::setMat4(const std::string &name, mat4 mat)
 void Shader::setMat4Array(const std::string &name, const std::vector<mat4> &value)
 {
     std::string locName = name + "[0]";
-    int loc = glGetUniformLocation(m_programID, locName.c_str());
+    int loc = glGetUniformLocation(_programID, locName.c_str());
     if (loc == -1)
     {
         std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
@@ -175,7 +175,7 @@ void Shader::setMat4Array(const std::string &name, const std::vector<mat4> &valu
 
 void Shader::setVec3(const std::string &name, vec3 value)
 {
-    int loc = glGetUniformLocation(m_programID, name.c_str());
+    int loc = glGetUniformLocation(_programID, name.c_str());
     if (loc == -1)
     {
         std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
@@ -186,7 +186,7 @@ void Shader::setVec3(const std::string &name, vec3 value)
 
 void Shader::setInt(const std::string &name, int value)
 {
-    int loc = glGetUniformLocation(m_programID, name.c_str());
+    int loc = glGetUniformLocation(_programID, name.c_str());
     if (loc == -1)
     {
         std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
@@ -197,7 +197,7 @@ void Shader::setInt(const std::string &name, int value)
 
 void Shader::setFloat(const std::string &name, float value)
 {
-    int loc = glGetUniformLocation(m_programID, name.c_str());
+    int loc = glGetUniformLocation(_programID, name.c_str());
     if (loc == -1)
     {
         std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
@@ -209,7 +209,7 @@ void Shader::setFloat(const std::string &name, float value)
 void Shader::setFloatArray(const std::string &name, const std::vector<float> &value)
 {
     std::string locName = name + "[0]";
-    int loc = glGetUniformLocation(m_programID, locName.c_str());
+    int loc = glGetUniformLocation(_programID, locName.c_str());
     if (loc == -1)
     {
         std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;

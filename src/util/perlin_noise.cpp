@@ -10,7 +10,7 @@ using glm::vec2;
 constexpr float PI = 3.14159265358979323846f;
 
 PerlinNoise::PerlinNoise(const unsigned int seed)
-    : m_seed(seed)
+    : _seed(seed)
 {
 }
 
@@ -18,15 +18,15 @@ float PerlinNoise::sample(float x, float y)
 {
     float amp = 1.0f;
     float sum = 0.0f;
-    float freq = m_freq;
+    float freq = _freq;
     float norm = 0.0f;
 
-    for (int i = 0; i < m_octaves; i++)
+    for (int i = 0; i < _octaves; i++)
     {
         sum += amp * noise(x * freq, y * freq);
         norm += amp;
-        amp *= m_gain;
-        freq *= m_lacunarity;
+        amp *= _gain;
+        freq *= _lacunarity;
     }
 
     return sum / norm;
@@ -37,10 +37,10 @@ void PerlinNoise::updateSettings(unsigned int octaves,
                                  float lacunarity,
                                  float frequency)
 {
-    m_octaves = octaves;
-    m_gain = gain;
-    m_lacunarity = lacunarity;
-    m_freq = frequency;
+    _octaves = octaves;
+    _gain = gain;
+    _lacunarity = lacunarity;
+    _freq = frequency;
 }
 
 float PerlinNoise::noise(float x, float y)
@@ -62,7 +62,7 @@ float PerlinNoise::noise(float x, float y)
     {
         //* generate random gradient for each cell point
         auto point = cellPoints[i];
-        unsigned int h = hash(point.x, point.y, m_seed);
+        unsigned int h = hash(point.x, point.y, _seed);
         float r = (h & 0x7fffffff) / (float)0x80000000;
 
         float a = 2.0f * (float)PI * r;

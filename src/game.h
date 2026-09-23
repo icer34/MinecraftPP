@@ -1,3 +1,8 @@
+/**
+ * @file game.h
+ * @brief Top-level game object: owns every subsystem and runs the main loop.
+ */
+
 #pragma once
 
 #include "game/player.h"
@@ -8,32 +13,47 @@
 #include "util/raycaster.h"
 #include "util/window.h"
 
+/**
+ * @brief Owns the window, the world, the player and the renderers, and runs the main loop.
+ *
+ * Members are destroyed in reverse declaration order: everything that holds GL resources
+ * is declared after the Window, so it is released while the GL context is still alive.
+ */
 class Game
 {
 public:
+    /**
+     * @brief Opens the window, creates the GL context and all subsystems, and registers the
+     * blocks.
+     */
     Game();
 
+    /**
+     * @brief Runs the main loop (input, update, render, swap) until the window is closed.
+     */
     void run();
 
 private:
-    Window m_window;
-    Player m_player;
-    World m_world;
+    Window _window;
+    Player _player;
+    World _world;
 
-    Renderer m_renderer;
-    Hud m_hud;
-    SettingsMenu m_settingsMenu;
+    Renderer _renderer;
+    // declared after _window so it is destroyed while the GL context is still alive
+    HudRenderer _hudRenderer;
+    Hud _hud;
+    SettingsMenu _settingsMenu;
 
-    RayCaster m_rayCaster;
-    RayCastResult m_castResult;
+    RayCaster _rayCaster;
+    RayCastResult _castResult;
 
     void processInput();
     void update(float dt);
     void render(float dt);
 
-    float m_dt;
-    float m_lastFrameTime;
+    float _dt;
+    float _lastFrameTime;
 
-    bool m_showDebug = true;
-    bool m_showSettings = false;
+    bool _showDebug = true;
+    bool _showSettings = false;
 };

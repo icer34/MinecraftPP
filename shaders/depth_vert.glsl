@@ -1,4 +1,4 @@
-#version 330 core
+#version 460 core
 
 // see ChunkMesher::mesh() in chunk_mesher.cpp to see the packing format in detail
 layout (location = 0) in uvec2 packedData;

@@ -31,32 +31,32 @@ using glm::vec3;
 using glm::vec4;
 
 Renderer::Renderer(const Window &window, const World &world)
-    : m_blockTintTexture(Texture("assets/textures/colormap/grass.png")),
-      m_window(window),
-      m_world(world),
-      m_blockOutline(BlockOutline())
+    : _blockTintTexture(Texture("assets/textures/colormap/grass.png")),
+      _window(window),
+      _world(world),
+      _blockOutline(BlockOutline())
 {
     auto &textureAtlas = BlockTextureAtlas::instance();
     textureAtlas.loadAllTextures();
 
-    m_blockShader = std::make_unique<Shader>("shaders/block_vert.glsl", "shaders/block_frag.glsl");
-    m_blockShader->use();
-    m_blockShader->setVec3("lightDir", m_lightDir);
+    _blockShader = std::make_unique<Shader>("shaders/block_vert.glsl", "shaders/block_frag.glsl");
+    _blockShader->use();
+    _blockShader->setVec3("lightDir", _lightDir);
 
-    m_waterShader = std::make_unique<Shader>("shaders/water_vert.glsl", "shaders/water_frag.glsl");
-    m_waterShader->use();
-    m_waterShader->setVec3("lightDir", m_lightDir);
+    _waterShader = std::make_unique<Shader>("shaders/water_vert.glsl", "shaders/water_frag.glsl");
+    _waterShader->use();
+    _waterShader->setVec3("lightDir", _lightDir);
 
-    m_skyShader = std::make_unique<Shader>("shaders/sky_vert.glsl", "shaders/sky_frag.glsl");
-    m_skyShader->use();
-    m_skyShader->setVec3("lightDir", m_lightDir);
-    glGenVertexArrays(1, &m_skyVAO);
+    _skyShader = std::make_unique<Shader>("shaders/sky_vert.glsl", "shaders/sky_frag.glsl");
+    _skyShader->use();
+    _skyShader->setVec3("lightDir", _lightDir);
+    glGenVertexArrays(1, &_skyVAO);
 
-    m_depthShader = std::make_unique<Shader>("shaders/depth_vert.glsl", "shaders/depth_frag.glsl");
-    m_depthShader->addGeometryShader("shaders/depth_geom.glsl");
-    m_shadowMap = std::make_unique<CascadedShadowMap>();
+    _depthShader = std::make_unique<Shader>("shaders/depth_vert.glsl", "shaders/depth_frag.glsl");
+    _depthShader->addGeometryShader("shaders/depth_geom.glsl");
+    _shadowMap = std::make_unique<CascadedShadowMap>();
 
-    m_frameBuffer = std::make_unique<FrameBuffer>(m_window.getWidth(), m_window.getHeight());
+    _frameBuffer = std::make_unique<FrameBuffer>(_window.getWidth(), _window.getHeight());
 
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
@@ -76,56 +76,56 @@ Renderer::~Renderer() = default;
 
 void Renderer::renderWorld(Camera &cam)
 {
-    cam.setAspectRatio(m_window.getAspectRatio());
+    cam.setAspectRatio(_window.getAspectRatio());
 
     Frustum frustum = Frustum(cam);
 
-    m_loadedChunks = m_world.getChunks().size();
-    m_camPos = cam.getPos();
+    _loadedChunks = _world.getChunks().size();
+    _camPos = cam.getPos();
 
     //* ========== PRE PROCESSING - SHADOW PASS ==========
-    m_shadowMap->update(cam, m_lightDir);
+    _shadowMap->update(cam, _lightDir);
 
-    glViewport(0, 0, m_shadowMap->size(), m_shadowMap->size());
-    glBindFramebuffer(GL_FRAMEBUFFER, m_shadowMap->getFrameBufferID());
+    glViewport(0, 0, _shadowMap->size(), _shadowMap->size());
+    glBindFramebuffer(GL_FRAMEBUFFER, _shadowMap->getFrameBufferID());
     glClear(GL_DEPTH_BUFFER_BIT);
-    m_depthShader->use();
-    m_depthShader->setMat4Array("lightSpaceMatrices", m_shadowMap->getLightVPMatrices());
-    for (auto &mesh : m_world.getChunkMeshes())
+    _depthShader->use();
+    _depthShader->setMat4Array("lightSpaceMatrices", _shadowMap->getLightVPMatrices());
+    for (auto &mesh : _world.getChunkMeshes())
     {
         ChunkCoord coord = mesh->getCoords();
 
         mat4 model = glm::translate(mat4(1.0f), vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
-        m_depthShader->setMat4("model", model);
+        _depthShader->setMat4("model", model);
         mesh->drawSolid();
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, m_window.getWidth(), m_window.getHeight());
+    glViewport(0, 0, _window.getWidth(), _window.getHeight());
 
     //* ========== SECOND PASS - ACTUAL RENDERING ==========
     //* First draw the solid meshes
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-    m_blockShader->use();
-    m_blockShader->setMat4("view", cam.getViewMatrix());
-    m_blockShader->setMat4("projection", cam.getProjectionMatrix());
-    m_blockShader->setMat4Array("lightSpaceMatrices", m_shadowMap->getLightVPMatrices());
-    m_blockShader->setFloatArray("cutoffDist", m_shadowMap->getCutoffDists());
+    _blockShader->use();
+    _blockShader->setMat4("view", cam.getViewMatrix());
+    _blockShader->setMat4("projection", cam.getProjectionMatrix());
+    _blockShader->setMat4Array("lightSpaceMatrices", _shadowMap->getLightVPMatrices());
+    _blockShader->setFloatArray("cutoffDist", _shadowMap->getCutoffDists());
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, BlockTextureAtlas::instance().getID());
-    m_blockShader->setInt("atlas", 0);
+    _blockShader->setInt("atlas", 0);
 
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, m_blockTintTexture.getID());
-    m_blockShader->setInt("colormap", 1);
+    glBindTexture(GL_TEXTURE_2D, _blockTintTexture.getID());
+    _blockShader->setInt("colormap", 1);
 
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, m_shadowMap->getTextureID());
-    m_blockShader->setInt("shadowMap", 2);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, _shadowMap->getTextureID());
+    _blockShader->setInt("shadowMap", 2);
 
-    m_renderedChunks = 0;
-    for (auto &mesh : m_world.getChunkMeshes())
+    _renderedChunks = 0;
+    for (auto &mesh : _world.getChunkMeshes())
     {
         ChunkCoord coord = mesh->getCoords();
 
@@ -135,46 +135,46 @@ void Renderer::renderWorld(Camera &cam)
         }
 
         mat4 model = glm::translate(mat4(1.0f), vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
-        m_blockShader->setMat4("model", model);
+        _blockShader->setMat4("model", model);
         mesh->drawSolid();
-        m_renderedChunks++;
+        _renderedChunks++;
     }
 
     // copy the solid rendering in a frame buffer
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_frameBuffer->getFrameBufferID());
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _frameBuffer->getFrameBufferID());
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
     glBlitFramebuffer(0,
                       0,
-                      m_window.getWidth(),
-                      m_window.getHeight(),
+                      _window.getWidth(),
+                      _window.getHeight(),
                       0,
                       0,
-                      m_window.getWidth(),
-                      m_window.getHeight(),
+                      _window.getWidth(),
+                      _window.getHeight(),
                       GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
                       GL_NEAREST);
     // rebind the default frame buffer
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
     //* then draw the water meshes
-    m_waterShader->use();
+    _waterShader->use();
 
-    m_waterShader->setMat4("view", cam.getViewMatrix());
-    m_waterShader->setMat4("projection", cam.getProjectionMatrix());
-    m_waterShader->setFloat("time", m_window.getTime());
-    m_waterShader->setVec3("camPos", cam.getPos());
-    m_waterShader->setFloat("zNear", cam.getZNear());
-    m_waterShader->setFloat("zFar", cam.getZFar());
+    _waterShader->setMat4("view", cam.getViewMatrix());
+    _waterShader->setMat4("projection", cam.getProjectionMatrix());
+    _waterShader->setFloat("time", _window.getTime());
+    _waterShader->setVec3("camPos", cam.getPos());
+    _waterShader->setFloat("zNear", cam.getZNear());
+    _waterShader->setFloat("zFar", cam.getZFar());
 
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, m_frameBuffer->getColorTextureID());
-    m_waterShader->setInt("solidColor", 3);
+    glBindTexture(GL_TEXTURE_2D, _frameBuffer->getColorTextureID());
+    _waterShader->setInt("solidColor", 3);
 
     glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, m_frameBuffer->getDepthTextureID());
-    m_waterShader->setInt("solidDepth", 4);
+    glBindTexture(GL_TEXTURE_2D, _frameBuffer->getDepthTextureID());
+    _waterShader->setInt("solidDepth", 4);
 
-    for (auto &mesh : m_world.getChunkMeshes())
+    for (auto &mesh : _world.getChunkMeshes())
     {
         ChunkCoord coord = mesh->getCoords();
 
@@ -184,22 +184,21 @@ void Renderer::renderWorld(Camera &cam)
         }
 
         mat4 model = glm::translate(mat4(1.0f), vec3(coord.x, 0.0f, coord.z) * float(Chunk::SIZE));
-        m_waterShader->setMat4("model", model);
+        _waterShader->setMat4("model", model);
         mesh->drawWater();
     }
 
     //* then render the sky
-    m_skyShader->use();
-    m_skyShader->setMat4("invProjection", glm::inverse(cam.getProjectionMatrix()));
-    m_skyShader->setMat4("invView", glm::inverse(cam.getViewMatrix()));
-    m_skyShader->setFloat("time", m_window.getTime());
-    glBindVertexArray(m_skyVAO);
+    _skyShader->use();
+    _skyShader->setMat4("invProjection", glm::inverse(cam.getProjectionMatrix()));
+    _skyShader->setMat4("invView", glm::inverse(cam.getViewMatrix()));
+    glBindVertexArray(_skyVAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 void Renderer::renderBlockOutline(const RayCastResult &result, const Camera &cam)
 {
-    m_blockOutline.draw(result.targetPos, cam);
+    _blockOutline.draw(result.targetPos, cam);
 }
 
 void Renderer::beginUI()
@@ -215,44 +214,43 @@ void Renderer::endUI()
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void Renderer::renderDebug(float dt)
+void Renderer::renderDebug()
 {
-    updateFPS(dt);
-
     //* ===== BASIC DEBUG STATS =====
     ImGui::Begin("Debug pannel");
-    ImGui::Text("FPS: %.1f", m_fps);
-    ImGui::Text("ms per frame: %.3f", m_msPerFrame);
-    ImGui::Text("x:%.2f y:%.2f z:%.2f", m_camPos.x, m_camPos.y, m_camPos.z);
-    ImGui::Text("Loaded chunks: %d", m_loadedChunks);
-    ImGui::Text("Rendered chunks: %d", m_renderedChunks);
+    ImGui::Text("FPS: %.1f", _fps);
+    ImGui::Text("ms per frame: %.3f", _msPerFrame);
+    ImGui::Text("x:%.2f y:%.2f z:%.2f", _camPos.x, _camPos.y, _camPos.z);
+    ImGui::Text("Loaded chunks: %d", _loadedChunks);
+    ImGui::Text("Rendered chunks: %d", _renderedChunks);
 
     auto &terrainGen = TerrainGenerator::instance();
-    ImGui::Text("PV: %.3f", terrainGen.getPvNoise().sample(m_camPos.x, m_camPos.z));
-    ImGui::Text("Erosion: %.3f", terrainGen.getErosionNoise().sample(m_camPos.x, m_camPos.z));
+    ImGui::Text("PV: %.3f", terrainGen.getPvNoise().sample(_camPos.x, _camPos.z));
+    ImGui::Text("Erosion: %.3f", terrainGen.getErosionNoise().sample(_camPos.x, _camPos.z));
     ImGui::Text("Continentalness: %.3f",
-                terrainGen.getContinentalnessNoise().sample(m_camPos.x, m_camPos.z));
+                terrainGen.getContinentalnessNoise().sample(_camPos.x, _camPos.z));
 
     ImGui::End();
 }
 
 void Renderer::updateFPS(float dt)
 {
-    m_frameCount++;
-    m_fpsTimer += dt;
+    _frameCount++;
+    _fpsTimer += dt;
 
-    if (m_fpsTimer >= 1.0f)
+    if (_fpsTimer >= 1.0f)
     {
-        m_fps = static_cast<float>(m_frameCount) / m_fpsTimer;
-        m_frameCount = 0;
-        m_fpsTimer -= 1.0f;
-        m_msPerFrame = 1000.0f * dt;
+        _fps = static_cast<float>(_frameCount) / _fpsTimer;
+        _frameCount = 0;
+        _fpsTimer -= 1.0f;
+        // average over the same window as _fps, not just the last frame of it
+        _msPerFrame = 1000.0f / _fps;
     }
 }
 
 bool Renderer::requestWorldRegeneration()
 {
-    bool result = m_shouldRegenerateWorld;
-    m_shouldRegenerateWorld = false;
+    bool result = _shouldRegenerateWorld;
+    _shouldRegenerateWorld = false;
     return result;
 }

@@ -4,27 +4,27 @@
 
 using glm::vec2;
 
-Hud::Hud(int screenWidth, int screenHeight)
-    : m_renderer(HudRenderer::instance()),
-      m_screenW(screenWidth),
-      m_screenH(screenHeight)
+Hud::Hud(HudRenderer &renderer, int screenWidth, int screenHeight)
+    : _screenW(screenWidth),
+      _screenH(screenHeight),
+      _renderer(renderer)
 {
 }
 
 void Hud::render()
 {
-    m_renderer.begin();
+    _renderer.begin();
 
     drawCrosshair();
 
-    m_renderer.end(m_screenW, m_screenH);
+    _renderer.end(_screenW, _screenH);
 }
 
 void Hud::drawCrosshair()
 {
-    vec2 screenCenter(m_screenW / 2, m_screenH / 2);
-    vec2 crosshairSize(CROSSHAIR_BASE_SIZE * m_crosshairScale);
+    vec2 screenCenter(_screenW / 2, _screenH / 2);
+    vec2 crosshairSize(CROSSHAIR_BASE_SIZE * _crosshairScale);
     vec2 crosshairPos(screenCenter.x - crosshairSize.x / 2, screenCenter.y - crosshairSize.y / 2);
 
-    m_renderer.drawIcon("crosshair", crosshairPos, crosshairSize);
+    _renderer.drawIcon("crosshair", crosshairPos, crosshairSize);
 }
