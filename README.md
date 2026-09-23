@@ -7,11 +7,10 @@
 <!-- TODO: replace with real badges once CI is set up -->
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-blue)
-![OpenGL 3.3](https://img.shields.io/badge/OpenGL-3.3-5586A4)
+![OpenGL 4.6](https://img.shields.io/badge/OpenGL-4.6-5586A4)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
-<!-- TODO: replace with a hero screenshot or GIF -->
-![MinecraftPP hero screenshot](docs/images/hero.png)
+![MinecraftPP: water at sunset](docs/images/water.png)
 
 </div>
 
@@ -59,14 +58,8 @@ with a clean, documented codebase that can grow into a reusable engine.
 
 ## Screenshots
 
-<!-- TODO: replace the placeholders below with real screenshots -->
-
-| | |
-|:---:|:---:|
-| ![Terrain overview](docs/images/screenshot_terrain.png) | ![Cascaded shadow maps](docs/images/screenshot_shadows.png) |
-| *Terrain generated from continentalness, erosion and peaks & valleys* | *Cascaded shadow maps with PCF* |
-| ![Water and reflections](docs/images/screenshot_water.png) | ![Terrain editor](docs/images/screenshot_editor.png) |
-| *Water refraction and screen-space reflections* | *Live noise and spline editor* |
+![Settings menu](docs/images/settings_menu.png)
+*In-game settings menu, drawn with the custom HUD renderer*
 
 ## Getting started
 

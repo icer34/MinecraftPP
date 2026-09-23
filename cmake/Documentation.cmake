@@ -2,6 +2,7 @@
 # Enabled with -DBUILD_DOCS=ON (option declared in the root CMakeLists.txt),
 # then generated with: cmake --build build --target docs
 # Output: docs/html/index.html
+# Open it in the browser with: cmake --build build --target open_docs
 
 if(NOT BUILD_DOCS)
     return()
@@ -36,7 +37,7 @@ set(DOXYGEN_EXCLUDE_PATTERNS    "*/stb_image_write_impl.cpp")
 
 # ── Warnings ──
 set(DOXYGEN_WARN_IF_UNDOCUMENTED YES)
-set(DOXYGEN_WARN_NO_PARAMDOC     YES)
+set(DOXYGEN_WARN_NO_PARAMDOC     NO)
 
 # ── HTML output ──
 set(DOXYGEN_GENERATE_HTML       YES)
@@ -63,4 +64,22 @@ doxygen_add_docs(docs
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/docs/pages
     COMMENT "Generating Doxygen documentation"
+)
+
+# ── open_docs: regenerates the docs, then opens them in the default browser ──
+set(DOCS_INDEX ${CMAKE_SOURCE_DIR}/docs/html/index.html)
+
+if(WIN32)
+    set(OPEN_COMMAND cmd /c start "" "${DOCS_INDEX}")
+elseif(APPLE)
+    set(OPEN_COMMAND open "${DOCS_INDEX}")
+else()
+    set(OPEN_COMMAND xdg-open "${DOCS_INDEX}")
+endif()
+
+add_custom_target(open_docs
+    COMMAND ${OPEN_COMMAND}
+    DEPENDS docs
+    COMMENT "Opening documentation in the browser"
+    VERBATIM
 )
