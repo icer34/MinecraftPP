@@ -136,7 +136,7 @@ cmake --build build --target docs
 
 The HTML output is written to `docs/html/index.html`.
 
-<!-- TODO: add the GitHub Pages link once the docs are published -->
+The latest documentation can be found [here](https://icer34.github.io/MinecraftPP/)
 
 ## Controls
 

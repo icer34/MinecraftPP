@@ -20,7 +20,6 @@ struct Biome
 /**
  * @brief Global registry of all biomes (singleton).
  *
- * @warning Not implemented yet: registerBiome() is an empty stub.
  */
 class BiomeRegistry
 {
@@ -40,5 +39,5 @@ public:
      * @param biome biome to register (its `id` field is ignored)
      * @return the ID assigned to the biome
      */
-    uint16_t registerBiome(Biome biome) {}
+    uint16_t registerBiome(Biome biome) { return 0; }
 };
