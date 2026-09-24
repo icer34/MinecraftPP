@@ -7,6 +7,7 @@
 
 #include "game/player.h"
 #include "game/world.h"
+#include "graphics/block_texture_atlas.h"
 #include "graphics/hud/hud.h"
 #include "graphics/hud/settings_menu.h"
 #include "graphics/renderer.h"
@@ -35,6 +36,8 @@ public:
 
 private:
     Window _window;
+    // after _window: holds a GL texture, so it must be destroyed before the GL context
+    BlockTextureAtlas _blockAtlas;
     Player _player;
     World _world;
 

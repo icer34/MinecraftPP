@@ -8,29 +8,29 @@
 #include <string>
 #include <unordered_map>
 
+#include "gl/gl_objects.h"
 #include "util/directions.h"
 
 /**
- * @brief Single GL texture containing every block texture, arranged in a grid (singleton).
+ * @brief Single GL texture containing every block texture, arranged in a grid.
  *
  * Each texture is stored in a cell surrounded by padding, so that mipmapping does not bleed
  * neighboring textures into each other. Mip levels are built manually with downsample().
  * Blocks refer to their textures by index in the grid (see getIndex()).
  *
- * The GL texture is created on first access to instance(), so that first access must happen
- * while a GL context is current.
+ * Owned by Game, declared after the Window: it must be created after the GL context and
+ * destroyed before it (a static singleton would outlive glfwTerminate() and crash when
+ * deleting its texture).
  */
 class BlockTextureAtlas
 {
 public:
     /**
-     * @brief Returns the unique atlas instance.
+     * @brief Creates the empty atlas texture, with all its mip levels allocated.
      */
-    static BlockTextureAtlas &instance()
-    {
-        static BlockTextureAtlas atlas;
-        return atlas;
-    }
+    BlockTextureAtlas();
+    BlockTextureAtlas(const BlockTextureAtlas &) = delete;
+    BlockTextureAtlas &operator=(const BlockTextureAtlas &) = delete;
 
     /**
      * @brief Loads every `.png` file of `assets/textures/block` into the atlas, along with its
@@ -64,19 +64,5 @@ private:
 
     std::unordered_map<std::string, uint16_t> _nameToIndex;
 
-    unsigned int _textureID;
-
-    BlockTextureAtlas();
-    BlockTextureAtlas(BlockTextureAtlas &registry) = delete;
-    BlockTextureAtlas &operator=(const BlockTextureAtlas &) = delete;
+    GLTexture _texture;
 };
-/**
- * @brief Downsamples an RGBA texture of size WxH to a new texture of size (W/2)x(H/2),
- * where each pixel is the average of the 4 corresponding pixels in the source texture.
- *
- * @param src raw RGBA texture data (straight from stbi_load)
- * @param w width of the source texture in pixels
- * @param h height of the source texture in pixels
- * @return the downsampled RGBA data
- */
-std::vector<unsigned char> downsample(const std::vector<unsigned char> &src, int w, int h);

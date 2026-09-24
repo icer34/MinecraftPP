@@ -21,25 +21,41 @@ void gl::deleteBuffer(GLuint id)
     assertContextThread();
     glDeleteBuffers(1, &id);
 }
+
 void gl::deleteVertexArray(GLuint id)
 {
     assertContextThread();
     glDeleteVertexArrays(1, &id);
 }
+
 void gl::deleteTexture(GLuint id)
 {
     assertContextThread();
     glDeleteTextures(1, &id);
 }
+
 void gl::deleteFramebuffer(GLuint id)
 {
     assertContextThread();
     glDeleteFramebuffers(1, &id);
 }
+
 void gl::deleteQuery(GLuint id)
 {
     assertContextThread();
     glDeleteQueries(1, &id);
+}
+
+void gl::deleteProgram(GLuint id)
+{
+    assertContextThread();
+    glDeleteProgram(id);
+}
+
+void gl::deleteShader(GLuint id)
+{
+    assertContextThread();
+    glDeleteShader(id);
 }
 
 GLBuffer gl::createBuffer()
@@ -80,4 +96,16 @@ GLQuery gl::createQuery(GLenum target)
     GLuint id = 0;
     glCreateQueries(target, 1, &id);
     return GLQuery(id);
+}
+
+GLProgram gl::createProgram()
+{
+    assertContextThread();
+    return GLProgram(glCreateProgram());
+}
+
+GLShader gl::createShader(GLenum type)
+{
+    assertContextThread();
+    return GLShader(glCreateShader(type));
 }

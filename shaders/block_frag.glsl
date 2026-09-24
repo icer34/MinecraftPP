@@ -1,5 +1,8 @@
 #version 460 core
 
+#include "common/frame_data.glsl"
+#include "common/texture_units.glsl"
+
 in vec2 vTexCoord;
 in vec3 vNormal;
 in vec3 vTint;
@@ -7,13 +10,8 @@ in float vAO;
 in vec4 vFragPosWorld;
 in float vViewDepth;
 
-uniform sampler2D atlas;
-uniform sampler2DArray shadowMap;
-uniform vec3 lightDir;
-uniform mat4 lightSpaceMatrices[5];
-uniform float cutoffDist[5];
-
-const int CASCADE_COUNT = 5;
+layout (binding = TEX_UNIT_BLOCK_ATLAS) uniform sampler2D atlas;
+layout (binding = TEX_UNIT_SHADOW_MAP) uniform sampler2DArray shadowMap;
 
 out vec4 FragColor;
 
@@ -73,13 +71,13 @@ float shadowCalculation(vec3 projCoords, int cascadeIndex, float bias)
     return shadow / 16.0;
 }
 
-// cutoffDist[i] is the far distance of cascade i -- find the first cascade whose far
+// cutoffDist(i) is the far distance of cascade i -- find the first cascade whose far
 // distance is beyond viewDepth. falls back to the last cascade if viewDepth exceeds them all.
 int computeCascadeIndex(float viewDepth)
 {
     for (int i = 0; i < CASCADE_COUNT - 1; i++)
     {
-        if (viewDepth < cutoffDist[i])
+        if (viewDepth < cutoffDist(i))
             return i;
     }
     return CASCADE_COUNT - 1;
@@ -91,7 +89,8 @@ void main()
 
     vec4 fragPosLightSpace = lightSpaceMatrices[cascadeIndex] * vec4(vFragPosWorld.xyz, 1.0);
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = (projCoords + 1.0) * 0.5;
+    // NDC xy is in [-1, 1], but the depth already is in [0, 1] (see glClipControl in Window)
+    projCoords.xy = projCoords.xy * 0.5 + 0.5;
 
     float bias = max(0.005 * (1.0 - dot(vNormal, -lightDir)), 0.0005);
 

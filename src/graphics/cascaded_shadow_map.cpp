@@ -1,55 +1,42 @@
 #include "cascaded_shadow_map.h"
 
+#include <iostream>
+
 #include <glm/gtc/matrix_transform.hpp>
+
+#include "graphics/gl/gl_debug.h"
 using glm::mat4;
 using glm::vec3;
 using glm::vec4;
 
 CascadedShadowMap::CascadedShadowMap()
-    : _lightVPMatrices(_depth),
-      _cutoffDist(_depth)
+    : _tex(gl::createTexture(GL_TEXTURE_2D_ARRAY)),
+      _fbo(gl::createFramebuffer())
 {
-    glGenTextures(1, &_texID);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, _texID);
+    // texture
+    glTextureStorage3D(
+        _tex.id(), 1, GL_DEPTH_COMPONENT32F, TEXTURE_SIZE, TEXTURE_SIZE, CASCADE_COUNT);
 
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTextureParameteri(_tex.id(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTextureParameteri(_tex.id(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTextureParameteri(_tex.id(), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(_tex.id(), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     float borderColor[4] = {1.0, 1.0, 1.0, 1.0};
-    glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, borderColor);
+    glTextureParameterfv(_tex.id(), GL_TEXTURE_BORDER_COLOR, borderColor);
 
-    glTexImage3D(GL_TEXTURE_2D_ARRAY,
-                 0,
-                 GL_DEPTH_COMPONENT,
-                 _textureSize,
-                 _textureSize,
-                 _depth,
-                 0,
-                 GL_DEPTH_COMPONENT,
-                 GL_FLOAT,
-                 nullptr);
+    gl::setLabel(GL_TEXTURE, _tex.id(), "Shadow cascades");
+    gl::setLabel(GL_FRAMEBUFFER, _fbo.id(), "Shadow cascades");
 
-    glGenFramebuffers(1, &_fboID);
-    glBindFramebuffer(GL_FRAMEBUFFER, _fboID);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _texID, 0);
+    // framebuffer
+    glNamedFramebufferTexture(_fbo.id(), GL_DEPTH_ATTACHMENT, _tex.id(), 0);
 
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    glNamedFramebufferDrawBuffer(_fbo.id(), GL_NONE);
+    glNamedFramebufferReadBuffer(_fbo.id(), GL_NONE);
+
+    GLenum status = glCheckNamedFramebufferStatus(_fbo.id(), GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "SHADOW FBO INCOMPLETE: " << status << std::endl;
-
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-
-    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-CascadedShadowMap::~CascadedShadowMap()
-{
-    glDeleteTextures(1, &_texID);
-    glDeleteFramebuffers(1, &_fboID);
+        std::cerr << "Shadow framebuffer incomplete: 0x" << std::hex << status << std::dec << '\n';
 }
 
 void CascadedShadowMap::update(const Camera &cam, const glm::vec3 &lightDir)
@@ -58,17 +45,17 @@ void CascadedShadowMap::update(const Camera &cam, const glm::vec3 &lightDir)
     float far = cam.getZFar();
 
     constexpr float lambda = 0.8f;
-    std::vector<float> splits(_depth + 1);
+    std::array<float, CASCADE_COUNT + 1> splits;
     splits[0] = near;
-    for (size_t i = 1; i <= _depth; i++)
+    for (size_t i = 1; i <= CASCADE_COUNT; i++)
     {
-        float p = float(i) / float(_depth);
+        float p = float(i) / float(CASCADE_COUNT);
         float logSplit = near * std::pow(far / near, p);
         float uniformSplit = near + (far - near) * p;
         splits[i] = lambda * logSplit + (1.0f - lambda) * uniformSplit;
     }
 
-    for (size_t i = 0; i < _depth; i++)
+    for (size_t i = 0; i < CASCADE_COUNT; i++)
     {
         float splitNear = splits[i];
         float splitFar = splits[i + 1];
@@ -88,7 +75,8 @@ mat4 CascadedShadowMap::getLightVPMatrix(const Camera &cam,
 
     auto inv = glm::inverse(camProj * cam.getViewMatrix());
 
-    std::vector<vec4> frustumCornersWorld;
+    std::array<vec4, 8> frustumCornersWorld;
+    int i = 0;
     for (int x = 0; x < 2; x++)
     {
         for (int y = 0; y < 2; y++)
@@ -96,7 +84,8 @@ mat4 CascadedShadowMap::getLightVPMatrix(const Camera &cam,
             for (int z = 0; z < 2; z++)
             {
                 vec4 point = inv * vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
-                frustumCornersWorld.push_back(point / point.w);
+                frustumCornersWorld[i] = point / point.w;
+                i++;
             }
         }
     }
@@ -121,7 +110,7 @@ mat4 CascadedShadowMap::getLightVPMatrix(const Camera &cam,
     vec3 lightRight = glm::normalize(glm::cross(vec3(0.0f, 1.0f, 0.0f), lightDir));
     vec3 lightUp = glm::normalize(glm::cross(lightDir, lightRight));
     // first we snap the center onto the texel grid
-    float texelSize = (radius * 2) / _textureSize;
+    float texelSize = (radius * 2) / TEXTURE_SIZE;
     float projRight = glm::dot(center, lightRight);
     float projUp = glm::dot(center, lightUp);
     // round to the closest multiple of texelSize
@@ -157,7 +146,9 @@ mat4 CascadedShadowMap::getLightVPMatrix(const Camera &cam,
     minZ -= zPadding;
     maxZ += zPadding;
 
-    mat4 lightProjection = glm::ortho(-radius, radius, -radius, radius, minZ, maxZ);
+    // _ZO: the context uses a [0, 1] NDC depth range (see Window). The shadow maps keep a
+    // regular depth (0 = closest to the light), unlike the reverse-Z camera.
+    mat4 lightProjection = glm::orthoRH_ZO(-radius, radius, -radius, radius, minZ, maxZ);
 
     return lightProjection * lightView;
 }

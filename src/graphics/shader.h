@@ -6,69 +6,72 @@
 #pragma once
 
 #include <glm/glm.hpp>
+
 #include <string>
+#include <string_view>
+#include <unordered_map>
+
+#include "graphics/gl/gl_objects.h"
 
 /**
  * @brief Compiles, links and owns an OpenGL shader program.
  *
- * The uniform setters look the uniform up by name on every call and print an error if it
- * cannot be found. The GLSL compiler removes uniforms that do not affect the output, so a
- * declared but unused uniform also triggers that error.
+ * Shader sources can include other files with `#include "path"`, relative to the including
+ * file (e.g. `#include "common/frame_data.glsl"`). Each file is inserted at most once, and
+ * `#line` directives keep the line numbers of compiler errors meaningful: the error message
+ * lists which source string number is which file.
  *
- * Must be created and destroyed while a GL context is current.
+ * Uniforms are set with `glProgramUniform*`, so the program does not need to be active. The
+ * name-based setters cache each location on first use, and print an error once if the uniform
+ * does not exist. The GLSL compiler removes uniforms that do not affect the output, so a
+ * declared but unused uniform also triggers that error. Uniforms set in a hot loop should use
+ * a fixed `layout(location = N)` and the location-based setters instead.
+ *
+ * Move-only. Must be created and destroyed while a GL context is current.
  */
 class Shader
 {
 public:
     /**
-     * @brief Loads, compiles and links a vertex + fragment shader program.
+     * @brief Loads, compiles and links a vertex + fragment (+ optional geometry) program.
      *
      * @param vertPath path to the vertex shader source file
      * @param fragPath path to the fragment shader source file
+     * @param geomPath path to the geometry shader source file, or nullptr for none
      * @throws std::runtime_error if a file cannot be read, or if compilation or linking fails
      */
-    Shader(const char *vertPath, const char *fragPath);
+    Shader(const char *vertPath, const char *fragPath, const char *geomPath = nullptr);
 
     /**
-     * @brief Deletes the program and its shader objects.
+     * @brief Makes this program the active one (`glUseProgram`), for the next draw calls.
      */
-    ~Shader();
+    void use() const;
 
-    /**
-     * @brief Compiles a geometry shader and relinks the program with it.
-     *
-     * @param path path to the geometry shader source file
-     * @throws std::runtime_error if the file cannot be read, or if compilation or linking fails
-     */
-    void addGeometryShader(const char *path);
+    /** @brief OpenGL name of the program. */
+    GLuint id() const { return _program.id(); }
 
-    /**
-     * @brief Makes this program the active one (`glUseProgram`).
-     *
-     * The setters below apply to the active program, so call this first.
-     */
-    void use();
-
-    /**
-     * @brief Uploads an array of matrices to the uniform array `name[]`.
-     */
-    void setMat4Array(const std::string &name, const std::vector<glm::mat4> &value);
     /** @brief Sets a `mat4` uniform. */
-    void setMat4(const std::string &name, glm::mat4 value);
+    void setMat4(std::string_view name, const glm::mat4 &value);
     /** @brief Sets a `vec3` uniform. */
-    void setVec3(const std::string &name, glm::vec3 value);
-    /** @brief Sets an `int` uniform (also used for sampler texture units). */
-    void setInt(const std::string &name, int value);
+    void setVec3(std::string_view name, glm::vec3 value);
+    /** @brief Sets an `int` uniform. */
+    void setInt(std::string_view name, int value);
     /** @brief Sets a `float` uniform. */
-    void setFloat(const std::string &name, float value);
-    /**
-     * @brief Uploads an array of floats to the uniform array `name[]`.
-     */
-    void setFloatArray(const std::string &name, const std::vector<float> &value);
+    void setFloat(std::string_view name, float value);
+
+    /** @brief Sets the `vec3` uniform declared with `layout(location = location)`. */
+    void setVec3(GLint location, glm::vec3 value);
 
 private:
-    unsigned int _programID;
-    unsigned int _vertID;
-    unsigned int _fragID;
-    unsigned int _geomID = 0;
+    GLint uniformLocation(std::string_view name);
+
+    GLProgram _program;
+
+    // transparent hash: lookups with a string_view (or a literal) don't build a std::string
+    struct StringHash
+    {
+        using is_transparent = void;
+        size_t operator()(std::string_view s) const { return std::hash<std::string_view>{}(s); }
+    };
+    std::unordered_map<std::string, GLint, StringHash, std::equal_to<>> _uniformLocations;
 };

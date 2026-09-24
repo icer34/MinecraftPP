@@ -4,11 +4,13 @@
 
 namespace gl
 {
-inline void deleteBuffer(GLuint id);
-inline void deleteVertexArray(GLuint id);
-inline void deleteTexture(GLuint id);
-inline void deleteFramebuffer(GLuint id);
-inline void deleteQuery(GLuint id);
+void deleteBuffer(GLuint id);
+void deleteVertexArray(GLuint id);
+void deleteTexture(GLuint id);
+void deleteFramebuffer(GLuint id);
+void deleteQuery(GLuint id);
+void deleteProgram(GLuint id);
+void deleteShader(GLuint id);
 } // namespace gl
 
 using GLBuffer = GLHandle<gl::deleteBuffer>;
@@ -16,6 +18,8 @@ using GLVertexArray = GLHandle<gl::deleteVertexArray>;
 using GLTexture = GLHandle<gl::deleteTexture>;
 using GLFramebuffer = GLHandle<gl::deleteFramebuffer>;
 using GLQuery = GLHandle<gl::deleteQuery>;
+using GLProgram = GLHandle<gl::deleteProgram>;
+using GLShader = GLHandle<gl::deleteShader>;
 
 namespace gl
 {
@@ -29,5 +33,7 @@ GLVertexArray createVertexArray();
 GLTexture createTexture(GLenum target); // GL_TEXTURE_2D, GL_TEXTURE_2D_ARRAY, ...
 GLFramebuffer createFramebuffer();
 GLQuery createQuery(GLenum target); // GL_TIMESTAMP, ...
+GLProgram createProgram();
+GLShader createShader(GLenum type); // GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, ...
 
 } // namespace gl

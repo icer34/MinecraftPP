@@ -69,7 +69,13 @@ public:
 
     /** @brief World-to-view matrix. */
     glm::mat4 getViewMatrix() const;
-    /** @brief Perspective projection matrix. */
+    /**
+     * @brief Reverse-Z perspective projection matrix: the depth is 1 at the near plane and 0
+     * at the far plane (clear the depth to 0 and test with `GL_GEQUAL`).
+     *
+     * Only valid with the [0, 1] NDC depth range set by Window (`glClipControl`). The linear
+     * distance of a depth d is `zNear * zFar / (zNear + d * (zFar - zNear))`.
+     */
     glm::mat4 getProjectionMatrix() const;
 
 private:

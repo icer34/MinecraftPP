@@ -2,6 +2,8 @@
 
 #include <glad/glad.h>
 
+#include "graphics/gl/gl_debug.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -11,42 +13,54 @@
 #include <vector>
 namespace fs = std::filesystem;
 
-BlockTextureAtlas::BlockTextureAtlas()
+namespace
 {
-    glGenTextures(1, &_textureID);
-    glBindTexture(GL_TEXTURE_2D, _textureID);
+std::vector<unsigned char> downsample(const std::vector<unsigned char> &src, int w, int h)
+{
+    int newW = w / 2;
+    int newH = h / 2;
+    std::vector<unsigned char> newBuffer(4 * newW * newH);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    for (size_t x = 0; x < newW; x++)
+    {
+        for (size_t y = 0; y < newH; y++)
+        {
+            for (size_t c = 0; c < 4; c++)
+            {
+                auto p1 = src[((2 * x) + (2 * y) * w) * 4 + c];
+                auto p2 = src[((2 * x + 1) + (2 * y) * w) * 4 + c];
+                auto p3 = src[((2 * x) + (2 * y + 1) * w) * 4 + c];
+                auto p4 = src[((2 * x + 1) + (2 * y + 1) * w) * 4 + c];
+                auto avg = (p1 + p2 + p3 + p4) / 4;
+
+                newBuffer[(x + y * newW) * 4 + c] = avg;
+            }
+        }
+    }
+
+    return newBuffer;
+}
+} // namespace
+
+BlockTextureAtlas::BlockTextureAtlas()
+    : _texture(gl::createTexture(GL_TEXTURE_2D))
+{
+    glTextureParameteri(_texture.id(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(_texture.id(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(_texture.id(), GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    glTextureParameteri(_texture.id(), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     float maxAniso = 0.0f;
     glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, maxAniso);
+    glTextureParameterf(_texture.id(), GL_TEXTURE_MAX_ANISOTROPY, maxAniso);
 
-    for (int lvl = 0; lvl < MIPMAP_LEVELS; lvl++)
-    {
-        glTexImage2D(GL_TEXTURE_2D,
-                     lvl,
-                     GL_RGBA8,
-                     ATLAS_SIZE >> lvl,
-                     ATLAS_SIZE >> lvl,
-                     0,
-                     GL_RGBA,
-                     GL_UNSIGNED_BYTE,
-                     nullptr);
-    }
+    glTextureStorage2D(_texture.id(), MIPMAP_LEVELS, GL_RGBA8, ATLAS_SIZE, ATLAS_SIZE);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, MIPMAP_LEVELS - 1);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
+    gl::setLabel(GL_TEXTURE, _texture.id(), "Block atlas");
 }
 
 void BlockTextureAtlas::loadAllTextures()
 {
-    glBindTexture(GL_TEXTURE_2D, _textureID);
-
     int row = 0, col = 0;
     const int texPerCol = ATLAS_COLUMNS;
 
@@ -71,7 +85,7 @@ void BlockTextureAtlas::loadAllTextures()
         unsigned char *data = stbi_load(filePath.c_str(), &width, &height, &channels, 4);
         if (!data)
         {
-            std::cout << "ERROR::FAILED_TO_LOAD_TEXTURE : " << fileName << std::endl;
+            std::cerr << "ERROR::FAILED_TO_LOAD_TEXTURE : " << fileName << std::endl;
             continue;
         }
 
@@ -100,15 +114,15 @@ void BlockTextureAtlas::loadAllTextures()
             }
 
             // upload the texture to openGL
-            glTexSubImage2D(GL_TEXTURE_2D,
-                            lvl,
-                            col * (CELL_STRIDE >> lvl),
-                            row * (CELL_STRIDE >> lvl),
-                            CELL_STRIDE >> lvl,
-                            CELL_STRIDE >> lvl,
-                            GL_RGBA,
-                            GL_UNSIGNED_BYTE,
-                            padded.data());
+            glTextureSubImage2D(_texture.id(),
+                                lvl,
+                                col * (CELL_STRIDE >> lvl),
+                                row * (CELL_STRIDE >> lvl),
+                                CELL_STRIDE >> lvl,
+                                CELL_STRIDE >> lvl,
+                                GL_RGBA,
+                                GL_UNSIGNED_BYTE,
+                                padded.data());
 
             if (lvlDataSize <= 1)
                 continue;
@@ -129,35 +143,9 @@ void BlockTextureAtlas::loadAllTextures()
     }
 }
 
-std::vector<unsigned char> downsample(const std::vector<unsigned char> &src, int w, int h)
-{
-    int newW = w / 2;
-    int newH = h / 2;
-    std::vector<unsigned char> newBuffer(4 * newW * newH);
-
-    for (size_t x = 0; x < newW; x++)
-    {
-        for (size_t y = 0; y < newH; y++)
-        {
-            for (size_t c = 0; c < 4; c++)
-            {
-                auto p1 = src[((2 * x) + (2 * y) * w) * 4 + c];
-                auto p2 = src[((2 * x + 1) + (2 * y) * w) * 4 + c];
-                auto p3 = src[((2 * x) + (2 * y + 1) * w) * 4 + c];
-                auto p4 = src[((2 * x + 1) + (2 * y + 1) * w) * 4 + c];
-                auto avg = (p1 + p2 + p3 + p4) / 4;
-
-                newBuffer[(x + y * newW) * 4 + c] = avg;
-            }
-        }
-    }
-
-    return newBuffer;
-}
-
 uint16_t BlockTextureAtlas::getIndex(const std::string &fileName) const
 {
     return _nameToIndex.at(fileName);
 }
 
-unsigned int BlockTextureAtlas::getID() const { return _textureID; }
+unsigned int BlockTextureAtlas::getID() const { return _texture.id(); }

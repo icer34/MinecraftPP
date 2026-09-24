@@ -15,14 +15,14 @@ public:
         : _id(id) {};
     ~GLHandle() { reset(); }
 
-    GlHandle(const GlHandle &) = delete;
-    GlHandle &operator=(const GlHandle &) = delete;
+    GLHandle(const GLHandle &) = delete;
+    GLHandle &operator=(const GLHandle &) = delete;
 
-    GlHandle(GlHandle &&other) noexcept
+    GLHandle(GLHandle &&other) noexcept
         : _id(std::exchange(other._id, 0))
     {
     }
-    GlHandle &operator=(GlHandle &&other) noexcept
+    GLHandle &operator=(GLHandle &&other) noexcept
     {
         if (this != &other)
         {

@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "graphics/gl/gl_objects.h"
 #include "graphics/shader.h"
 #include "graphics/texture.h"
 #include "util/uv_rect.h"
@@ -50,10 +51,6 @@ public:
      * Must be constructed after the GL context and destroyed before it.
      */
     HudRenderer();
-    ~HudRenderer();
-
-    HudRenderer(const HudRenderer &) = delete;
-    HudRenderer &operator=(const HudRenderer &) = delete;
 
     /**
      * @brief Starts a new batch, discarding everything queued since the last end().
@@ -171,12 +168,20 @@ private:
     void loadFont();
     void loadIconAtlas();
 
-    // identical setup for both batches (icon atlas / font atlas)
-    void setupBuffers(unsigned int &vao, unsigned int &vbo, unsigned int &ebo);
+    // GPU buffers of one batch, rewritten every frame. Immutable storage cannot grow: when a
+    // frame needs more quads than quadCapacity, both buffers are replaced by bigger ones.
+    struct BatchBuffers
+    {
+        const char *name; // label prefix, for the debug output and RenderDoc
+        size_t quadCapacity = 0;
+        GLBuffer vbo;
+        GLBuffer ebo;
+    };
+
+    // makes sure the batch's buffers can hold `quads` quads
+    static void reserve(BatchBuffers &buffers, size_t quads);
     // uploads one batch's CPU-side data to its GPU buffers, binds its texture and draws it
-    void flushBatch(unsigned int vao,
-                    unsigned int vbo,
-                    unsigned int ebo,
+    void flushBatch(BatchBuffers &buffers,
                     const std::vector<HudVertex> &vertData,
                     const std::vector<unsigned int> &idxData,
                     unsigned int textureID);
@@ -192,14 +197,18 @@ private:
     Texture _iconAtlasTexture;
     std::unordered_map<std::string, UVRect> _iconUV;
 
-    static constexpr int MAX_QUADS = 1024;
+    // quads per batch the buffers are first created for -- they grow if a frame needs more
+    static constexpr size_t INITIAL_QUAD_CAPACITY = 1024;
     std::vector<HudVertex> _iconVertData;
     std::vector<HudVertex> _textVertData;
     std::vector<unsigned int> _iconIdxData;
     std::vector<unsigned int> _textIdxData;
 
-    unsigned int _iconVao, _iconVbo, _iconEbo;
-    unsigned int _textVao, _textVbo, _textEbo;
+    // one VAO for the HudVertex format, shared by both batches: flushBatch() only swaps the
+    // buffers attached to it
+    GLVertexArray _vao;
+    BatchBuffers _iconBuffers{"HUD icon"};
+    BatchBuffers _textBuffers{"HUD text"};
 
     Shader _shader;
 };

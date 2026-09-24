@@ -8,8 +8,12 @@
 #include <glad/glad.h>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 #include "stb_image.h"
+
+#include "graphics/gl/gl_debug.h"
+#include "graphics/gl/gl_objects.h"
 
 /**
  * @brief Owns an OpenGL 2D texture. Movable but not copyable.
@@ -60,32 +64,8 @@ public:
         create(data, width, height, internalFormat, format);
     }
 
-    Texture(const Texture &) = delete;
-    Texture &operator=(const Texture &) = delete;
-
-    /** @brief Takes ownership of `other`'s texture, leaving `other` empty. */
-    Texture(Texture &&other) noexcept
-        : _id(other._id)
-    {
-        other._id = 0;
-    }
-    /** @brief Deletes the current texture and takes ownership of `other`'s texture. */
-    Texture &operator=(Texture &&other) noexcept
-    {
-        if (this != &other)
-        {
-            glDeleteTextures(1, &_id);
-            _id = other._id;
-            other._id = 0;
-        }
-        return *this;
-    }
-
-    /** @brief Deletes the texture. */
-    ~Texture() { glDeleteTextures(1, &_id); }
-
     /** @brief OpenGL name of the texture. */
-    unsigned int getID() const { return _id; }
+    unsigned int getID() const { return _tex.id(); }
 
     /**
      * @brief Overwrites a rectangular region of the texture (mip level 0).
@@ -99,47 +79,46 @@ public:
      */
     void addSubImage(int x, int y, int w, int h, unsigned char *data, GLenum format = GL_RGBA)
     {
-        glBindTexture(GL_TEXTURE_2D, _id);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, format, GL_UNSIGNED_BYTE, data);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        glTextureSubImage2D(_tex.id(), 0, x, y, w, h, format, GL_UNSIGNED_BYTE, data);
     }
+
+    /**
+     * @brief Names the texture, for the debug output and RenderDoc.
+     */
+    void setLabel(std::string_view label) { gl::setLabel(GL_TEXTURE, _tex.id(), label); }
 
     /**
      * @brief Sets the minification and magnification filters (e.g. `GL_NEAREST` for pixel art).
      */
     void setFilters(GLenum minFilter, GLenum magFilter)
     {
-        glBindTexture(GL_TEXTURE_2D, _id);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        glTextureParameteri(_tex.id(), GL_TEXTURE_MIN_FILTER, minFilter);
+        glTextureParameteri(_tex.id(), GL_TEXTURE_MAG_FILTER, magFilter);
     }
 
 private:
-    unsigned int _id = 0;
+    GLTexture _tex;
 
     void create(
         const unsigned char *data, int width, int height, GLenum internalFormat, GLenum format)
     {
-        glGenTextures(1, &_id);
-        glBindTexture(GL_TEXTURE_2D, _id);
+        _tex = gl::createTexture(GL_TEXTURE_2D);
+        glTextureStorage2D(_tex.id(), 1, internalFormat, width, height);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(_tex.id(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(_tex.id(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(_tex.id(), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(_tex.id(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
         // a single-channel texture defaults to (r, 0, 0, 1) when sampled -- swizzle it to
         // read back as grayscale (r, r, r, 1) instead of showing up tinted red
         if (format == GL_RED)
         {
             GLint swizzle[4] = {GL_RED, GL_RED, GL_RED, GL_ONE};
-            glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle);
+            glTextureParameteriv(_tex.id(), GL_TEXTURE_SWIZZLE_RGBA, swizzle);
         }
 
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-
-        glBindTexture(GL_TEXTURE_2D, 0);
+        if (data != nullptr)
+            glTextureSubImage2D(_tex.id(), 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
     }
 };

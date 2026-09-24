@@ -32,8 +32,12 @@ class Window
 {
 public:
     /**
-     * @brief Initializes GLFW, opens the window, creates an OpenGL 3.3 context, loads the GL
-     * functions and initializes ImGui.
+     * @brief Initializes GLFW, opens the window, creates an OpenGL 4.6 core context, loads the
+     * GL functions and initializes ImGui.
+     *
+     * The context uses a [0, 1] NDC depth range (`glClipControl`), and in Debug builds, the GL
+     * debug output is enabled and printed to stderr (see gl::onDebugMessage()). The default
+     * framebuffer is not multisampled: the Renderer draws the scene into its own framebuffer.
      *
      * @param width requested window width, in screen coordinates
      * @param height requested window height, in screen coordinates

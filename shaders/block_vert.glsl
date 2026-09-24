@@ -1,13 +1,15 @@
 #version 460 core
 
+#include "common/frame_data.glsl"
+#include "common/texture_units.glsl"
+
 // see ChunkMesher::mesh() in chunk_mesher.cpp to see the packing format in detail
 layout (location = 0) in uvec2 packedData;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+// world position of the chunk's origin -- set per chunk, hence the fixed location
+layout (location = 0) uniform vec3 chunkOffset;
 
-uniform sampler2D colormap;
+layout (binding = TEX_UNIT_BLOCK_COLORMAP) uniform sampler2D colormap;
 
 out vec3 vNormal;
 out vec2 vTexCoord;
@@ -110,8 +112,9 @@ void main()
     vTexCoord = uvFromTextureIndex(textureIdx, cornerIdx);
     vTint = isTinted ? sampleColorMap(humidity, temperature) : vec3(1.0);
     vAO = AO_LEVELS[aoValue];
-    vFragPosWorld = model * vec4(facePos, 1.0);
-    vViewDepth = -(view * model * vec4(facePos, 1.0)).z;
+    vFragPosWorld = vec4(facePos + chunkOffset, 1.0);
+    vec4 viewPos = view * vFragPosWorld;
+    vViewDepth = -viewPos.z;
 
-    gl_Position = projection * view * model * vec4(facePos, 1.0);
+    gl_Position = projection * viewPos;
 }

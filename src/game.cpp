@@ -11,13 +11,14 @@ Game::Game()
     : _window(1600, 900, "MinecraftPP", false),
       _player(vec3(-96.0f, 110.0f, 30.2f)),
       _world(World(67)),
-      _renderer(Renderer(_window, _world)),
-      _hud(_hudRenderer, _window.getWidth(), _window.getHeight()),
+      _renderer(Renderer(_window, _world, _blockAtlas)),
+      _hud(_hudRenderer),
       _settingsMenu(_hudRenderer),
       _rayCaster(_world)
 {
-    // register all blocks
-    Blocks::registerAll();
+    // the block textures must be loaded before registering the blocks that refer to them
+    _blockAtlas.loadAllTextures();
+    Blocks::registerAll(_blockAtlas);
 }
 
 void Game::run()
@@ -130,12 +131,15 @@ void Game::render(float dt)
     // update fps counter
     _renderer.updateFPS(dt);
 
-    // render the 3D world (terrain)
+    // render the 3D world (terrain) into the scene framebuffer, then show it on screen
     _renderer.renderWorld(_player.getCam());
     if (_castResult.hit)
-        _renderer.renderBlockOutline(_castResult, _player.getCam());
+        _renderer.renderBlockOutline(_castResult);
+    _renderer.presentScene();
 
-    _hud.render();
+    // everything below is drawn directly on the screen
+
+    _hud.render(_window.getWidth(), _window.getHeight());
 
     // render UI
     _renderer.beginUI();

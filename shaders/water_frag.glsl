@@ -1,18 +1,13 @@
 #version 460 core
 
+#include "common/frame_data.glsl"
+#include "common/texture_units.glsl"
+
 in vec4 vFragPosWorld;
 in float vViewDepth;
 
-uniform mat4 view;
-uniform mat4 projection;
-uniform vec3 lightDir;
-uniform vec3 camPos;
-uniform float time;
-uniform float zNear;
-uniform float zFar;
-
-uniform sampler2D solidColor;
-uniform sampler2D solidDepth;
+layout (binding = TEX_UNIT_SOLID_COLOR) uniform sampler2D solidColor;
+layout (binding = TEX_UNIT_SOLID_DEPTH) uniform sampler2D solidDepth;
 
 out vec4 FragColor;
 
@@ -70,6 +65,13 @@ vec3 waveNormal(vec2 worldXZ)
     return normalize(vec3(-grad.x, 1.0, -grad.y));
 }
 
+// reverse-Z depth (1 at the near plane, 0 at the far plane, see Camera::getProjectionMatrix)
+// to the linear view-space distance
+float linearizeDepth(float depth)
+{
+    return zNear * zFar / (zNear + depth * (zFar - zNear));
+}
+
 struct RayHit
 {
     bool hit;
@@ -88,7 +90,7 @@ RayHit marchScene(vec3 viewOrigin, vec3 viewDir, int numSteps, float stepSize)
         vec4 proj = projection * vec4(pos, 1.0);
         // perspective division
         vec3 projectedNDC = proj.xyz / proj.w;
-        projectedNDC = projectedNDC * 0.5 + 0.5; // --> [0,1]
+        projectedNDC.xy = projectedNDC.xy * 0.5 + 0.5; // --> [0,1], the depth already is
         float sceneDepthNDC = texture(solidDepth, projectedNDC.xy).r;
 
         //check if the projected uv is out of screen
@@ -97,7 +99,9 @@ RayHit marchScene(vec3 viewOrigin, vec3 viewDir, int numSteps, float stepSize)
             break;
         }
 
-        if(sceneDepthNDC < 0.9999 && projectedNDC.z > sceneDepthNDC)
+        // reverse-Z: the cleared depth (sky) is 0, and a point behind the scene has a smaller
+        // depth than it
+        if(sceneDepthNDC > 0.0 && projectedNDC.z < sceneDepthNDC)
         {
             result.hit = true;
             result.uv = projectedNDC.xy;
@@ -147,9 +151,8 @@ void main()
     //* ===== DEPTH CALCULATIONS =====
     vec2 screenUV = gl_FragCoord.xy / vec2(textureSize(solidColor, 0));
     // non linear depth --> needs to be linearized before comparing to vViewDepth
-    float sceneDepthNDC = texture(solidDepth, screenUV).r; 
-    float ndc = sceneDepthNDC * 2.0 - 1.0; // [0,1] --> [-1, 1]
-    float sceneLinearDepth = (2.0 * zNear * zFar) / (zFar + zNear - ndc * (zFar - zNear));
+    float sceneDepthNDC = texture(solidDepth, screenUV).r;
+    float sceneLinearDepth = linearizeDepth(sceneDepthNDC);
     float waterDepth = max(sceneLinearDepth - vViewDepth, 0.0);
     float fogFactor = 1.0 - exp(-waterDepth * FOG_DENSITY);
 
@@ -164,10 +167,7 @@ void main()
     // reject the distortion if it lands on something in front of the water surface itself
     // (e.g. a wall poking up at the shore) -- that's not something the water should be
     // "seeing through", so fall back to the undistorted UV instead of showing that mismatch
-    float distortedSceneDepthNDC = texture(solidDepth, distortedUV).r;
-    float distortedNdc = distortedSceneDepthNDC * 2.0 - 1.0;
-    float distortedLinearDepth =
-        (2.0 * zNear * zFar) / (zFar + zNear - distortedNdc * (zFar - zNear));
+    float distortedLinearDepth = linearizeDepth(texture(solidDepth, distortedUV).r);
     if (distortedLinearDepth < vViewDepth)
         distortedUV = screenUV;
 

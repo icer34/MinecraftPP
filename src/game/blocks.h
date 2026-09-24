@@ -49,10 +49,9 @@ inline uint16_t WATER; ///< Still water.
  *
  * To add a new block: declare its ID above, then register it here.
  */
-inline void registerAll()
+inline void registerAll(const BlockTextureAtlas &atlas)
 {
     auto &reg = BlockRegistry::instance();
-    auto &atlas = BlockTextureAtlas::instance();
 
     AIR = reg.registerBlock({
         .name = "air",
