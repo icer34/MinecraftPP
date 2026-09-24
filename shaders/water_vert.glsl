@@ -1,14 +1,15 @@
 #version 460 core
 
+#include "common/frame_data.glsl"
+#include "common/texture_units.glsl"
+
 // see ChunkMesher::mesh() in chunk_mesher.cpp to see the packing format in detail
 layout (location = 0) in uvec2 packedData;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-uniform float time;
+// world position of the chunk's origin -- set per chunk, hence the fixed location
+layout (location = 0) uniform vec3 chunkOffset;
 
-uniform sampler2D colormap;
+layout (binding = TEX_UNIT_BLOCK_COLORMAP) uniform sampler2D colormap;
 
 out float vAO;
 out vec4 vFragPosWorld;
@@ -79,6 +80,7 @@ float waveHeight(vec2 worldXZ)
 
         amplitude *= GAIN;
         k *= LACUNARITY;
+        speed *= LACUNARITY;
     }
     return height;
 }
@@ -100,11 +102,11 @@ void main()
     vec3 chunkPos = vec3(float(chunkX), float(chunkY), float(chunkZ));
     vec3 facePos = chunkPos + FACE_CORNER_OFFSET[normalIdx * 4u + cornerIdx];
 
-    vec2 worldXZ = (model * vec4(facePos, 1.0)).xz;
+    vec2 worldXZ = facePos.xz + chunkOffset.xz;
     facePos.y += waveHeight(worldXZ) - 0.325;
 
     vAO = AO_LEVELS[aoValue];
-    vFragPosWorld = model * vec4(facePos, 1.0);
+    vFragPosWorld = vec4(facePos + chunkOffset, 1.0);
     vViewDepth = -(view * vFragPosWorld).z;
 
     gl_Position = projection * view * vFragPosWorld;

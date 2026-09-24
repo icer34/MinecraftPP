@@ -75,8 +75,10 @@ public:
         _planes[1] = Plane::fromCoefficients(row3 - row0); // right
         _planes[2] = Plane::fromCoefficients(row3 - row1); // top
         _planes[3] = Plane::fromCoefficients(row3 + row1); // bottom
-        _planes[4] = Plane::fromCoefficients(row3 + row2); // near
-        _planes[5] = Plane::fromCoefficients(row3 - row2); // far
+        // reverse-Z with a [0, 1] depth range (see Camera::getProjectionMatrix()): visible
+        // points have 0 <= z <= w, with z = w on the near plane and z = 0 on the far plane
+        _planes[4] = Plane::fromCoefficients(row3 - row2); // near
+        _planes[5] = Plane::fromCoefficients(row2);        // far
     }
 
     /**

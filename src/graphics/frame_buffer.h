@@ -5,11 +5,17 @@
 
 #pragma once
 
+#include <string_view>
+
+#include "graphics/gl/gl_objects.h"
+
 /**
- * @brief Off-screen render target whose color and depth are both readable as textures.
+ * @brief Off-screen render target with one color and one depth texture.
  *
- * Used to keep a copy of the opaque scene so that the water pass can sample it (refraction
- * and depth-based effects).
+ * With `samples > 1`, the attachments are multisampled textures: they cannot be sampled as
+ * regular textures, and must be resolved first by blitting into a single-sampled framebuffer.
+ *
+ * Move-only. Must be created and destroyed while a GL context is current.
  */
 class FrameBuffer
 {
@@ -17,27 +23,36 @@ public:
     /**
      * @brief Creates the framebuffer and its two attachments.
      *
-     * @param screenW width of the attachments in pixels
-     * @param screenH height of the attachments in pixels
+     * @param width width of the attachments in pixels
+     * @param height height of the attachments in pixels
+     * @param samples samples per pixel, 1 for a regular (single-sampled) framebuffer
+     * @param colorFormat internal format of the color attachment (e.g. `GL_RGBA16F`)
+     * @param depthFormat internal format of the depth attachment (e.g. `GL_DEPTH_COMPONENT32F`)
+     * @param label name given to the GL objects, for the debug output and RenderDoc
      */
-    FrameBuffer(int screenW, int screenH);
-
-    /**
-     * @brief Deletes the framebuffer and its textures. Needs a live GL context.
-     */
-    ~FrameBuffer();
+    FrameBuffer(int width,
+                int height,
+                int samples,
+                GLenum colorFormat,
+                GLenum depthFormat,
+                std::string_view label);
 
     /** @brief OpenGL name of the framebuffer object. */
-    unsigned int getFrameBufferID() const { return _fboID; }
+    unsigned int getFrameBufferID() const { return _fbo.id(); }
     /** @brief OpenGL name of the color attachment texture. */
-    unsigned int getColorTextureID() const { return _colorTexID; }
+    unsigned int getColorTextureID() const { return _colorTex.id(); }
     /** @brief OpenGL name of the depth attachment texture. */
-    unsigned int getDepthTextureID() const { return _depthTexID; }
+    unsigned int getDepthTextureID() const { return _depthTex.id(); }
+
+    /** @brief Width of the attachments, in pixels. */
+    int getWidth() const { return _width; }
+    /** @brief Height of the attachments, in pixels. */
+    int getHeight() const { return _height; }
 
 private:
-    unsigned int TEXTURE_SIZE;
-
-    unsigned int _colorTexID;
-    unsigned int _depthTexID;
-    unsigned int _fboID;
+    int _width;
+    int _height;
+    GLTexture _colorTex;
+    GLTexture _depthTex;
+    GLFramebuffer _fbo;
 };

@@ -1,57 +1,58 @@
 #include "frame_buffer.h"
 
 #include <glad/glad.h>
+
 #include <iostream>
+#include <string>
 
-FrameBuffer::FrameBuffer(int screenW, int screenH)
+#include "graphics/gl/gl_debug.h"
+
+namespace
 {
-    //* color texture
-    glGenTextures(1, &_colorTexID);
-    glBindTexture(GL_TEXTURE_2D, _colorTexID);
+GLTexture createAttachment(int width, int height, int samples, GLenum format)
+{
+    if (samples > 1)
+    {
+        GLTexture tex = gl::createTexture(GL_TEXTURE_2D_MULTISAMPLE);
+        // fixed sample locations: the same pattern for color and depth, as a multisampled
+        // framebuffer requires
+        glTextureStorage2DMultisample(tex.id(), samples, format, width, height, GL_TRUE);
+        return tex;
+    }
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA8, screenW, screenH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-
-    //* depth texture
-    glGenTextures(1, &_depthTexID);
-    glBindTexture(GL_TEXTURE_2D, _depthTexID);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_DEPTH_COMPONENT,
-                 screenW,
-                 screenH,
-                 0,
-                 GL_DEPTH_COMPONENT,
-                 GL_FLOAT,
-                 nullptr);
-
-    glGenFramebuffers(1, &_fboID);
-    glBindFramebuffer(GL_FRAMEBUFFER, _fboID);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _colorTexID, 0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depthTexID, 0);
-
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "SHADOW FBO INCOMPLETE: " << status << std::endl;
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // multisampled textures have no sampler state: only regular ones get filtering/wrapping
+    GLTexture tex = gl::createTexture(GL_TEXTURE_2D);
+    glTextureStorage2D(tex.id(), 1, format, width, height);
+    glTextureParameteri(tex.id(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(tex.id(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(tex.id(), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(tex.id(), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    return tex;
 }
+} // namespace
 
-FrameBuffer::~FrameBuffer()
+FrameBuffer::FrameBuffer(int width,
+                         int height,
+                         int samples,
+                         GLenum colorFormat,
+                         GLenum depthFormat,
+                         std::string_view label)
+    : _width(width),
+      _height(height),
+      _colorTex(createAttachment(width, height, samples, colorFormat)),
+      _depthTex(createAttachment(width, height, samples, depthFormat)),
+      _fbo(gl::createFramebuffer())
 {
-    glDeleteTextures(1, &_colorTexID);
-    glDeleteTextures(1, &_depthTexID);
-    glDeleteFramebuffers(1, &_fboID);
+    glNamedFramebufferTexture(_fbo.id(), GL_COLOR_ATTACHMENT0, _colorTex.id(), 0);
+    glNamedFramebufferTexture(_fbo.id(), GL_DEPTH_ATTACHMENT, _depthTex.id(), 0);
+
+    std::string name(label);
+    gl::setLabel(GL_FRAMEBUFFER, _fbo.id(), name);
+    gl::setLabel(GL_TEXTURE, _colorTex.id(), name + " color");
+    gl::setLabel(GL_TEXTURE, _depthTex.id(), name + " depth");
+
+    GLenum status = glCheckNamedFramebufferStatus(_fbo.id(), GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE)
+        std::cerr << name << " framebuffer incomplete: 0x" << std::hex << status << std::dec
+                  << '\n';
 }

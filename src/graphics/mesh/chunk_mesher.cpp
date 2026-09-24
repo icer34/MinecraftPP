@@ -1,7 +1,6 @@
 #include "chunk_mesher.h"
 
 #include "game/block_registry.h"
-#include "graphics/block_texture_atlas.h"
 
 #include <glm/glm.hpp>
 
@@ -59,7 +58,6 @@ void ChunkMesher::mesh(const Chunk &chunk,
                        ChunkMeshData &meshData)
 {
     auto &registry = BlockRegistry::instance();
-    auto &atlas = BlockTextureAtlas::instance();
 
     std::vector<uint32_t> solidVert{};
     std::vector<uint32_t> waterVert{};

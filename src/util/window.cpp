@@ -11,6 +11,9 @@
 #include <imgui.h>
 #include <implot.h>
 
+#include "graphics/gl/gl_debug.h"
+#include "graphics/gl/gl_objects.h"
+
 Window::Window(int width, int height, const std::string &title, bool vSync)
     : _width(width),
       _height(height),
@@ -23,15 +26,13 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
         throw std::runtime_error("Could not initialize GLFW");
     }
 
+#ifndef NDEBUG
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+#endif
+
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    glfwWindowHint(GLFW_SAMPLES, 4);
-
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
 
     _window = glfwCreateWindow(_width, _height, _title.c_str(), NULL, NULL);
     if (!_window)
@@ -58,6 +59,23 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
     {
         throw std::runtime_error("Echec du chargement d'OpenGL (GLAD)");
     }
+
+    // this thread owns the context: GL objects may only be created and destroyed here
+    gl::setContextThread();
+
+#ifndef NDEBUG
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); // the callback runs inside the faulty GL call
+    glDebugMessageCallback(gl::onDebugMessage, nullptr);
+    // notifications are far too verbose
+    glDebugMessageControl(
+        GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
+#endif
+
+    // NDC depth goes from 0 to 1 instead of -1 to 1: required by the reverse-Z projection of
+    // Camera, which would otherwise lose half of its precision. Every projection matrix must
+    // therefore be built with the glm::*_ZO functions.
+    glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 
     int fbWidth, fbHeight;
     glfwGetFramebufferSize(_window, &fbWidth, &fbHeight);

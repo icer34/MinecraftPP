@@ -4,15 +4,16 @@
 
 using glm::vec2;
 
-Hud::Hud(HudRenderer &renderer, int screenWidth, int screenHeight)
-    : _screenW(screenWidth),
-      _screenH(screenHeight),
-      _renderer(renderer)
+Hud::Hud(HudRenderer &renderer)
+    : _renderer(renderer)
 {
 }
 
-void Hud::render()
+void Hud::render(int screenWidth, int screenHeight)
 {
+    _screenW = screenWidth;
+    _screenH = screenHeight;
+
     _renderer.begin();
 
     drawCrosshair();

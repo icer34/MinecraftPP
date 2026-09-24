@@ -5,9 +5,10 @@
 
 #pragma once
 
-#include "drawable.h"
+#include "graphics/gl/gl_objects.h"
 
 #include <cstdint>
+#include <string_view>
 #include <vector>
 
 /**
@@ -22,40 +23,40 @@ struct MeshData
 };
 
 /**
- * @brief Indexed triangle mesh stored on the GPU (VAO + VBO + EBO).
+ * @brief Indexed triangle mesh stored on the GPU: one vertex buffer and one index buffer.
  *
- * Non-copyable because it owns GL handles. Must be created and destroyed while a GL context
- * is current.
+ * A mesh has no VAO of its own: all meshes share the same vertex format, described once by
+ * the VAO returned by createVertexArray(), and draw() attaches the mesh's buffers to it.
+ *
+ * Move-only because it owns GL handles. Must be created and destroyed while a GL context is
+ * current.
  */
-class Mesh : public Drawable
+class Mesh
 {
 public:
     /**
-     * @brief Creates the GL buffers. The mesh is empty until update() is called.
+     * @brief Creates a VAO describing the packed vertex format (one `uvec2` per vertex,
+     * attribute 0), without any buffer attached. One is enough for every mesh.
      */
-    Mesh();
-    ~Mesh() override;
-
-    // owns GL buffer handles that get freed in the destructor -- a shallow copy would leave
-    // two Mesh instances sharing (and eventually double-freeing) the same handles, so copying
-    // is disabled outright rather than left as an implicit, silently-broken default.
-    Mesh(const Mesh &) = delete;
-    Mesh &operator=(const Mesh &) = delete;
+    static GLVertexArray createVertexArray();
 
     /**
      * @brief Draws the whole mesh as triangles with the currently bound shader.
+     *
+     * @param vao a VAO from createVertexArray(); binds it and attaches this mesh's buffers
      */
-    void draw() override;
+    void draw(const GLVertexArray &vao) const;
 
     /**
-     * @brief Uploads new geometry, replacing the previous content of the buffers.
+     * @brief Uploads new geometry, replacing the previous buffers.
+     *
+     * @param data the geometry to upload
+     * @param label name given to the GL buffers, for the debug output and RenderDoc
      */
-    void update(const MeshData &data);
+    void update(const MeshData &data, std::string_view label = "Mesh");
 
 private:
-    unsigned int _vao;
-    unsigned int _vbo;
-    unsigned int _ebo;
-    size_t _nVert = 0;
+    GLBuffer _vbo;
+    GLBuffer _ebo;
     size_t _nIdx = 0;
 };

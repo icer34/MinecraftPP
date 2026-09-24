@@ -1,219 +1,209 @@
 #include "shader.h"
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 
-using glm::mat4;
-using glm::vec3;
+#include "graphics/gl/gl_debug.h"
 
-Shader::Shader(const char *vertPath, const char *fragPath)
+namespace fs = std::filesystem;
+
+namespace
 {
-    // load the shader file contents
-    std::string vertexCode;
-    std::string fragmentCode;
-    std::ifstream vShaderFile;
-    std::ifstream fShaderFile;
-    // ensure ifstream objects can throw exceptions:
-    vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    try
-    {
-        // open files
-        vShaderFile.open(vertPath);
-        fShaderFile.open(fragPath);
-        std::stringstream vShaderStream, fShaderStream;
-        // read file's buffer contents into streams
-        vShaderStream << vShaderFile.rdbuf();
-        fShaderStream << fShaderFile.rdbuf();
-        // close file handlers
-        vShaderFile.close();
-        fShaderFile.close();
-        // convert stream into string
-        vertexCode = vShaderStream.str();
-        fragmentCode = fShaderStream.str();
-    }
-    catch (const std::ifstream::failure &e)
-    {
-        throw std::runtime_error("ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ: "
-                                 + std::string(vertPath) + " / " + std::string(fragPath));
-    }
-    const char *vShaderCode = vertexCode.c_str();
-    const char *fShaderCode = fragmentCode.c_str();
+std::string readFile(const fs::path &path)
+{
+    std::ifstream file(path);
+    if (!file)
+        throw std::runtime_error("ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ: " + path.string());
 
-    // vertex shader compilation
-    _vertID = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(_vertID, 1, &vShaderCode, NULL);
-    glCompileShader(_vertID);
+    std::stringstream stream;
+    stream << file.rdbuf();
+    return stream.str();
+}
 
-    int success;
-    char logBuffer[512];
-    glGetShaderiv(_vertID, GL_COMPILE_STATUS, &success);
+/**
+ * Reads a shader file and recursively replaces its `#include "..."` lines with the content of
+ * the included file. `files` lists every file read so far: its index is the source string
+ * number used in the `#line` directives, and a file already in it is not included again.
+ */
+std::string preprocess(const fs::path &path, std::vector<fs::path> &files)
+{
+    const int fileIndex = static_cast<int>(files.size());
+    files.push_back(path);
+
+    std::istringstream source(readFile(path));
+    std::string result;
+    std::string line;
+    int lineNumber = 0;
+
+    while (std::getline(source, line))
+    {
+        lineNumber++;
+
+        size_t first = line.find_first_not_of(" \t");
+        if (first == std::string::npos || line.compare(first, 8, "#include") != 0)
+        {
+            result += line + '\n';
+            continue;
+        }
+
+        size_t open = line.find('"', first);
+        size_t close = line.find('"', open + 1);
+        if (open == std::string::npos || close == std::string::npos)
+            throw std::runtime_error("ERROR::SHADER::BAD_INCLUDE: " + path.string() + ":"
+                                     + std::to_string(lineNumber));
+
+        fs::path included = path.parent_path() / line.substr(open + 1, close - open - 1);
+        if (!fs::exists(included))
+            throw std::runtime_error("ERROR::SHADER::INCLUDE_NOT_FOUND: " + included.string()
+                                     + " (from " + path.string() + ":"
+                                     + std::to_string(lineNumber) + ")");
+
+        bool alreadyIncluded = false;
+        for (const fs::path &file : files)
+            alreadyIncluded |= fs::equivalent(file, included);
+
+        if (!alreadyIncluded)
+        {
+            int includedIndex = static_cast<int>(files.size());
+            result += "#line 1 " + std::to_string(includedIndex) + '\n';
+            result += preprocess(included, files);
+        }
+        // back to the including file, on the line after the #include
+        result += "#line " + std::to_string(lineNumber + 1) + ' ' + std::to_string(fileIndex)
+                + '\n';
+    }
+
+    return result;
+}
+
+std::string shaderInfoLog(GLuint shader)
+{
+    GLint length = 0;
+    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
+    std::string log(std::max(length, 1), '\0');
+    glGetShaderInfoLog(shader, length, nullptr, log.data());
+    return log;
+}
+
+std::string programInfoLog(GLuint program)
+{
+    GLint length = 0;
+    glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
+    std::string log(std::max(length, 1), '\0');
+    glGetProgramInfoLog(program, length, nullptr, log.data());
+    return log;
+}
+
+GLShader compile(GLenum type, const char *path)
+{
+    std::vector<fs::path> files;
+    std::string source = preprocess(path, files);
+    const char *sourcePtr = source.c_str();
+
+    GLShader shader = gl::createShader(type);
+    glShaderSource(shader.id(), 1, &sourcePtr, nullptr);
+    glCompileShader(shader.id());
+
+    GLint success = 0;
+    glGetShaderiv(shader.id(), GL_COMPILE_STATUS, &success);
     if (!success)
     {
-        glGetShaderInfoLog(_vertID, 512, NULL, logBuffer);
-        throw std::runtime_error("ERROR::SHADER::VERTEX_NOT_COMPILED\n" + std::string(logBuffer));
+        std::string message = "ERROR::SHADER::NOT_COMPILED: " + std::string(path) + '\n';
+        for (size_t i = 0; i < files.size(); i++)
+            message += "  source " + std::to_string(i) + " = " + files[i].string() + '\n';
+        throw std::runtime_error(message + shaderInfoLog(shader.id()));
     }
 
-    // fragment shader compilation
-    _fragID = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(_fragID, 1, &fShaderCode, NULL);
-    glCompileShader(_fragID);
+    return shader;
+}
+} // namespace
 
-    glGetShaderiv(_fragID, GL_COMPILE_STATUS, &success);
+Shader::Shader(const char *vertPath, const char *fragPath, const char *geomPath)
+    : _program(gl::createProgram())
+{
+    // the shader objects are only needed until the link: their handles delete them at the end
+    // of this constructor, once detached
+    GLShader vert = compile(GL_VERTEX_SHADER, vertPath);
+    GLShader frag = compile(GL_FRAGMENT_SHADER, fragPath);
+    GLShader geom;
+    if (geomPath != nullptr)
+        geom = compile(GL_GEOMETRY_SHADER, geomPath);
+
+    glAttachShader(_program.id(), vert.id());
+    glAttachShader(_program.id(), frag.id());
+    if (geom)
+        glAttachShader(_program.id(), geom.id());
+
+    glLinkProgram(_program.id());
+
+    GLint success = 0;
+    glGetProgramiv(_program.id(), GL_LINK_STATUS, &success);
     if (!success)
     {
-        glGetShaderInfoLog(_fragID, 512, NULL, logBuffer);
-        throw std::runtime_error("ERROR::SHADER::FRAGMENT_NOT_COMPILED\n" + std::string(logBuffer));
+        throw std::runtime_error("ERROR::SHADER::NOT_LINKED: " + std::string(vertPath) + " / "
+                                 + std::string(fragPath) + '\n' + programInfoLog(_program.id()));
     }
 
-    // program creation and linking
-    _programID = glCreateProgram();
-    glAttachShader(_programID, _vertID);
-    glAttachShader(_programID, _fragID);
-    glLinkProgram(_programID);
-    glGetProgramiv(_programID, GL_LINK_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(_programID, 512, NULL, logBuffer);
-        throw std::runtime_error("ERROR::SHADER::SHADER_NOT_LINKED\n" + std::string(logBuffer));
-    }
+    glDetachShader(_program.id(), vert.id());
+    glDetachShader(_program.id(), frag.id());
+    if (geom)
+        glDetachShader(_program.id(), geom.id());
+
+    std::string label = fs::path(vertPath).stem().string() + " + "
+                      + fs::path(fragPath).stem().string();
+    if (geomPath != nullptr)
+        label += " + " + fs::path(geomPath).stem().string();
+    gl::setLabel(GL_PROGRAM, _program.id(), label);
 }
 
-Shader::~Shader()
+void Shader::use() const { glUseProgram(_program.id()); }
+
+GLint Shader::uniformLocation(std::string_view name)
 {
-    glDeleteProgram(_programID);
-    glDeleteShader(_vertID);
-    glDeleteShader(_fragID);
-    glDeleteShader(_geomID);
-}
+    auto it = _uniformLocations.find(name);
+    if (it != _uniformLocations.end())
+        return it->second;
 
-void Shader::addGeometryShader(const char *path)
-{
-    std::ifstream geomFile;
-    geomFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-
-    std::string geomCodeString;
-    try
-    {
-        // open files
-        geomFile.open(path);
-        std::stringstream geomShaderStream;
-        // read file's buffer contents into streams
-        geomShaderStream << geomFile.rdbuf();
-        // close file handlers
-        geomFile.close();
-        // convert stream into string
-        geomCodeString = geomShaderStream.str();
-    }
-    catch (const std::ifstream::failure &e)
-    {
-        throw std::runtime_error("ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ: " + std::string(path));
-    }
-
-    const char *geomCode = geomCodeString.c_str();
-
-    _geomID = glCreateShader(GL_GEOMETRY_SHADER);
-    glShaderSource(_geomID, 1, &geomCode, NULL);
-    glCompileShader(_geomID);
-
-    int success;
-    char logBuffer[512];
-    glGetShaderiv(_geomID, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(_geomID, 512, NULL, logBuffer);
-        throw std::runtime_error("ERROR::SHADER::GEOM_NOT_COMPILED\n" + std::string(logBuffer));
-    }
-
-    glDeleteProgram(_programID);
-
-    _programID = glCreateProgram();
-    glAttachShader(_programID, _vertID);
-    glAttachShader(_programID, _geomID);
-    glAttachShader(_programID, _fragID);
-
-    glLinkProgram(_programID);
-
-    glGetProgramiv(_programID, GL_LINK_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(_programID, 512, NULL, logBuffer);
-        throw std::runtime_error("ERROR::SHADER::SHADER_NOT_LINKED\n" + std::string(logBuffer));
-    }
-}
-
-void Shader::use() { glUseProgram(_programID); }
-
-void Shader::setMat4(const std::string &name, mat4 mat)
-{
-    int loc = glGetUniformLocation(_programID, name.c_str());
-    if (loc == -1)
-    {
+    std::string key(name);
+    GLint location = glGetUniformLocation(_program.id(), key.c_str());
+    if (location == -1)
         std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
 
-    glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(mat));
+    // -1 is cached too: the error is printed once, and glProgramUniform* ignores location -1
+    _uniformLocations.emplace(std::move(key), location);
+    return location;
 }
 
-void Shader::setMat4Array(const std::string &name, const std::vector<mat4> &value)
+void Shader::setMat4(std::string_view name, const glm::mat4 &value)
 {
-    std::string locName = name + "[0]";
-    int loc = glGetUniformLocation(_programID, locName.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniformMatrix4fv(loc, value.size(), GL_FALSE, glm::value_ptr(value[0]));
+    glProgramUniformMatrix4fv(
+        _program.id(), uniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
 }
 
-void Shader::setVec3(const std::string &name, vec3 value)
+void Shader::setVec3(std::string_view name, glm::vec3 value)
 {
-    int loc = glGetUniformLocation(_programID, name.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniform3f(loc, value.x, value.y, value.z);
+    setVec3(uniformLocation(name), value);
 }
 
-void Shader::setInt(const std::string &name, int value)
+void Shader::setInt(std::string_view name, int value)
 {
-    int loc = glGetUniformLocation(_programID, name.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniform1i(loc, value);
+    glProgramUniform1i(_program.id(), uniformLocation(name), value);
 }
 
-void Shader::setFloat(const std::string &name, float value)
+void Shader::setFloat(std::string_view name, float value)
 {
-    int loc = glGetUniformLocation(_programID, name.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniform1f(loc, value);
+    glProgramUniform1f(_program.id(), uniformLocation(name), value);
 }
 
-void Shader::setFloatArray(const std::string &name, const std::vector<float> &value)
+void Shader::setVec3(GLint location, glm::vec3 value)
 {
-    std::string locName = name + "[0]";
-    int loc = glGetUniformLocation(_programID, locName.c_str());
-    if (loc == -1)
-    {
-        std::cout << "ERROR::SHADER::UNIFORM_NOT_FOUND [" << name << "]" << std::endl;
-    }
-
-    glUniform1fv(loc, value.size(), &value[0]);
+    glProgramUniform3f(_program.id(), location, value.x, value.y, value.z);
 }

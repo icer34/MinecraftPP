@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 
 #include "graphics/camera.h"
+#include "graphics/frame_data.h"
 #include "graphics/mesh/mesh.h"
 #include "graphics/shader.h"
 #include "util/key_codes.h"
@@ -65,13 +66,18 @@ int main()
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
+    // reverse-Z projection (see Camera::getProjectionMatrix): clear to 0, closer is greater
+    glClearDepth(0.0);
+    glDepthFunc(GL_GEQUAL);
 
     Camera camera(glm::vec3(8.0f, 4.0f, -8.0f));
 
+    GLVertexArray meshVao = Mesh::createVertexArray();
     Mesh waterMesh;
     waterMesh.update(buildWaterPlane(16));
 
     Shader waterShader("shaders/water_vert.glsl", "shaders/water_frag.glsl");
+    FrameDataBuffer frameData;
 
     glm::vec3 lightDir = glm::normalize(glm::vec3(-0.85f, -0.15f, -0.5f));
 
@@ -106,15 +112,23 @@ int main()
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        waterShader.use();
-        waterShader.setMat4("model", glm::mat4(1.0f));
-        waterShader.setMat4("view", camera.getViewMatrix());
-        waterShader.setMat4("projection", camera.getProjectionMatrix());
-        waterShader.setFloat("time", currentTime);
-        waterShader.setVec3("lightDir", lightDir);
-        waterShader.setVec3("camPos", camera.getPos());
+        FrameData data{};
+        data.view = camera.getViewMatrix();
+        data.projection = camera.getProjectionMatrix();
+        data.invView = glm::inverse(data.view);
+        data.invProjection = glm::inverse(data.projection);
+        data.lightDir = lightDir;
+        data.time = currentTime;
+        data.camPos = camera.getPos();
+        data.zNear = camera.getZNear();
+        data.screenSize = glm::vec2(window.getWidth(), window.getHeight());
+        data.zFar = camera.getZFar();
+        frameData.upload(data);
 
-        waterMesh.draw();
+        waterShader.use();
+        waterShader.setVec3(0, glm::vec3(0.0f)); // chunkOffset, layout(location = 0)
+
+        waterMesh.draw(meshVao);
 
         window.swapBuffers();
     }

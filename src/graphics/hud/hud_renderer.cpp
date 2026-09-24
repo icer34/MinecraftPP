@@ -11,62 +11,59 @@ namespace fs = std::filesystem;
 
 #include "stb_image.h"
 
+#include "graphics/gl/gl_debug.h"
+#include "graphics/gl/texture_units.h"
+
 using glm::mat4;
 using glm::vec2;
 using glm::vec4;
 
-HudRenderer::HudRenderer()
-    : _shader("shaders/hud_vert.glsl", "shaders/hud_frag.glsl")
+namespace
 {
+constexpr GLuint VERTEX_BINDING = 0;
+constexpr GLuint POS_ATTRIB = 0;
+constexpr GLuint UV_ATTRIB = 1;
+constexpr GLuint COLOR_ATTRIB = 2;
+constexpr size_t VERTICES_PER_QUAD = 4;
+constexpr size_t INDICES_PER_QUAD = 6;
+
+// fixed-capacity buffer rewritten every frame with glNamedBufferSubData
+GLBuffer createDynamicBuffer(GLsizeiptr bytes, const std::string &label)
+{
+    GLBuffer buffer = gl::createBuffer();
+    glNamedBufferStorage(buffer.id(), bytes, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    gl::setLabel(GL_BUFFER, buffer.id(), label);
+    return buffer;
+}
+} // namespace
+
+HudRenderer::HudRenderer()
+    : _vao(gl::createVertexArray()),
+      _shader("shaders/hud_vert.glsl", "shaders/hud_frag.glsl")
+{
+    reserve(_iconBuffers, INITIAL_QUAD_CAPACITY);
+    reserve(_textBuffers, INITIAL_QUAD_CAPACITY);
+
     loadFont();
 
     loadIconAtlas();
 
-    setupBuffers(_iconVao, _iconVbo, _iconEbo);
-    setupBuffers(_textVao, _textVbo, _textEbo);
-}
+    // vertex format, read from binding 0: vec2 pos, vec2 uv, vec4 color
+    glEnableVertexArrayAttrib(_vao.id(), POS_ATTRIB);
+    glVertexArrayAttribFormat(
+        _vao.id(), POS_ATTRIB, 2, GL_FLOAT, GL_FALSE, offsetof(HudVertex, pos));
+    glVertexArrayAttribBinding(_vao.id(), POS_ATTRIB, VERTEX_BINDING);
 
-HudRenderer::~HudRenderer()
-{
-    glDeleteVertexArrays(1, &_iconVao);
-    glDeleteBuffers(1, &_iconVbo);
-    glDeleteBuffers(1, &_iconEbo);
-    glDeleteVertexArrays(1, &_textVao);
-    glDeleteBuffers(1, &_textVbo);
-    glDeleteBuffers(1, &_textEbo);
-}
+    glEnableVertexArrayAttrib(_vao.id(), UV_ATTRIB);
+    glVertexArrayAttribFormat(_vao.id(), UV_ATTRIB, 2, GL_FLOAT, GL_FALSE, offsetof(HudVertex, uv));
+    glVertexArrayAttribBinding(_vao.id(), UV_ATTRIB, VERTEX_BINDING);
 
-void HudRenderer::setupBuffers(unsigned int &vao, unsigned int &vbo, unsigned int &ebo)
-{
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
+    glEnableVertexArrayAttrib(_vao.id(), COLOR_ATTRIB);
+    glVertexArrayAttribFormat(
+        _vao.id(), COLOR_ATTRIB, 4, GL_FLOAT, GL_FALSE, offsetof(HudVertex, color));
+    glVertexArrayAttribBinding(_vao.id(), COLOR_ATTRIB, VERTEX_BINDING);
 
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, MAX_QUADS * 4 * sizeof(HudVertex), nullptr, GL_DYNAMIC_DRAW);
-
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER, MAX_QUADS * 6 * sizeof(unsigned int), nullptr, GL_DYNAMIC_DRAW);
-
-    // pos
-    glVertexAttribPointer(
-        0, 2, GL_FLOAT, GL_FALSE, sizeof(HudVertex), (void *)offsetof(HudVertex, pos));
-    glEnableVertexAttribArray(0);
-
-    // uv
-    glVertexAttribPointer(
-        1, 2, GL_FLOAT, GL_FALSE, sizeof(HudVertex), (void *)offsetof(HudVertex, uv));
-    glEnableVertexAttribArray(1);
-
-    // color
-    glVertexAttribPointer(
-        2, 4, GL_FLOAT, GL_FALSE, sizeof(HudVertex), (void *)offsetof(HudVertex, color));
-    glEnableVertexAttribArray(2);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    gl::setLabel(GL_VERTEX_ARRAY, _vao.id(), "HUD vertex format");
 }
 
 void HudRenderer::loadFont()
@@ -134,6 +131,7 @@ void HudRenderer::loadFont()
     }
 
     _fontTexture.setFilters(GL_NEAREST, GL_NEAREST);
+    _fontTexture.setLabel("HUD font");
 
     stbi_image_free(fontData);
 }
@@ -221,6 +219,7 @@ void HudRenderer::loadIconAtlas()
                                (float)(icon.y + icon.h) / _atlasHeight}});
     }
     _iconAtlasTexture.setFilters(GL_NEAREST, GL_NEAREST);
+    _iconAtlasTexture.setLabel("HUD icon atlas");
 }
 
 void HudRenderer::begin()
@@ -231,9 +230,21 @@ void HudRenderer::begin()
     _textIdxData.clear();
 }
 
-void HudRenderer::flushBatch(unsigned int vao,
-                             unsigned int vbo,
-                             unsigned int ebo,
+void HudRenderer::reserve(BatchBuffers &buffers, size_t quads)
+{
+    if (quads <= buffers.quadCapacity)
+        return;
+
+    // at least double, so that a HUD that keeps growing doesn't recreate the buffers every frame
+    buffers.quadCapacity = std::max(quads, 2 * buffers.quadCapacity);
+    std::string name(buffers.name);
+    buffers.vbo = createDynamicBuffer(buffers.quadCapacity * VERTICES_PER_QUAD * sizeof(HudVertex),
+                                      name + " vertices");
+    buffers.ebo = createDynamicBuffer(
+        buffers.quadCapacity * INDICES_PER_QUAD * sizeof(unsigned int), name + " indices");
+}
+
+void HudRenderer::flushBatch(BatchBuffers &buffers,
                              const std::vector<HudVertex> &vertData,
                              const std::vector<unsigned int> &idxData,
                              unsigned int textureID)
@@ -241,32 +252,26 @@ void HudRenderer::flushBatch(unsigned int vao,
     if (idxData.empty())
         return;
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertData.size() * sizeof(HudVertex), vertData.data());
+    reserve(buffers, vertData.size() / VERTICES_PER_QUAD);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferSubData(
-        GL_ELEMENT_ARRAY_BUFFER, 0, idxData.size() * sizeof(unsigned int), idxData.data());
+    glNamedBufferSubData(buffers.vbo.id(), 0, vertData.size() * sizeof(HudVertex), vertData.data());
+    glNamedBufferSubData(
+        buffers.ebo.id(), 0, idxData.size() * sizeof(unsigned int), idxData.data());
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureID);
+    glVertexArrayVertexBuffer(_vao.id(), VERTEX_BINDING, buffers.vbo.id(), 0, sizeof(HudVertex));
+    glVertexArrayElementBuffer(_vao.id(), buffers.ebo.id());
 
-    glBindVertexArray(vao);
-    glDrawElements(GL_TRIANGLES, (GLsizei)idxData.size(), GL_UNSIGNED_INT, 0);
+    glBindTextureUnit(TextureUnit::HUD_ATLAS, textureID);
+
+    glBindVertexArray(_vao.id());
+    glDrawElements(GL_TRIANGLES, (GLsizei)idxData.size(), GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
-}
-
-void checkGLError(const char *label)
-{
-    GLenum err;
-    while ((err = glGetError()) != GL_NO_ERROR)
-    {
-        std::cout << "GL_ERROR [" << label << "]: " << err << std::endl;
-    }
 }
 
 void HudRenderer::end(int screenWidth, int screenHeight, std::optional<glm::vec4> scissorRect)
 {
+    gl::DebugGroup group("HUD");
+
     // hud elements are always on top, drawn front-to-back in the order the draw calls were
     // issued (no depth test), and can have transparent edges/backgrounds (blending)
     glDisable(GL_DEPTH_TEST);
@@ -283,21 +288,21 @@ void HudRenderer::end(int screenWidth, int screenHeight, std::optional<glm::vec4
                   (int)scissorRect->w);
     }
 
-    mat4 projection = glm::ortho(0.0f, (float)screenWidth, (float)screenHeight, 0.0f, -1.0f, 1.0f);
+    // _ZO: the context uses a [0, 1] NDC depth range (see Window)
+    mat4 projection
+        = glm::orthoRH_ZO(0.0f, (float)screenWidth, (float)screenHeight, 0.0f, -1.0f, 1.0f);
 
     _shader.use();
     _shader.setMat4("projection", projection);
-    _shader.setInt("atlas", 0);
 
-    flushBatch(
-        _iconVao, _iconVbo, _iconEbo, _iconVertData, _iconIdxData, _iconAtlasTexture.getID());
+    flushBatch(_iconBuffers, _iconVertData, _iconIdxData, _iconAtlasTexture.getID());
 
-    flushBatch(_textVao, _textVbo, _textEbo, _textVertData, _textIdxData, _fontTexture.getID());
+    flushBatch(_textBuffers, _textVertData, _textIdxData, _fontTexture.getID());
 
     if (scissorRect.has_value())
         glDisable(GL_SCISSOR_TEST);
 
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTextureUnit(TextureUnit::HUD_ATLAS, 0);
 
     // restore the state the 3D world renderer expects for the next frame -- these flags are
     // set once at Renderer init, not re-enabled every frame, so leaving them off here would

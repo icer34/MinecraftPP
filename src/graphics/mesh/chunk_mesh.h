@@ -42,10 +42,18 @@ public:
     void updateSolid(const MeshData &data);
     /** @brief Uploads new water geometry, replacing the previous one. */
     void updateWater(const MeshData &data);
-    /** @brief Draws the opaque geometry with the currently bound shader. */
-    void drawSolid();
-    /** @brief Draws the water geometry with the currently bound shader. */
-    void drawWater();
+    /**
+     * @brief Draws the opaque geometry with the currently bound shader.
+     *
+     * @param vao the shared packed vertex format (see Mesh::createVertexArray())
+     */
+    void drawSolid(const GLVertexArray &vao) const;
+    /**
+     * @brief Draws the water geometry with the currently bound shader.
+     *
+     * @param vao the shared packed vertex format (see Mesh::createVertexArray())
+     */
+    void drawWater(const GLVertexArray &vao) const;
 
     /** @brief Coordinates of the chunk this mesh belongs to. */
     ChunkCoord getCoords() const { return _coord; }

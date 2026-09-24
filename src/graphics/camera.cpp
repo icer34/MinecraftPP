@@ -31,7 +31,10 @@ mat4 Camera::getViewMatrix() const { return glm::lookAt(_pos, _pos + _front, _up
 
 mat4 Camera::getProjectionMatrix() const
 {
-    return glm::perspective(glm::radians(float(_fovDeg)), _aspectRatio, _zNear, _zFar);
+    // reverse-Z: a [0, 1] depth projection (see glClipControl in Window) with near and far
+    // swapped, so the depth goes from 1 at the near plane to 0 at the far plane. Combined with
+    // a floating point depth buffer, the precision is spread almost evenly over the distance.
+    return glm::perspectiveRH_ZO(glm::radians(float(_fovDeg)), _aspectRatio, _zFar, _zNear);
 }
 
 void Camera::move(vec3 delta) { _pos += delta; }

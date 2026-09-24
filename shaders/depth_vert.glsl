@@ -3,8 +3,8 @@
 // see ChunkMesher::mesh() in chunk_mesher.cpp to see the packing format in detail
 layout (location = 0) in uvec2 packedData;
 
-uniform mat4 model;
-uniform mat4 lightSpaceMatrix;
+// world position of the chunk's origin -- set per chunk, hence the fixed location
+layout (location = 0) uniform vec3 chunkOffset;
 
 // mirrors CUBE_FACE_CORNERS in chunk_mesher.cpp: for each direction, the position offset
 // (0/1 per axis) of each corner (BOTTOM_LEFT, TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT), flattened
@@ -39,5 +39,6 @@ void main()
     vec3 chunkPos = vec3(float(chunkX), float(chunkY), float(chunkZ));
     vec3 facePos = chunkPos + FACE_CORNER_OFFSET[normalIdx * 4u + cornerIdx];
 
-    gl_Position = model * vec4(facePos, 1.0);
+    // world space: the geometry shader applies each cascade's light matrix
+    gl_Position = vec4(facePos + chunkOffset, 1.0);
 }

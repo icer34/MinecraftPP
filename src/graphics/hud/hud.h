@@ -18,15 +18,16 @@ class Hud
 public:
     /**
      * @param renderer renderer used to draw the HUD, must outlive this object
-     * @param screenWidth screen width in pixels
-     * @param screenHeight screen height in pixels
      */
-    Hud(HudRenderer &renderer, int screenWidth, int screenHeight);
+    explicit Hud(HudRenderer &renderer);
 
     /**
      * @brief Draws the whole HUD for the current frame.
+     *
+     * @param screenWidth current screen width in pixels
+     * @param screenHeight current screen height in pixels
      */
-    void render();
+    void render(int screenWidth, int screenHeight);
 
 private:
     void drawCrosshair();
@@ -39,8 +40,9 @@ private:
     // drawPlayerStats(const Player& player) --> health, air, hunger, ...
     // ...
 
-    int _screenW;
-    int _screenH;
+    // size of the frame being drawn, updated by every render() call
+    int _screenW = 0;
+    int _screenH = 0;
 
     float _crosshairScale = 1.0f;
     static constexpr int CROSSHAIR_BASE_SIZE = 30;
