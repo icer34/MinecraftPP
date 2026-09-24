@@ -1,5 +1,10 @@
-- abstract shader code 
-  - includes, quality of life features (cfr. acreola video)
+**UP NEXT**
+- binary greedy meshing
+- debug visualisations :
+  - wireframe rendering toggle
+  - chunk boundaries
+  - performance graphs in the f3 menu
+  - ...
 
 **GENERAL IDEAS**
 - gameplay
