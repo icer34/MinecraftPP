@@ -9,7 +9,7 @@
 #include <optional>
 #include <string>
 
-#include "game/settings_registry.h"
+#include "settings/settings_registry.h"
 #include "hud_renderer.h"
 #include "util/spline.h"
 

@@ -1,6 +1,6 @@
 #include "chunk_mesher.h"
 
-#include "game/block_registry.h"
+#include "game/blocks/block_registry.h"
 
 #include <glm/glm.hpp>
 

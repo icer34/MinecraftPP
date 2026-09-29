@@ -10,7 +10,7 @@
 #include <glm/glm.hpp>
 #include <stdexcept>
 
-#include "blocks.h"
+#include "game/blocks/blocks.h"
 
 /**
  * @brief Position of a chunk on the horizontal chunk grid.

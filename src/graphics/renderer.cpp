@@ -17,8 +17,8 @@
 #include "debug/debug_settings.h"
 #include "frame_buffer.h"
 #include "frame_data.h"
-#include "game/chunk.h"
-#include "game/world.h"
+#include "game/world/chunk.h"
+#include "game/world/world.h"
 #include "gl/gl_debug.h"
 #include "gl/texture_units.h"
 #include "mesh/block_outline.h"
@@ -26,7 +26,7 @@
 #include "shader.h"
 
 #include "util/perlin_noise.h"
-#include "util/raycaster.h"
+#include "game/world/raycaster.h"
 #include "util/window.h"
 
 using glm::mat4;

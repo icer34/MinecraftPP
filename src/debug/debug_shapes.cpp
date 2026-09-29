@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include "debug_draw.h"
-#include "game/chunk.h"
+#include "game/world/chunk.h"
 #include "util/frustum.h"
 
 void DebugShapes::chunkBorders(DebugDraw &draw, glm::vec3 pos)

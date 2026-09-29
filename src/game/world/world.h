@@ -17,7 +17,7 @@
 #include "chunk.h"
 #include "graphics/mesh/chunk_mesh.h"
 #include "graphics/mesh/chunk_mesher.h"
-#include "terrain_generator.h"
+#include "game/worldgen/terrain_generator.h"
 
 /**
  * @brief A loaded chunk and its GPU mesh.

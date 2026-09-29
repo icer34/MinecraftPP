@@ -9,8 +9,8 @@
 
 #include <glm/glm.hpp>
 
-#include "game/block_registry.h"
-#include "game/world.h"
+#include "game/blocks/block_registry.h"
+#include "world.h"
 
 /**
  * @brief Result of RayCaster::cast().

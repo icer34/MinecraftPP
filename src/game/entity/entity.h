@@ -7,7 +7,7 @@
 
 #include <glm/glm.hpp>
 
-#include "game/world.h"
+#include "game/world/world.h"
 #include "util/aabb.h"
 #include "util/directions.h"
 

@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "chunk.h"
+#include "game/world/chunk.h"
 #include "util/perlin_noise.h"
 #include "util/spline.h"
 

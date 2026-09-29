@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "game/chunk.h"
+#include "game/world/chunk.h"
 #include "mesh.h"
 
 /**

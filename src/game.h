@@ -7,14 +7,14 @@
 
 #include "debug/debug_draw.h"
 #include "debug/debug_ui.h"
-#include "game/player.h"
-#include "game/world.h"
+#include "game/entity/player.h"
+#include "game/world/world.h"
 #include "graphics/block_texture_atlas.h"
 #include "graphics/gl/gpu_timer.h"
 #include "graphics/hud/hud.h"
 #include "graphics/hud/settings_menu.h"
 #include "graphics/renderer.h"
-#include "util/raycaster.h"
+#include "game/world/raycaster.h"
 #include "util/window.h"
 
 /**
