@@ -52,6 +52,16 @@ public:
     void setPoint(size_t index, float x, float y);
 
     /**
+     * @brief Replaces all the control points at once.
+     *
+     * Ignored (with an error message) if fewer than two points are given, or if two of them
+     * share the same x: the current points are then kept.
+     *
+     * @param points the new control points, as (x, y), in any order
+     */
+    void setPoints(std::vector<glm::vec2> points);
+
+    /**
      * @brief Evaluates the curve at `x` using linear interpolation.
      *
      * @return the interpolated y value, clamped to the first/last point outside their range

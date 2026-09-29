@@ -81,6 +81,30 @@ void Spline::setPoint(size_t index, float x, float y)
     _yVal = std::move(sortedY);
 }
 
+void Spline::setPoints(std::vector<vec2> points)
+{
+    std::sort(points.begin(), points.end(), [](vec2 a, vec2 b) { return a.x < b.x; });
+
+    bool overlap = std::adjacent_find(points.begin(),
+                                      points.end(),
+                                      [](vec2 a, vec2 b) { return a.x == b.x; })
+                   != points.end();
+    if (points.size() < 2 || overlap)
+    {
+        std::cout << "SPLINE_ERROR::setPoints needs at least 2 points with distinct x values"
+                  << std::endl;
+        return;
+    }
+
+    _xVal.clear();
+    _yVal.clear();
+    for (vec2 p : points)
+    {
+        _xVal.push_back(p.x);
+        _yVal.push_back(p.y);
+    }
+}
+
 float Spline::get(float x) const
 {
     if (x <= _xVal.front())
