@@ -1,6 +1,6 @@
 /**
  * @file settings_menu.h
- * @brief In-game settings menu, drawn with the HudRenderer.
+ * @brief In-game settings menu, drawn with the UiRenderer.
  */
 
 #pragma once
@@ -28,7 +28,7 @@ public:
      *
      * @param renderer renderer used to draw the menu, must outlive this object
      */
-    explicit SettingsMenu(HudRenderer &renderer);
+    explicit SettingsMenu(UiRenderer &renderer);
 
     /**
      * @brief Handles input for the menu and draws it. Call every frame while the menu is open.
@@ -56,7 +56,7 @@ public:
     }
 
 private:
-    HudRenderer &_renderer;
+    UiRenderer &_renderer;
     SettingsRegistry &_settings;
 
     int _screenW;

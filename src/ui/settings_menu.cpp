@@ -12,7 +12,7 @@
 using glm::vec2;
 using glm::vec4;
 
-SettingsMenu::SettingsMenu(HudRenderer &renderer)
+SettingsMenu::SettingsMenu(UiRenderer &renderer)
     : _renderer(renderer),
       _settings(SettingsRegistry::instance())
 {
@@ -212,7 +212,7 @@ bool SettingsMenu::drawButton(const std::string &label, bool enabled, glm::vec2 
 
     vec2 buttonCenter = vec2(pos.x + size.x / 2, pos.y + size.y / 2);
     float labelWidth = _renderer.textWidth(label);
-    vec2 textSize = vec2(labelWidth * textScale(), HudRenderer::TEXT_HEIGHT * textScale());
+    vec2 textSize = vec2(labelWidth * textScale(), UiRenderer::TEXT_HEIGHT * textScale());
     vec2 textPos = vec2(buttonCenter.x - textSize.x / 2, buttonCenter.y - textSize.y / 2);
     _renderer.drawShadowedText(label, textPos, textScale());
 
@@ -242,7 +242,7 @@ bool SettingsMenu::drawCheckBox(const std::string &label,
     _renderer.drawIcon(texture, pos + vec2(textAreaSize.x, 0.0f), checkboxSize());
 
     float textWidth = _renderer.textWidth(label);
-    vec2 textSize = vec2(textWidth * textScale(), HudRenderer::TEXT_HEIGHT * textScale());
+    vec2 textSize = vec2(textWidth * textScale(), UiRenderer::TEXT_HEIGHT * textScale());
     vec2 center = vec2(pos.x + size.x / 2, pos.y + size.y / 2);
     vec2 textPos = vec2(center.x - textSize.x / 2, center.y - textSize.y / 2);
     _renderer.drawShadowedText(label, textPos, textScale());
@@ -297,7 +297,7 @@ bool SettingsMenu::drawSliderFloat(
 
     std::string displayLabel = std::format("{}: {:.2f}", label, value);
     float textWidth = _renderer.textWidth(displayLabel);
-    vec2 textSize = vec2(textWidth * textScale(), HudRenderer::TEXT_HEIGHT * textScale());
+    vec2 textSize = vec2(textWidth * textScale(), UiRenderer::TEXT_HEIGHT * textScale());
     vec2 center = vec2(pos.x + size.x / 2, pos.y + size.y / 2);
     vec2 textPos = vec2(center.x - textSize.x / 2, center.y - textSize.y / 2);
     _renderer.drawShadowedText(displayLabel, textPos, textScale());
@@ -349,7 +349,7 @@ bool SettingsMenu::drawSliderInt(
 
     std::string displayLabel = std::format("{}: {}", label, value);
     float textWidth = _renderer.textWidth(displayLabel);
-    vec2 textSize = vec2(textWidth * textScale(), HudRenderer::TEXT_HEIGHT * textScale());
+    vec2 textSize = vec2(textWidth * textScale(), UiRenderer::TEXT_HEIGHT * textScale());
     vec2 center = vec2(pos.x + size.x / 2, pos.y + size.y / 2);
     vec2 textPos = vec2(center.x - textSize.x / 2, center.y - textSize.y / 2);
     _renderer.drawShadowedText(displayLabel, textPos, textScale());

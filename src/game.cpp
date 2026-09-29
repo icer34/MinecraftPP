@@ -14,8 +14,8 @@ Game::Game()
       _player(vec3(-96.0f, 110.0f, 30.2f)),
       _world(World(67)),
       _renderer(Renderer(_window, _world, _blockAtlas)),
-      _hud(_hudRenderer),
-      _settingsMenu(_hudRenderer),
+      _hud(_uiRenderer),
+      _settingsMenu(_uiRenderer),
       _rayCaster(_world)
 {
     // the block textures must be loaded before registering the blocks that refer to them

@@ -46,7 +46,7 @@ private:
 
     Renderer _renderer;
     GpuTimer _gpuTimer;
-    HudRenderer _hudRenderer;
+    UiRenderer _uiRenderer;
     Hud _hud;
     SettingsMenu _settingsMenu;
 
