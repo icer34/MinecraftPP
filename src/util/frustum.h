@@ -12,6 +12,7 @@
 #include <iostream>
 #include <vector>
 
+#include "game/chunk.h"
 #include "graphics/camera.h"
 
 /**

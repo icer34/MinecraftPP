@@ -8,8 +8,11 @@
 #include "gl/gl_objects.h"
 #include "mesh/block_outline.h"
 #include "texture.h"
+#include "util/frustum.h"
 #include "util/spline.h"
+
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <iostream>
@@ -117,6 +120,9 @@ private:
     std::unique_ptr<Shader> _skyShader;
     std::unique_ptr<CascadedShadowMap> _shadowMap;
     std::unique_ptr<FrameDataBuffer> _frameData;
+
+    // culling frustum frozen by DebugSettings::freezeCulling, empty while the flag is off
+    std::optional<Frustum> _frozenFrustum;
 
     // multisampled HDR framebuffer the world is rendered into
     std::unique_ptr<FrameBuffer> _sceneFbo;

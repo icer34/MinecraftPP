@@ -59,6 +59,9 @@ private:
     RingBuffer<float, 500> _gpuMsBuffer;
     RingBuffer<float, 500> _totalMsBuffer;
 
+    // input related
+    bool _comboUsed = false;
+
     // current maximum of the graphs' y axes, smoothed (see updateAxisMax() in debug_ui.cpp)
     float _fpsAxisMax = 0.0f;
     float _msAxisMax = 0.0f;

@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include <iostream>
+
 namespace
 {
 constexpr float GRAPH_HEIGHT = 150.0f;
@@ -47,6 +49,36 @@ void updateAxisMax(float &axisMax, float target, float dt)
         axisMax = target;
     else
         axisMax += (target - axisMax) * (1.0f - std::exp(-dt / AXIS_FALL_TIME));
+}
+
+/**
+ * Begins a fixed, undecorated and semi-transparent window, anchored to a corner of the screen.
+ * Must be closed with ImGui::End().
+ *
+ * @param corner corner of the screen: (0, 0) top-left, (1, 0) top-right, (0, 1) bottom-left...
+ */
+void beginOverlay(const char *name, ImVec2 corner)
+{
+    constexpr float OVERLAY_MARGIN = 10.0f;
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+
+    // that corner of the screen, moved inward by the margin (+margin on a 0 side, -margin on a
+    // 1 side)
+    ImVec2 pos(viewport->WorkPos.x + corner.x * viewport->WorkSize.x
+                   + (1.0f - 2.0f * corner.x) * OVERLAY_MARGIN,
+               viewport->WorkPos.y + corner.y * viewport->WorkSize.y
+                   + (1.0f - 2.0f * corner.y) * OVERLAY_MARGIN);
+    // pivot = the same corner of the window, so that the window stays inside the screen
+    ImGui::SetNextWindowPos(pos, ImGuiCond_Always, corner);
+    ImGui::SetNextWindowBgAlpha(0.35f);
+
+    ImGui::Begin(name,
+                 nullptr,
+                 ImGuiWindowFlags_NoDecoration // no title bar, resize border or scrollbars
+                     | ImGuiWindowFlags_AlwaysAutoResize // window fitted to its content
+                     | ImGuiWindowFlags_NoSavedSettings  // nothing stored in imgui.ini
+                     | ImGuiWindowFlags_NoFocusOnAppearing
+                     | ImGuiWindowFlags_NoInputs); // clicks go through it
 }
 
 bool beginGraph(const char *title,
@@ -87,8 +119,26 @@ template <typename T, size_t N> void plotSeries(const char *label, const RingBuf
 
 void DebugUI::handleInput(Input &input)
 {
-    if (input.consumeKeyPress(Key::F3))
-        debugSettings().showPanel = !debugSettings().showPanel;
+    bool f3held = input.isKeyPressed(Key::F3);
+    auto &settings = debugSettings();
+
+    // check combos
+    for (auto &t : TOGGLES)
+    {
+        if (input.wasKeyPressed(t.key) && f3held)
+        {
+            settings.*t.flag = !(settings.*t.flag);
+            _comboUsed = true;
+        }
+    }
+
+    // main panel toggle
+    if (input.wasKeyReleased(Key::F3))
+    {
+        if (!_comboUsed)
+            debugSettings().showPanel = !debugSettings().showPanel;
+        _comboUsed = false;
+    }
 }
 
 void DebugUI::recordFrame(const DebugFrameInfo &info)
@@ -124,8 +174,8 @@ void DebugUI::recordFrame(const DebugFrameInfo &info)
 
 void DebugUI::render()
 {
-    // main panel
-    ImGui::Begin("Debug pannel");
+    // main panel: top-left corner
+    beginOverlay("Debug pannel", ImVec2(0.0f, 0.0f));
 
     ImGui::Text("FPS: %.1f", _fps);
     ImGui::Text("ms per frame: %.3f", _msPerFrame);
@@ -140,22 +190,8 @@ void DebugUI::render()
 
     ImGui::End();
 
-    // debug graphs: fixed overlay in the top-right corner of the screen
-    constexpr float OVERLAY_MARGIN = 10.0f;
-    const ImGuiViewport *viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - OVERLAY_MARGIN,
-                                   viewport->WorkPos.y + OVERLAY_MARGIN),
-                            ImGuiCond_Always,
-                            ImVec2(1.0f, 0.0f)); // pivot: position of the window's top-right corner
-    ImGui::SetNextWindowBgAlpha(0.35f);          // semi-transparent background
-
-    ImGui::Begin("Debug Graphs",
-                 nullptr,
-                 ImGuiWindowFlags_NoDecoration // no title bar, resize border or scrollbars
-                     | ImGuiWindowFlags_AlwaysAutoResize // window fitted to the plots
-                     | ImGuiWindowFlags_NoSavedSettings  // nothing stored in imgui.ini
-                     | ImGuiWindowFlags_NoFocusOnAppearing
-                     | ImGuiWindowFlags_NoInputs); // clicks go through it
+    // debug graphs: top-right corner
+    beginOverlay("Debug Graphs", ImVec2(1.0f, 0.0f));
 
     // y axes fitted to the visible values only (the buffers hold more than GRAPH_WINDOW)
     updateAxisMax(_fpsAxisMax, recentMax(_fpsBuffer, GRAPH_WINDOW), _info.frameTime);

@@ -298,6 +298,14 @@ Input::Input(GLFWwindow *window)
 
 //* ========== EVENT HANDLERS ==========
 
+void Input::beginFrame()
+{
+    _keysPressed.fill(false);
+    _keysReleased.fill(false);
+    _buttonsPressed.fill(false);
+    _buttonsReleased.fill(false);
+}
+
 void Input::onKey(int key, int action)
 {
     if (key < 0 || key > GLFW_KEY_LAST)
@@ -311,6 +319,7 @@ void Input::onKey(int key, int action)
     else if (action == GLFW_RELEASE)
     {
         _keys[key] = false;
+        _keysReleased[key] = true;
     }
 }
 
@@ -327,6 +336,7 @@ void Input::onMouseButton(int button, int action)
     else if (action == GLFW_RELEASE)
     {
         _buttons[button] = false;
+        _buttonsReleased[button] = true;
     }
 }
 
@@ -354,22 +364,20 @@ void Input::onScroll(double yOffset) { _scrollY += yOffset; }
 
 bool Input::isKeyPressed(Key key) const { return _keys[toGlfwKey(key)]; }
 
-bool Input::consumeKeyPress(Key key)
-{
-    int keycode = toGlfwKey(key);
-    bool value = _keysPressed[keycode];
-    _keysPressed[keycode] = false;
-    return value;
-}
+bool Input::wasKeyPressed(Key key) const { return _keysPressed[toGlfwKey(key)]; }
+
+bool Input::wasKeyReleased(Key key) const { return _keysReleased[toGlfwKey(key)]; }
 
 bool Input::isButtonPressed(MouseButton button) const { return _buttons[toGlfwButton(button)]; }
 
-bool Input::consumeButtonPress(MouseButton button)
+bool Input::wasButtonPressed(MouseButton button) const
 {
-    int code = toGlfwButton(button);
-    bool value = _buttonsPressed[code];
-    _buttonsPressed[code] = false;
-    return value;
+    return _buttonsPressed[toGlfwButton(button)];
+}
+
+bool Input::wasButtonReleased(MouseButton button) const
+{
+    return _buttonsReleased[toGlfwButton(button)];
 }
 
 double Input::consumeDx()
@@ -424,7 +432,9 @@ void Input::disableInput()
 {
     _inputEnabled = false;
     _keysPressed.fill(false);
+    _keysReleased.fill(false);
     _buttonsPressed.fill(false);
+    _buttonsReleased.fill(false);
 }
 
 bool Input::isInputEnabled() const { return _inputEnabled; }

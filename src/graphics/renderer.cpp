@@ -14,6 +14,7 @@
 #include "block_texture_atlas.h"
 #include "camera.h"
 #include "cascaded_shadow_map.h"
+#include "debug/debug_settings.h"
 #include "frame_buffer.h"
 #include "frame_data.h"
 #include "game/chunk.h"
@@ -24,7 +25,6 @@
 #include "mesh/chunk_mesh.h"
 #include "shader.h"
 
-#include "util/frustum.h"
 #include "util/perlin_noise.h"
 #include "util/raycaster.h"
 #include "util/window.h"
@@ -142,7 +142,13 @@ void Renderer::renderWorld(Camera &cam)
 
     std::vector<ChunkMesh *> meshes = _world.getChunkMeshes();
 
-    Frustum frustum = Frustum(cam);
+    if (!debugSettings().freezeCulling)
+        _frozenFrustum.reset();
+    else if (!_frozenFrustum)
+        _frozenFrustum = Frustum(cam);
+
+    Frustum frustum = _frozenFrustum ? *_frozenFrustum : Frustum(cam);
+
     _visibleMeshes.clear();
     for (ChunkMesh *mesh : meshes)
     {
@@ -179,6 +185,9 @@ void Renderer::renderWorld(Camera &cam)
     // reverse-Z: closer is greater. GEQUAL rather than GREATER so that the sky, drawn at the
     // far depth, still passes where nothing else was drawn
     glDepthFunc(GL_GEQUAL);
+
+    if (debugSettings().wireframe)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     //* First draw the solid meshes
     {
@@ -227,6 +236,8 @@ void Renderer::renderWorld(Camera &cam)
             mesh->drawWater(_chunkVao);
         }
     }
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     //* then render the sky
     {

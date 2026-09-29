@@ -52,7 +52,7 @@ void Game::processInput()
 
     _debugUI.handleInput(input);
 
-    if (input.consumeKeyPress(Key::Esc))
+    if (input.wasKeyPressed(Key::Esc))
     {
         _showSettings = !_showSettings;
         input.setCursorEnabled(_showSettings);
@@ -64,11 +64,11 @@ void Game::processInput()
     {
         InputData inputData;
 
-        if (input.consumeButtonPress(MouseButton::Left))
+        if (input.wasButtonPressed(MouseButton::Left))
         {
             _world.breakBlock(_castResult.targetPos);
         }
-        if (input.consumeButtonPress(MouseButton::Right))
+        if (input.wasButtonPressed(MouseButton::Right))
         {
             glm::vec3 placePos = _castResult.targetPos + _castResult.targetNorm;
             glm::vec3 blockCenter = glm::floor(placePos) + glm::vec3(0.5f, 0.0f, 0.5f);
@@ -173,7 +173,7 @@ void Game::render(float dt)
         bool closeRequested = _settingsMenu.render(_window.getWidth(),
                                                    _window.getHeight(),
                                                    input.getCursorPos(),
-                                                   input.consumeButtonPress(MouseButton::Left),
+                                                   input.wasButtonPressed(MouseButton::Left),
                                                    input.isButtonPressed(MouseButton::Left),
                                                    input.consumeScroll());
         if (closeRequested)
