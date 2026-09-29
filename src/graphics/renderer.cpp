@@ -14,6 +14,7 @@
 #include "block_texture_atlas.h"
 #include "camera.h"
 #include "cascaded_shadow_map.h"
+#include "debug/debug_settings.h"
 #include "frame_buffer.h"
 #include "frame_data.h"
 #include "game/chunk.h"
@@ -24,7 +25,6 @@
 #include "mesh/chunk_mesh.h"
 #include "shader.h"
 
-#include "util/frustum.h"
 #include "util/perlin_noise.h"
 #include "util/raycaster.h"
 #include "util/window.h"
@@ -117,7 +117,7 @@ void Renderer::uploadFrameData(const Camera &cam)
         data.cutoffDist[i / 4][i % 4] = cutoffs[i];
 
     data.lightDir = _lightDir;
-    data.time = _window.getTime();
+    data.time = (float)_window.getTime();
     data.camPos = cam.getPos();
     data.zNear = cam.getZNear();
     data.screenSize = vec2(_window.getWidth(), _window.getHeight());
@@ -142,7 +142,13 @@ void Renderer::renderWorld(Camera &cam)
 
     std::vector<ChunkMesh *> meshes = _world.getChunkMeshes();
 
-    Frustum frustum = Frustum(cam);
+    if (!debugSettings().freezeCulling)
+        _frozenFrustum.reset();
+    else if (!_frozenFrustum)
+        _frozenFrustum = Frustum(cam);
+
+    Frustum frustum = _frozenFrustum ? *_frozenFrustum : Frustum(cam);
+
     _visibleMeshes.clear();
     for (ChunkMesh *mesh : meshes)
     {
@@ -179,6 +185,9 @@ void Renderer::renderWorld(Camera &cam)
     // reverse-Z: closer is greater. GEQUAL rather than GREATER so that the sky, drawn at the
     // far depth, still passes where nothing else was drawn
     glDepthFunc(GL_GEQUAL);
+
+    if (debugSettings().wireframe)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     //* First draw the solid meshes
     {
@@ -228,6 +237,8 @@ void Renderer::renderWorld(Camera &cam)
         }
     }
 
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
     //* then render the sky
     {
         gl::DebugGroup group("Sky");
@@ -242,6 +253,13 @@ void Renderer::renderBlockOutline(const RayCastResult &result)
     gl::DebugGroup group("Block outline");
     glBindFramebuffer(GL_FRAMEBUFFER, _sceneFbo->getFrameBufferID());
     _blockOutline.draw(result.targetPos);
+}
+
+void Renderer::renderDebugShapes(const DebugDraw &shapes)
+{
+    gl::DebugGroup group("Debug shapes");
+    glBindFramebuffer(GL_FRAMEBUFFER, _sceneFbo->getFrameBufferID());
+    _debugLines.draw(shapes);
 }
 
 void Renderer::presentScene()
@@ -300,43 +318,11 @@ void Renderer::endUI()
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void Renderer::renderDebug()
-{
-    //* ===== BASIC DEBUG STATS =====
-    ImGui::Begin("Debug pannel");
-    ImGui::Text("FPS: %.1f", _fps);
-    ImGui::Text("ms per frame: %.3f", _msPerFrame);
-    ImGui::Text("x:%.2f y:%.2f z:%.2f", _camPos.x, _camPos.y, _camPos.z);
-    ImGui::Text("Loaded chunks: %d", _loadedChunks);
-    ImGui::Text("Rendered chunks: %d", _renderedChunks);
-
-    auto &terrainGen = TerrainGenerator::instance();
-    ImGui::Text("PV: %.3f", terrainGen.getPvNoise().sample(_camPos.x, _camPos.z));
-    ImGui::Text("Erosion: %.3f", terrainGen.getErosionNoise().sample(_camPos.x, _camPos.z));
-    ImGui::Text("Continentalness: %.3f",
-                terrainGen.getContinentalnessNoise().sample(_camPos.x, _camPos.z));
-
-    ImGui::End();
-}
-
-void Renderer::updateFPS(float dt)
-{
-    _frameCount++;
-    _fpsTimer += dt;
-
-    if (_fpsTimer >= 1.0f)
-    {
-        _fps = static_cast<float>(_frameCount) / _fpsTimer;
-        _frameCount = 0;
-        _fpsTimer -= 1.0f;
-        // average over the same window as _fps, not just the last frame of it
-        _msPerFrame = 1000.0f / _fps;
-    }
-}
-
 bool Renderer::requestWorldRegeneration()
 {
     bool result = _shouldRegenerateWorld;
     _shouldRegenerateWorld = false;
     return result;
 }
+
+int Renderer::getRenderedChunkCount() const { return _renderedChunks; }

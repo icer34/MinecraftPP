@@ -16,11 +16,13 @@ struct GLFWwindow;
 /**
  * @brief Collects the keyboard and mouse input of a window, and controls its cursor.
  *
- * Input is gathered by the GLFW callbacks of Window during Window::pollEvents(). Two kinds of
- * queries exist:
+ * Input is gathered by the GLFW callbacks of Window during Window::pollEvents(), once per
+ * frame. Two kinds of queries exist:
  * - `is...Pressed()` reports whether a key / button is currently held down;
- * - `consume...()` reports whether it was pressed since the last consume, then resets it, so
- *   that each press is handled only once.
+ * - `was...Pressed()` / `was...Released()` report whether it was pressed / released during
+ *   the current frame. They hold for the whole frame, can be read by any number of callers, and
+ *   are forgotten at the next pollEvents(): an event nobody read never fires later. A press and
+ *   a release within the same frame (quick tap at low FPS) are both reported.
  *
  * Mouse movement and scrolling accumulate between frames and are reset by their consume
  * methods.
@@ -37,13 +39,17 @@ public:
 
     /** @brief True while `key` is held down. */
     bool isKeyPressed(Key key) const;
-    /** @brief True if `key` was pressed since the last call for that key. */
-    bool consumeKeyPress(Key key);
+    /** @brief True if `key` was pressed during the current frame. */
+    bool wasKeyPressed(Key key) const;
+    /** @brief True if `key` was released during the current frame. */
+    bool wasKeyReleased(Key key) const;
 
     /** @brief True while `button` is held down. */
     bool isButtonPressed(MouseButton button) const;
-    /** @brief True if `button` was pressed since the last call for that button. */
-    bool consumeButtonPress(MouseButton button);
+    /** @brief True if `button` was pressed during the current frame. */
+    bool wasButtonPressed(MouseButton button) const;
+    /** @brief True if `button` was released during the current frame. */
+    bool wasButtonReleased(MouseButton button) const;
 
     /** @brief Horizontal mouse movement accumulated since the last call, in pixels. */
     double consumeDx();
@@ -73,7 +79,8 @@ public:
     /** @brief Marks game input as enabled. */
     void enableInput();
     /**
-     * @brief Marks game input as disabled and discards the pending key and button presses.
+     * @brief Marks game input as disabled and discards the key and button presses and releases
+     * of the current frame.
      *
      * Events are still recorded: callers must check isInputEnabled() themselves.
      */
@@ -84,6 +91,10 @@ public:
 private:
     // only Window receives the GLFW events, and forwards them to the handlers below
     friend class Window;
+
+    /// Forgets the presses and releases of the previous frame. Called by Window::pollEvents()
+    /// before GLFW delivers the events of the new frame
+    void beginFrame();
 
     //* event handlers, arguments are GLFW values
     void onKey(int key, int action);
@@ -98,10 +109,13 @@ private:
     static constexpr int MAX_BUTTONS = 8;
 
     std::array<bool, MAX_KEYS> _keys{};
+    // pressed / released during the current frame, cleared by beginFrame()
     std::array<bool, MAX_KEYS> _keysPressed{};
+    std::array<bool, MAX_KEYS> _keysReleased{};
 
     std::array<bool, MAX_BUTTONS> _buttons{};
     std::array<bool, MAX_BUTTONS> _buttonsPressed{};
+    std::array<bool, MAX_BUTTONS> _buttonsReleased{};
 
     double _mouseX = 0.0, _mouseY = 0.0;
     double _dx = 0.0, _dy = 0.0;

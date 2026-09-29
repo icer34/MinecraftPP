@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "debug/debug_settings.h"
+#include "debug/debug_shapes.h"
 #include "game/blocks.h"
 #include "util/input.h"
 
@@ -27,15 +29,18 @@ void Game::run()
 
     while (!_window.shouldClose())
     {
-        float currentTime = _window.getTime();
-        _dt = currentTime - _lastFrameTime;
-        _lastFrameTime = currentTime;
+        double frameStart = _window.getTime();
+        _dt = (float)(frameStart - _lastFrameTime);
+        _lastFrameTime = frameStart;
 
         processInput();
 
         update(_dt);
 
         render(_dt);
+
+        // measured before the swap, which is where the vsync wait mostly happens
+        _cpuTime = (float)(_window.getTime() - frameStart);
 
         _window.swapBuffers();
     }
@@ -46,7 +51,9 @@ void Game::processInput()
     _window.pollEvents();
     Input &input = _window.getInput();
 
-    if (input.consumeKeyPress(Key::Esc))
+    _debugUI.handleInput(input);
+
+    if (input.wasKeyPressed(Key::Esc))
     {
         _showSettings = !_showSettings;
         input.setCursorEnabled(_showSettings);
@@ -58,11 +65,11 @@ void Game::processInput()
     {
         InputData inputData;
 
-        if (input.consumeButtonPress(MouseButton::Left))
+        if (input.wasButtonPressed(MouseButton::Left))
         {
             _world.breakBlock(_castResult.targetPos);
         }
-        if (input.consumeButtonPress(MouseButton::Right))
+        if (input.wasButtonPressed(MouseButton::Right))
         {
             glm::vec3 placePos = _castResult.targetPos + _castResult.targetNorm;
             glm::vec3 blockCenter = glm::floor(placePos) + glm::vec3(0.5f, 0.0f, 0.5f);
@@ -89,10 +96,6 @@ void Game::processInput()
         if (input.isKeyPressed(Key::Space))
         {
             inputData.jump = true;
-        }
-        if (input.consumeKeyPress(Key::F3))
-        {
-            _showDebug = !_showDebug;
         }
 
         inputData.move.y = 0.0f;
@@ -129,13 +132,45 @@ void Game::update(float dt)
 
 void Game::render(float dt)
 {
-    // update fps counter
-    _renderer.updateFPS(dt);
+    _gpuTimer.begin();
+
+    // recorded every frame, even when the panel is hidden, to keep the timing averages going
+    glm::vec3 pos = _player.getCam().getPos();
+    auto &terrain = TerrainGenerator::instance();
+
+    DebugFrameInfo info;
+    info.frameTime = dt;
+    info.cpuTime = _cpuTime;
+    info.gpuTime = _gpuTimer.getLastTime();
+    info.cameraPos = _player.getPos();
+    info.loadedChunks = _world.getChunkCount();
+    info.renderedChunks = _renderer.getRenderedChunkCount();
+    info.pvNoise = terrain.getPvNoise().sample(pos.x, pos.z);
+    info.erosionNoise = terrain.getErosionNoise().sample(pos.x, pos.z);
+    info.continentalnessNoise = terrain.getContinentalnessNoise().sample(pos.x, pos.z);
+
+    _debugUI.recordFrame(info);
 
     // render the 3D world (terrain) into the scene framebuffer, then show it on screen
     _renderer.renderWorld(_player.getCam());
     if (_castResult.hit)
         _renderer.renderBlockOutline(_castResult);
+
+    if (_castResult.hit)
+        glm::vec3 p = _castResult.targetPos;
+
+    // draw all the needed debug shapes
+    _debugDraw.clear();
+
+    if (debugSettings().showChunkBorders)
+        DebugShapes::chunkBorders(_debugDraw, pos);
+
+    // only set while freezeCulling is on, by the renderWorld() call above
+    if (const std::optional<Frustum> &frozen = _renderer.getFrozenFrustum())
+        DebugShapes::frustum(_debugDraw, *frozen, glm::vec3(1.0f, 0.0f, 1.0f)); // magenta
+
+    _renderer.renderDebugShapes(_debugDraw);
+
     _renderer.presentScene();
 
     // everything below is drawn directly on the screen
@@ -146,8 +181,8 @@ void Game::render(float dt)
     _renderer.beginUI();
 
     // render debug window if needed
-    if (_showDebug)
-        _renderer.renderDebug();
+    if (debugSettings().showPanel)
+        _debugUI.render();
 
     if (_showSettings)
     {
@@ -155,7 +190,7 @@ void Game::render(float dt)
         bool closeRequested = _settingsMenu.render(_window.getWidth(),
                                                    _window.getHeight(),
                                                    input.getCursorPos(),
-                                                   input.consumeButtonPress(MouseButton::Left),
+                                                   input.wasButtonPressed(MouseButton::Left),
                                                    input.isButtonPressed(MouseButton::Left),
                                                    input.consumeScroll());
         if (closeRequested)
@@ -166,4 +201,6 @@ void Game::render(float dt)
     }
 
     _renderer.endUI();
+
+    _gpuTimer.end();
 }

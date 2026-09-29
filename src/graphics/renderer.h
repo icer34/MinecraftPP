@@ -5,11 +5,15 @@
 
 #pragma once
 
+#include "debug_line_renderer.h"
 #include "gl/gl_objects.h"
 #include "mesh/block_outline.h"
 #include "texture.h"
+#include "util/frustum.h"
 #include "util/spline.h"
+
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <iostream>
@@ -75,6 +79,13 @@ public:
     void renderBlockOutline(const RayCastResult &result);
 
     /**
+     * @brief Draws all the shapes that are related to the debug tools, see debug/debug_draw.h/.cpp
+     *
+     * @param shapes shapes to be rendered;
+     */
+    void renderDebugShapes(const DebugDraw &shapes);
+
+    /**
      * @brief Resolves the scene framebuffer and copies it to the screen. Leaves the default
      * framebuffer bound, for the HUD and ImGui.
      */
@@ -86,29 +97,26 @@ public:
     void beginUI();
 
     /**
-     * @brief Draws the debug panel (FPS, position, chunk counts, terrain noise values).
-     *
-     * Must be called between beginUI() and endUI().
-     */
-    void renderDebug();
-
-    /**
      * @brief Renders the ImGui draw data of the current frame.
      */
     void endUI();
-
-    /**
-     * @brief Updates the FPS counter shown in the debug panel. Call once per frame.
-     *
-     * @param dt duration of the last frame, in seconds
-     */
-    void updateFPS(float dt);
 
     /**
      * @brief Returns true once if a world regeneration was requested from the UI, then
      * resets the request.
      */
     bool requestWorldRegeneration();
+
+    /**
+     * @brief Get the number of currently renderd chunks (ie. after all the culling)
+     */
+    int getRenderedChunkCount() const;
+
+    /**
+     * @brief Culling frustum frozen by DebugSettings::freezeCulling, empty while the flag is
+     * off. Updated by renderWorld().
+     */
+    const std::optional<Frustum> &getFrozenFrustum() const { return _frozenFrustum; }
 
 private:
     // (re)creates the scene framebuffers if they don't match the window size
@@ -118,7 +126,9 @@ private:
     const Window &_window;
     const World &_world;
     const BlockTextureAtlas &_blockAtlas;
+
     BlockOutline _blockOutline;
+    DebugLineRenderer _debugLines;
 
     std::unique_ptr<Shader> _blockShader;
     std::unique_ptr<Shader> _depthShader;
@@ -126,6 +136,9 @@ private:
     std::unique_ptr<Shader> _skyShader;
     std::unique_ptr<CascadedShadowMap> _shadowMap;
     std::unique_ptr<FrameDataBuffer> _frameData;
+
+    // culling frustum frozen by DebugSettings::freezeCulling, empty while the flag is off
+    std::optional<Frustum> _frozenFrustum;
 
     // multisampled HDR framebuffer the world is rendered into
     std::unique_ptr<FrameBuffer> _sceneFbo;
@@ -144,11 +157,6 @@ private:
     int _renderedChunks = 0;
     glm::vec3 _lightDir = glm::normalize(glm::vec3(-0.8, -0.3, -0.6));
     bool _shouldRegenerateWorld = false;
-
-    float _fps = 0.0f;
-    float _msPerFrame = 0.0f;
-    int _frameCount = 0;
-    float _fpsTimer = 0.0f;
 
     glm::vec3 _camPos;
 };

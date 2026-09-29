@@ -5,9 +5,12 @@
 
 #pragma once
 
+#include "debug/debug_draw.h"
+#include "debug/debug_ui.h"
 #include "game/player.h"
 #include "game/world.h"
 #include "graphics/block_texture_atlas.h"
+#include "graphics/gl/gpu_timer.h"
 #include "graphics/hud/hud.h"
 #include "graphics/hud/settings_menu.h"
 #include "graphics/renderer.h"
@@ -42,10 +45,13 @@ private:
     World _world;
 
     Renderer _renderer;
-    // declared after _window so it is destroyed while the GL context is still alive
+    GpuTimer _gpuTimer;
     HudRenderer _hudRenderer;
     Hud _hud;
     SettingsMenu _settingsMenu;
+
+    DebugUI _debugUI;
+    DebugDraw _debugDraw;
 
     RayCaster _rayCaster;
     RayCastResult _castResult;
@@ -55,8 +61,8 @@ private:
     void render(float dt);
 
     float _dt;
-    float _lastFrameTime;
+    double _lastFrameTime;
+    float _cpuTime = 0.0f; // of the previous frame, see DebugFrameInfo::cpuTime
 
-    bool _showDebug = true;
     bool _showSettings = false;
 };

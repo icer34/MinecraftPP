@@ -29,56 +29,43 @@ TerrainGenerator::TerrainGenerator()
         {"Peaks & Valleys", &_pvSpline},
     };
 
-    auto setPoints = [](Spline &spline, std::initializer_list<std::pair<float, float>> points)
-    {
-        // the Spline constructor already added 2 default points at (xMin, mid) and (xMax, mid)
-        // -- clear them so we can lay down the exact curve below
-        spline.removePoint(0);
-        spline.removePoint(0);
+    // replace the flat default curves created by the Spline constructors
+    _continentalnessSpline.setPoints({
+        {-1.0f, 248.0f},
+        {-0.9f, 10.0f},
+        {-0.25f, 10.0f},
+        {-0.125f, 90.0f},
+        {0.15f, 120.0f},
+        {0.3f, 175.0f},
+        {0.59f, 220.0f},
+        {1.0f, 250.0f},
+    });
 
-        for (auto &[x, y] : points)
-            spline.addPoint(x, y);
-    };
+    _erosionSpline.setPoints({
+        {-1.0f, 1.0f},
+        {-0.75f, 0.78f},
+        {-0.5f, 0.63f},
+        {-0.35f, 0.75f},
+        {-0.1f, 0.15f},
+        {0.35f, 0.15f},
+        {0.5f, 0.44f},
+        {0.65f, 0.43f},
+        {0.85f, 0.02f},
+        {1.0f, 0.0f},
+    });
 
-    setPoints(_continentalnessSpline,
-              {
-                  {-1.0f, 248.0f},
-                  {-0.9f, 10.0f},
-                  {-0.25f, 10.0f},
-                  {-0.125f, 90.0f},
-                  {0.15f, 120.0f},
-                  {0.3f, 175.0f},
-                  {0.59f, 220.0f},
-                  {1.0f, 250.0f},
-              });
-
-    setPoints(_erosionSpline,
-              {
-                  {-1.0f, 1.0f},
-                  {-0.75f, 0.78f},
-                  {-0.5f, 0.63f},
-                  {-0.35f, 0.75f},
-                  {-0.1f, 0.15f},
-                  {0.35f, 0.15f},
-                  {0.5f, 0.44f},
-                  {0.65f, 0.43f},
-                  {0.85f, 0.02f},
-                  {1.0f, 0.0f},
-              });
-
-    setPoints(_pvSpline,
-              {
-                  {-1.0f, 5.0f},
-                  {-0.75f, 40.0f},
-                  {-0.5f, 78.0f},
-                  {-0.3f, 93.0f},
-                  {-0.1f, 105.0f},
-                  {0.12f, 161.0f},
-                  {0.35f, 195.0f},
-                  {0.6f, 220.0f},
-                  {0.8f, 240.0f},
-                  {1.0f, 248.0f},
-              });
+    _pvSpline.setPoints({
+        {-1.0f, 5.0f},
+        {-0.75f, 40.0f},
+        {-0.5f, 78.0f},
+        {-0.3f, 93.0f},
+        {-0.1f, 105.0f},
+        {0.12f, 161.0f},
+        {0.35f, 195.0f},
+        {0.6f, 220.0f},
+        {0.8f, 240.0f},
+        {1.0f, 248.0f},
+    });
 
     _continentalnessNoise.updateSettings(3, 0.5, 2.0, 0.002);
     _erosionNoise.updateSettings(3, 0.5, 2.0, 0.003);

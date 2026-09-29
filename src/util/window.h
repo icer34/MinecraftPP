@@ -49,8 +49,13 @@ public:
     /** @brief True once the user asked to close the window. */
     bool shouldClose();
 
-    /** @brief Time since GLFW was initialized, in seconds. */
-    float getTime() const;
+    /**
+     * @brief Time since GLFW was initialized, in seconds.
+     *
+     * Double: a float time loses precision as it grows (steps of ~0.5 ms after an hour), so
+     * durations must be computed as differences of doubles, and only then stored as floats.
+     */
+    double getTime() const;
     /** @brief Width / height ratio of the framebuffer. */
     float getAspectRatio() const { return (float)_width / _height; }
     /** @brief Framebuffer width in pixels (can differ from the requested width on HiDPI). */

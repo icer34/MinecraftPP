@@ -115,11 +115,16 @@ Window::~Window()
 
 bool Window::shouldClose() { return glfwWindowShouldClose(_window); }
 
-void Window::pollEvents() { glfwPollEvents(); }
+void Window::pollEvents()
+{
+    // the events of the previous frame must be forgotten before GLFW delivers the new ones
+    _input.beginFrame();
+    glfwPollEvents();
+}
 
 void Window::swapBuffers() { glfwSwapBuffers(_window); }
 
-float Window::getTime() const { return glfwGetTime(); }
+double Window::getTime() const { return glfwGetTime(); }
 
 //* ========== GLFW CALLBACKS ==========
 
