@@ -5,7 +5,9 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
+#include <limits>
 
 #include <glm/glm.hpp>
 
@@ -70,9 +72,12 @@ public:
         int stepZ = dir.z > 0 ? 1 : (dir.z < 0 ? -1 : 0);
 
         // distance between 2 face intersections on an axis
-        float tDeltaX = (stepX == 0) ? std::numeric_limits<float>::infinity() : abs(1.0f / dir.x);
-        float tDeltaY = (stepY == 0) ? std::numeric_limits<float>::infinity() : abs(1.0f / dir.y);
-        float tDeltaZ = (stepZ == 0) ? std::numeric_limits<float>::infinity() : abs(1.0f / dir.z);
+        float tDeltaX
+            = (stepX == 0) ? std::numeric_limits<float>::infinity() : std::abs(1.0f / dir.x);
+        float tDeltaY
+            = (stepY == 0) ? std::numeric_limits<float>::infinity() : std::abs(1.0f / dir.y);
+        float tDeltaZ
+            = (stepZ == 0) ? std::numeric_limits<float>::infinity() : std::abs(1.0f / dir.z);
 
         // tMax = distance until the next face on each axis
         float nextVoxelBoundaryX = (stepX > 0) ? (x + 1.0f) : (float)x;
