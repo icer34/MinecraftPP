@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "debug/debug_draw.h"
 #include "debug/debug_ui.h"
 #include "game/player.h"
 #include "game/world.h"
@@ -48,7 +49,9 @@ private:
     HudRenderer _hudRenderer;
     Hud _hud;
     SettingsMenu _settingsMenu;
+
     DebugUI _debugUI;
+    DebugDraw _debugDraw;
 
     RayCaster _rayCaster;
     RayCastResult _castResult;

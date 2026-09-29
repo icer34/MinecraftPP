@@ -80,6 +80,20 @@ public:
         // points have 0 <= z <= w, with z = w on the near plane and z = 0 on the far plane
         _planes[4] = Plane::fromCoefficients(row3 - row2); // near
         _planes[5] = Plane::fromCoefficients(row2);        // far
+
+        // the 8 corners, for debug drawing: the corners of the NDC cube brought back to world
+        // space. Reverse-Z with a [0, 1] depth range: NDC z = 1 on the near plane, 0 on the far
+        // one. Requires a finite far plane: with an infinite one, the far corners have w = 0
+        glm::mat4 invM = glm::inverse(m);
+        for (int i = 0; i < 8; i++)
+        {
+            glm::vec4 ndc((i & 1) ? 1.0f : -1.0f, // bit 0: left / right
+                          (i & 2) ? 1.0f : -1.0f, // bit 1: bottom / top
+                          (i & 4) ? 0.0f : 1.0f,  // bit 2: near / far
+                          1.0f);
+            glm::vec4 world = invM * ndc;
+            _corners[i] = glm::vec3(world) / world.w; // perspective division
+        }
     }
 
     /**
@@ -121,6 +135,16 @@ public:
      */
     std::array<Plane, 6> planes() const { return _planes; }
 
+    /**
+     * @brief The 8 corners of the frustum, in world space.
+     *
+     * Index = x + 2y + 4 * far, where x is 0 on the left side and 1 on the right one, y is 0 at
+     * the bottom and 1 at the top, and far is 0 on the near plane and 1 on the far plane. Two
+     * corners share an edge when their indices differ by exactly one bit.
+     */
+    const std::array<glm::vec3, 8> &corners() const { return _corners; }
+
 private:
     std::array<Plane, 6> _planes;
+    std::array<glm::vec3, 8> _corners;
 };

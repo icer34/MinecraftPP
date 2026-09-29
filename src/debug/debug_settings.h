@@ -15,7 +15,6 @@ struct DebugSettings
     bool wireframe = false;
     bool showChunkBorders = false;
     bool showEntityHitBoxes = false;
-    bool showRayCast = false;
     bool freezeCulling = false;
 
     //... might grow as more debug tools may be needed
@@ -34,7 +33,6 @@ constexpr DebugToggle TOGGLES[] = {
     {Key::B, &DebugSettings::showEntityHitBoxes, "show hitboxes"},
     {Key::L, &DebugSettings::wireframe, "wireframe mode"},
     {Key::C, &DebugSettings::freezeCulling, "freeze culling"},
-    {Key::R, &DebugSettings::showRayCast, "show rayCast"},
     {Key::H, &DebugSettings::showHelp, "help"},
 };
 

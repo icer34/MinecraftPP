@@ -255,6 +255,13 @@ void Renderer::renderBlockOutline(const RayCastResult &result)
     _blockOutline.draw(result.targetPos);
 }
 
+void Renderer::renderDebugShapes(const DebugDraw &shapes)
+{
+    gl::DebugGroup group("Debug shapes");
+    glBindFramebuffer(GL_FRAMEBUFFER, _sceneFbo->getFrameBufferID());
+    _debugLines.draw(shapes);
+}
+
 void Renderer::presentScene()
 {
     gl::DebugGroup group("Present");

@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "debug_line_renderer.h"
 #include "gl/gl_objects.h"
 #include "mesh/block_outline.h"
 #include "texture.h"
@@ -78,6 +79,13 @@ public:
     void renderBlockOutline(const RayCastResult &result);
 
     /**
+     * @brief Draws all the shapes that are related to the debug tools, see debug/debug_draw.h/.cpp
+     *
+     * @param shapes shapes to be rendered;
+     */
+    void renderDebugShapes(const DebugDraw &shapes);
+
+    /**
      * @brief Resolves the scene framebuffer and copies it to the screen. Leaves the default
      * framebuffer bound, for the HUD and ImGui.
      */
@@ -104,6 +112,12 @@ public:
      */
     int getRenderedChunkCount() const;
 
+    /**
+     * @brief Culling frustum frozen by DebugSettings::freezeCulling, empty while the flag is
+     * off. Updated by renderWorld().
+     */
+    const std::optional<Frustum> &getFrozenFrustum() const { return _frozenFrustum; }
+
 private:
     // (re)creates the scene framebuffers if they don't match the window size
     void updateFramebufferSize();
@@ -112,7 +126,9 @@ private:
     const Window &_window;
     const World &_world;
     const BlockTextureAtlas &_blockAtlas;
+
     BlockOutline _blockOutline;
+    DebugLineRenderer _debugLines;
 
     std::unique_ptr<Shader> _blockShader;
     std::unique_ptr<Shader> _depthShader;

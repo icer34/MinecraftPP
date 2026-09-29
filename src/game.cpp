@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "debug/debug_settings.h"
+#include "debug/debug_shapes.h"
 #include "game/blocks.h"
 #include "util/input.h"
 
@@ -141,7 +142,7 @@ void Game::render(float dt)
     info.frameTime = dt;
     info.cpuTime = _cpuTime;
     info.gpuTime = _gpuTimer.getLastTime();
-    info.cameraPos = pos;
+    info.cameraPos = _player.getPos();
     info.loadedChunks = _world.getChunkCount();
     info.renderedChunks = _renderer.getRenderedChunkCount();
     info.pvNoise = terrain.getPvNoise().sample(pos.x, pos.z);
@@ -154,6 +155,22 @@ void Game::render(float dt)
     _renderer.renderWorld(_player.getCam());
     if (_castResult.hit)
         _renderer.renderBlockOutline(_castResult);
+
+    if (_castResult.hit)
+        glm::vec3 p = _castResult.targetPos;
+
+    // draw all the needed debug shapes
+    _debugDraw.clear();
+
+    if (debugSettings().showChunkBorders)
+        DebugShapes::chunkBorders(_debugDraw, pos);
+
+    // only set while freezeCulling is on, by the renderWorld() call above
+    if (const std::optional<Frustum> &frozen = _renderer.getFrozenFrustum())
+        DebugShapes::frustum(_debugDraw, *frozen, glm::vec3(1.0f, 0.0f, 1.0f)); // magenta
+
+    _renderer.renderDebugShapes(_debugDraw);
+
     _renderer.presentScene();
 
     // everything below is drawn directly on the screen
