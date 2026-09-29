@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "game/blocks.h"
-#include "util/key_codes.h"
+#include "util/input.h"
 
 using glm::vec3;
 
@@ -44,24 +44,25 @@ void Game::run()
 void Game::processInput()
 {
     _window.pollEvents();
+    Input &input = _window.getInput();
 
-    if (_window.consumeKeyPress(Key::Esc))
+    if (input.consumeKeyPress(Key::Esc))
     {
         _showSettings = !_showSettings;
-        _window.setCursorEnabled(_showSettings);
+        input.setCursorEnabled(_showSettings);
         if (_showSettings)
             _settingsMenu.resetNavigation();
     }
 
-    if (!_window.isCursorEnabled())
+    if (!input.isCursorEnabled())
     {
         InputData inputData;
 
-        if (_window.consumeButtonPress(MouseButton::Left))
+        if (input.consumeButtonPress(MouseButton::Left))
         {
             _world.breakBlock(_castResult.targetPos);
         }
-        if (_window.consumeButtonPress(MouseButton::Right))
+        if (input.consumeButtonPress(MouseButton::Right))
         {
             glm::vec3 placePos = _castResult.targetPos + _castResult.targetNorm;
             glm::vec3 blockCenter = glm::floor(placePos) + glm::vec3(0.5f, 0.0f, 0.5f);
@@ -69,27 +70,27 @@ void Game::processInput()
             if (!blockBox.intersects(_player.getHitBox(), blockCenter, _player.getPos()))
                 _world.placeBlock(Blocks::STONE, placePos);
         }
-        if (_window.isKeyPressed(Key::W))
+        if (input.isKeyPressed(Key::W))
         {
             inputData.move += _player.getFront();
         }
-        if (_window.isKeyPressed(Key::A))
+        if (input.isKeyPressed(Key::A))
         {
             inputData.move -= _player.getRight();
         }
-        if (_window.isKeyPressed(Key::S))
+        if (input.isKeyPressed(Key::S))
         {
             inputData.move -= _player.getFront();
         }
-        if (_window.isKeyPressed(Key::D))
+        if (input.isKeyPressed(Key::D))
         {
             inputData.move += _player.getRight();
         }
-        if (_window.isKeyPressed(Key::Space))
+        if (input.isKeyPressed(Key::Space))
         {
             inputData.jump = true;
         }
-        if (_window.consumeKeyPress(Key::F3))
+        if (input.consumeKeyPress(Key::F3))
         {
             _showDebug = !_showDebug;
         }
@@ -98,16 +99,16 @@ void Game::processInput()
         if (glm::length(inputData.move) > 0.0f)
             inputData.move = glm::normalize(inputData.move);
 
-        inputData.mouseDx = (float)_window.consumeDx();
-        inputData.mouseDy = (float)_window.consumeDy();
-        inputData.scroll = (float)_window.consumeScroll();
+        inputData.mouseDx = (float)input.consumeDx();
+        inputData.mouseDy = (float)input.consumeDy();
+        inputData.scroll = (float)input.consumeScroll();
 
         _player.consumeInput(inputData);
     }
     else
     {
-        _window.consumeDx();
-        _window.consumeDy();
+        input.consumeDx();
+        input.consumeDy();
     }
 }
 
@@ -150,15 +151,16 @@ void Game::render(float dt)
 
     if (_showSettings)
     {
+        Input &input = _window.getInput();
         bool closeRequested = _settingsMenu.render(_window.getWidth(),
                                                    _window.getHeight(),
-                                                   _window.getCursorPos(),
-                                                   _window.consumeButtonPress(MouseButton::Left),
-                                                   _window.isButtonPressed(MouseButton::Left),
-                                                   _window.consumeScroll());
+                                                   input.getCursorPos(),
+                                                   input.consumeButtonPress(MouseButton::Left),
+                                                   input.isButtonPressed(MouseButton::Left),
+                                                   input.consumeScroll());
         if (closeRequested)
         {
-            _window.setCursorEnabled(false);
+            input.setCursorEnabled(false);
             _showSettings = false;
         }
     }

@@ -18,29 +18,10 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
     : _width(width),
       _height(height),
       _title(title),
-      _vSync(vSync)
+      _vSync(vSync),
+      _window(createGlfwWindow(width, height, title)),
+      _input(_window)
 {
-    glfwSetErrorCallback(glfwErrorCallback);
-    if (!glfwInit())
-    {
-        throw std::runtime_error("Could not initialize GLFW");
-    }
-
-#ifndef NDEBUG
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
-#endif
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    _window = glfwCreateWindow(_width, _height, _title.c_str(), NULL, NULL);
-    if (!_window)
-    {
-        glfwTerminate();
-        throw std::runtime_error("Could not create GLFW window");
-    }
-
     glfwMakeContextCurrent(_window);
     glfwSwapInterval(_vSync ? 1 : 0);
 
@@ -52,8 +33,6 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
     glfwSetCursorPosCallback(_window, glfwCursorPosCallback);
     glfwSetMouseButtonCallback(_window, glfwMouseButtonCallback);
     glfwSetScrollCallback(_window, glfwScrollCallback);
-
-    glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
@@ -95,6 +74,32 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
 
     ImGui_ImplGlfw_InitForOpenGL(_window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
+}
+
+GLFWwindow *Window::createGlfwWindow(int width, int height, const std::string &title)
+{
+    glfwSetErrorCallback(glfwErrorCallback);
+    if (!glfwInit())
+    {
+        throw std::runtime_error("Could not initialize GLFW");
+    }
+
+#ifndef NDEBUG
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+#endif
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    GLFWwindow *window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
+    if (!window)
+    {
+        glfwTerminate();
+        throw std::runtime_error("Could not create GLFW window");
+    }
+
+    return window;
 }
 
 Window::~Window()
@@ -139,186 +144,24 @@ void Window::glfwFrameBufferSizeCallback(GLFWwindow *window, int width, int heig
 
 void Window::glfwKeyboardCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-    if (key < 0 || key >= GLFW_KEY_LAST)
-        return;
-
     Window *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
-
-    if (action == GLFW_PRESS)
-    {
-        self->_keys[key] = true;
-        self->_keysPressed[key] = true;
-    }
-    else if (action == GLFW_RELEASE)
-    {
-        self->_keys[key] = false;
-    }
+    self->_input.onKey(key, action);
 }
 
 void Window::glfwCursorPosCallback(GLFWwindow *window, double xPos, double yPos)
 {
     Window *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
-
-    if (self->_firstMouse)
-    {
-        self->_dx = 0;
-        self->_dy = 0;
-        self->_mouseX = xPos;
-        self->_mouseY = yPos;
-        self->_firstMouse = false;
-        return;
-    }
-
-    self->_dx += xPos - self->_mouseX;
-    self->_dy += self->_mouseY - yPos;
-    self->_mouseX = xPos;
-    self->_mouseY = yPos;
+    self->_input.onCursorPos(xPos, yPos);
 }
 
 void Window::glfwMouseButtonCallback(GLFWwindow *window, int button, int action, int mods)
 {
-    if (button < 0 || button >= GLFW_MOUSE_BUTTON_LAST)
-        return;
-
     Window *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
-
-    if (action == GLFW_PRESS)
-    {
-        self->_buttons[button] = true;
-        self->_buttonsPressed[button] = true;
-    }
-    else if (action == GLFW_RELEASE)
-    {
-        self->_buttons[button] = false;
-    }
+    self->_input.onMouseButton(button, action);
 }
 
 void Window::glfwScrollCallback(GLFWwindow *window, double xOffset, double yOffset)
 {
     Window *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
-    self->_scrollY += yOffset;
+    self->_input.onScroll(yOffset);
 }
-
-//* ======= INPUT HANDLING =========
-
-namespace
-{
-int toGflwKey(Key key)
-{
-    switch (key)
-    {
-    case Key::W:
-        return GLFW_KEY_W;
-    case Key::A:
-        return GLFW_KEY_A;
-    case Key::S:
-        return GLFW_KEY_S;
-    case Key::D:
-        return GLFW_KEY_D;
-    case Key::Esc:
-        return GLFW_KEY_ESCAPE;
-    case Key::Space:
-        return GLFW_KEY_SPACE;
-    case Key::LShift:
-        return GLFW_KEY_LEFT_SHIFT;
-    case Key::LCtrl:
-        return GLFW_KEY_LEFT_CONTROL;
-    case Key::F3:
-        return GLFW_KEY_F3;
-    }
-
-    return GLFW_KEY_UNKNOWN;
-}
-
-int toGlfwButton(MouseButton button)
-{
-    switch (button)
-    {
-    case MouseButton::Left:
-        return GLFW_MOUSE_BUTTON_LEFT;
-    case MouseButton::Right:
-        return GLFW_MOUSE_BUTTON_RIGHT;
-    case MouseButton::Middle:
-        return GLFW_MOUSE_BUTTON_MIDDLE;
-    }
-
-    return -1;
-}
-} // namespace
-
-bool Window::isKeyPressed(Key key) const { return _keys[toGflwKey(key)]; }
-
-bool Window::consumeKeyPress(Key key)
-{
-    int keycode = toGflwKey(key);
-    bool value = _keysPressed[keycode];
-    _keysPressed[keycode] = false;
-    return value;
-}
-
-bool Window::isButtonPressed(MouseButton button) const { return _buttons[toGlfwButton(button)]; }
-
-bool Window::consumeButtonPress(MouseButton button)
-{
-    int code = toGlfwButton(button);
-    bool value = _buttonsPressed[code];
-    _buttonsPressed[code] = false;
-    return value;
-}
-
-double Window::consumeDx()
-{
-    double tmp = _dx;
-    _dx = 0.0;
-    return tmp;
-}
-
-double Window::consumeDy()
-{
-    double tmp = _dy;
-    _dy = 0.0;
-    return tmp;
-}
-
-double Window::consumeScroll()
-{
-    double tmp = _scrollY;
-    _scrollY = 0.0;
-    return tmp;
-}
-
-glm::vec2 Window::getCursorPos() { return glm::vec2(_mouseX, _mouseY); }
-
-void Window::resetMouse()
-{
-    _firstMouse = true;
-    _dx = 0.0;
-    _dy = 0.0;
-}
-
-void Window::setCursorEnabled(bool enabled)
-{
-    _cursorToggle = enabled;
-    if (_cursorToggle)
-    {
-        glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }
-    else
-    {
-        glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        resetMouse();
-    }
-}
-
-bool Window::isCursorEnabled() { return _cursorToggle; }
-
-void Window::enableInput() { _inputEnabled = true; }
-
-void Window::disableInput()
-{
-    _inputEnabled = false;
-    _keysPressed.fill(false);
-    _buttonsPressed.fill(false);
-}
-
-bool Window::isInputEnabled() { return _inputEnabled; }
