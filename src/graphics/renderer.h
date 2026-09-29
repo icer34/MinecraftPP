@@ -86,29 +86,20 @@ public:
     void beginUI();
 
     /**
-     * @brief Draws the debug panel (FPS, position, chunk counts, terrain noise values).
-     *
-     * Must be called between beginUI() and endUI().
-     */
-    void renderDebug();
-
-    /**
      * @brief Renders the ImGui draw data of the current frame.
      */
     void endUI();
-
-    /**
-     * @brief Updates the FPS counter shown in the debug panel. Call once per frame.
-     *
-     * @param dt duration of the last frame, in seconds
-     */
-    void updateFPS(float dt);
 
     /**
      * @brief Returns true once if a world regeneration was requested from the UI, then
      * resets the request.
      */
     bool requestWorldRegeneration();
+
+    /**
+     * @brief Get the number of currently renderd chunks (ie. after all the culling)
+     */
+    int getRenderedChunkCount() const;
 
 private:
     // (re)creates the scene framebuffers if they don't match the window size
@@ -144,11 +135,6 @@ private:
     int _renderedChunks = 0;
     glm::vec3 _lightDir = glm::normalize(glm::vec3(-0.8, -0.3, -0.6));
     bool _shouldRegenerateWorld = false;
-
-    float _fps = 0.0f;
-    float _msPerFrame = 0.0f;
-    int _frameCount = 0;
-    float _fpsTimer = 0.0f;
 
     glm::vec3 _camPos;
 };

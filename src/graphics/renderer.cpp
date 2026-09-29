@@ -300,43 +300,11 @@ void Renderer::endUI()
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void Renderer::renderDebug()
-{
-    //* ===== BASIC DEBUG STATS =====
-    ImGui::Begin("Debug pannel");
-    ImGui::Text("FPS: %.1f", _fps);
-    ImGui::Text("ms per frame: %.3f", _msPerFrame);
-    ImGui::Text("x:%.2f y:%.2f z:%.2f", _camPos.x, _camPos.y, _camPos.z);
-    ImGui::Text("Loaded chunks: %d", _loadedChunks);
-    ImGui::Text("Rendered chunks: %d", _renderedChunks);
-
-    auto &terrainGen = TerrainGenerator::instance();
-    ImGui::Text("PV: %.3f", terrainGen.getPvNoise().sample(_camPos.x, _camPos.z));
-    ImGui::Text("Erosion: %.3f", terrainGen.getErosionNoise().sample(_camPos.x, _camPos.z));
-    ImGui::Text("Continentalness: %.3f",
-                terrainGen.getContinentalnessNoise().sample(_camPos.x, _camPos.z));
-
-    ImGui::End();
-}
-
-void Renderer::updateFPS(float dt)
-{
-    _frameCount++;
-    _fpsTimer += dt;
-
-    if (_fpsTimer >= 1.0f)
-    {
-        _fps = static_cast<float>(_frameCount) / _fpsTimer;
-        _frameCount = 0;
-        _fpsTimer -= 1.0f;
-        // average over the same window as _fps, not just the last frame of it
-        _msPerFrame = 1000.0f / _fps;
-    }
-}
-
 bool Renderer::requestWorldRegeneration()
 {
     bool result = _shouldRegenerateWorld;
     _shouldRegenerateWorld = false;
     return result;
 }
+
+int Renderer::getRenderedChunkCount() const { return _renderedChunks; }

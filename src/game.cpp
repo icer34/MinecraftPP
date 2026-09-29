@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "debug/debug_settings.h"
 #include "game/blocks.h"
 #include "util/input.h"
 
@@ -92,7 +93,7 @@ void Game::processInput()
         }
         if (input.consumeKeyPress(Key::F3))
         {
-            _showDebug = !_showDebug;
+            debugSettings().showPanel = !debugSettings().showPanel;
         }
 
         inputData.move.y = 0.0f;
@@ -129,8 +130,7 @@ void Game::update(float dt)
 
 void Game::render(float dt)
 {
-    // update fps counter
-    _renderer.updateFPS(dt);
+    _debugUI.recordFrame(dt);
 
     // render the 3D world (terrain) into the scene framebuffer, then show it on screen
     _renderer.renderWorld(_player.getCam());
@@ -146,8 +146,21 @@ void Game::render(float dt)
     _renderer.beginUI();
 
     // render debug window if needed
-    if (_showDebug)
-        _renderer.renderDebug();
+    if (debugSettings().showPanel)
+    {
+        glm::vec3 pos = _player.getCam().getPos();
+        auto &terrain = TerrainGenerator::instance();
+
+        DebugFrameInfo info;
+        info.cameraPos = pos;
+        info.loadedChunks = _world.getChunkCount();
+        info.renderedChunks = _renderer.getRenderedChunkCount();
+        info.pvNoise = terrain.getPvNoise().sample(pos.x, pos.z);
+        info.erosionNoise = terrain.getErosionNoise().sample(pos.x, pos.z);
+        info.continentalnessNoise = terrain.getContinentalnessNoise().sample(pos.x, pos.z);
+
+        _debugUI.render(info);
+    }
 
     if (_showSettings)
     {

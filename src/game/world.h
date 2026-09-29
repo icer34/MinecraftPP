@@ -132,9 +132,14 @@ public:
     /**
      * @brief Returns every loaded chunk, including the ones only kept for neighbor data.
      *
-     * Builds a new vector on every call.
+     ** Builds a new vector on every call.
      */
     std::vector<Chunk *> getChunks() const;
+
+    /**
+     * @brief Returns the number of currently loaded chunks
+     */
+    int getChunkCount() const;
 
 private:
     static constexpr int RENDER_DISTANCE = 12;

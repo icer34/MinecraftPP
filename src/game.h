@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "debug/debug_ui.h"
 #include "game/player.h"
 #include "game/world.h"
 #include "graphics/block_texture_atlas.h"
@@ -42,10 +43,10 @@ private:
     World _world;
 
     Renderer _renderer;
-    // declared after _window so it is destroyed while the GL context is still alive
     HudRenderer _hudRenderer;
     Hud _hud;
     SettingsMenu _settingsMenu;
+    DebugUI _debugUI;
 
     RayCaster _rayCaster;
     RayCastResult _castResult;
@@ -57,6 +58,5 @@ private:
     float _dt;
     float _lastFrameTime;
 
-    bool _showDebug = true;
     bool _showSettings = false;
 };

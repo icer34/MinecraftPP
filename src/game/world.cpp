@@ -365,6 +365,8 @@ std::vector<Chunk *> World::getChunks() const
     return chunks;
 }
 
+int World::getChunkCount() const { return (int)_chunks.size(); }
+
 std::vector<ChunkMesh *> World::getChunkMeshes() const
 {
     std::vector<ChunkMesh *> meshes;
