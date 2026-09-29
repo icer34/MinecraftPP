@@ -1,7 +1,7 @@
 #include "player.h"
 
-#include "settings/settings_registry.h"
 #include "game/world/world.h"
+#include "settings/settings_registry.h"
 
 using glm::vec3;
 

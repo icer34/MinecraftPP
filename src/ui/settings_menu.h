@@ -9,8 +9,8 @@
 #include <optional>
 #include <string>
 
-#include "settings/settings_registry.h"
 #include "graphics/ui_renderer.h"
+#include "settings/settings_registry.h"
 #include "util/math/spline.h"
 
 /**

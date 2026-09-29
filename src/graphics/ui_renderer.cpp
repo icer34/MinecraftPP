@@ -245,9 +245,9 @@ void UiRenderer::reserve(BatchBuffers &buffers, size_t quads)
 }
 
 void UiRenderer::flushBatch(BatchBuffers &buffers,
-                             const std::vector<UiVertex> &vertData,
-                             const std::vector<unsigned int> &idxData,
-                             unsigned int textureID)
+                            const std::vector<UiVertex> &vertData,
+                            const std::vector<unsigned int> &idxData,
+                            unsigned int textureID)
 {
     if (idxData.empty())
         return;

@@ -6,10 +6,10 @@
 #pragma once
 
 #include "debug_line_renderer.h"
+#include "frustum.h"
 #include "gl/gl_objects.h"
 #include "mesh/block_outline.h"
 #include "texture.h"
-#include "frustum.h"
 #include "util/math/spline.h"
 
 #include <memory>

@@ -8,15 +8,15 @@
 #include "debug/debug_draw.h"
 #include "debug/debug_ui.h"
 #include "game/entity/player.h"
+#include "game/world/raycaster.h"
 #include "game/world/world.h"
 #include "graphics/block_texture_atlas.h"
 #include "graphics/gl/gpu_timer.h"
-#include "ui/hud.h"
-#include "ui/settings_menu.h"
 #include "graphics/renderer.h"
-#include "game/world/raycaster.h"
 #include "platform/imgui_layer.h"
 #include "platform/window.h"
+#include "ui/hud.h"
+#include "ui/settings_menu.h"
 
 /**
  * @brief Owns the window, the world, the player and the renderers, and runs the main loop.
