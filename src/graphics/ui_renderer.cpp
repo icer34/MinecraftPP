@@ -1,4 +1,4 @@
-#include "hud_renderer.h"
+#include "ui_renderer.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -37,7 +37,7 @@ GLBuffer createDynamicBuffer(GLsizeiptr bytes, const std::string &label)
 }
 } // namespace
 
-HudRenderer::HudRenderer()
+UiRenderer::UiRenderer()
     : _vao(gl::createVertexArray()),
       _shader("shaders/hud_vert.glsl", "shaders/hud_frag.glsl")
 {
@@ -51,22 +51,22 @@ HudRenderer::HudRenderer()
     // vertex format, read from binding 0: vec2 pos, vec2 uv, vec4 color
     glEnableVertexArrayAttrib(_vao.id(), POS_ATTRIB);
     glVertexArrayAttribFormat(
-        _vao.id(), POS_ATTRIB, 2, GL_FLOAT, GL_FALSE, offsetof(HudVertex, pos));
+        _vao.id(), POS_ATTRIB, 2, GL_FLOAT, GL_FALSE, offsetof(UiVertex, pos));
     glVertexArrayAttribBinding(_vao.id(), POS_ATTRIB, VERTEX_BINDING);
 
     glEnableVertexArrayAttrib(_vao.id(), UV_ATTRIB);
-    glVertexArrayAttribFormat(_vao.id(), UV_ATTRIB, 2, GL_FLOAT, GL_FALSE, offsetof(HudVertex, uv));
+    glVertexArrayAttribFormat(_vao.id(), UV_ATTRIB, 2, GL_FLOAT, GL_FALSE, offsetof(UiVertex, uv));
     glVertexArrayAttribBinding(_vao.id(), UV_ATTRIB, VERTEX_BINDING);
 
     glEnableVertexArrayAttrib(_vao.id(), COLOR_ATTRIB);
     glVertexArrayAttribFormat(
-        _vao.id(), COLOR_ATTRIB, 4, GL_FLOAT, GL_FALSE, offsetof(HudVertex, color));
+        _vao.id(), COLOR_ATTRIB, 4, GL_FLOAT, GL_FALSE, offsetof(UiVertex, color));
     glVertexArrayAttribBinding(_vao.id(), COLOR_ATTRIB, VERTEX_BINDING);
 
-    gl::setLabel(GL_VERTEX_ARRAY, _vao.id(), "HUD vertex format");
+    gl::setLabel(GL_VERTEX_ARRAY, _vao.id(), "UI vertex format");
 }
 
-void HudRenderer::loadFont()
+void UiRenderer::loadFont()
 {
     // create the font's texture and the lookup for the correct UVs
     int w, h, chan;
@@ -74,7 +74,7 @@ void HudRenderer::loadFont()
     unsigned char *fontData = stbi_load("assets/textures/font/ascii.png", &w, &h, &chan, 4);
     if (!fontData)
     {
-        std::cout << "HUD_RENDERER_FAILURE::COULD NOT LOAD THE FONT FILE" << std::endl;
+        std::cout << "UI_RENDERER_FAILURE::COULD NOT LOAD THE FONT FILE" << std::endl;
         return;
     }
     _fontTexture = Texture(fontData, w, h, GL_RGBA8, GL_RGBA);
@@ -131,12 +131,12 @@ void HudRenderer::loadFont()
     }
 
     _fontTexture.setFilters(GL_NEAREST, GL_NEAREST);
-    _fontTexture.setLabel("HUD font");
+    _fontTexture.setLabel("UI font");
 
     stbi_image_free(fontData);
 }
 
-void HudRenderer::loadIconAtlas()
+void UiRenderer::loadIconAtlas()
 {
     struct IconData
     {
@@ -159,7 +159,7 @@ void HudRenderer::loadIconAtlas()
         unsigned char *fileData = stbi_load(filePath.c_str(), &width, &height, &channels, 4);
         if (!fileData)
         {
-            std::cout << "HUD_ERROR::FAILED TO LOAD IMAGE:: " << filePath << std::endl;
+            std::cout << "UI_RENDERER_ERROR::FAILED TO LOAD IMAGE:: " << filePath << std::endl;
             continue;
         }
 
@@ -219,10 +219,10 @@ void HudRenderer::loadIconAtlas()
                                (float)(icon.y + icon.h) / _atlasHeight}});
     }
     _iconAtlasTexture.setFilters(GL_NEAREST, GL_NEAREST);
-    _iconAtlasTexture.setLabel("HUD icon atlas");
+    _iconAtlasTexture.setLabel("UI icon atlas");
 }
 
-void HudRenderer::begin()
+void UiRenderer::begin()
 {
     _iconVertData.clear();
     _iconIdxData.clear();
@@ -230,35 +230,35 @@ void HudRenderer::begin()
     _textIdxData.clear();
 }
 
-void HudRenderer::reserve(BatchBuffers &buffers, size_t quads)
+void UiRenderer::reserve(BatchBuffers &buffers, size_t quads)
 {
     if (quads <= buffers.quadCapacity)
         return;
 
-    // at least double, so that a HUD that keeps growing doesn't recreate the buffers every frame
+    // at least double, so that a UI that keeps growing doesn't recreate the buffers every frame
     buffers.quadCapacity = std::max(quads, 2 * buffers.quadCapacity);
     std::string name(buffers.name);
-    buffers.vbo = createDynamicBuffer(buffers.quadCapacity * VERTICES_PER_QUAD * sizeof(HudVertex),
+    buffers.vbo = createDynamicBuffer(buffers.quadCapacity * VERTICES_PER_QUAD * sizeof(UiVertex),
                                       name + " vertices");
     buffers.ebo = createDynamicBuffer(
         buffers.quadCapacity * INDICES_PER_QUAD * sizeof(unsigned int), name + " indices");
 }
 
-void HudRenderer::flushBatch(BatchBuffers &buffers,
-                             const std::vector<HudVertex> &vertData,
-                             const std::vector<unsigned int> &idxData,
-                             unsigned int textureID)
+void UiRenderer::flushBatch(BatchBuffers &buffers,
+                            const std::vector<UiVertex> &vertData,
+                            const std::vector<unsigned int> &idxData,
+                            unsigned int textureID)
 {
     if (idxData.empty())
         return;
 
     reserve(buffers, vertData.size() / VERTICES_PER_QUAD);
 
-    glNamedBufferSubData(buffers.vbo.id(), 0, vertData.size() * sizeof(HudVertex), vertData.data());
+    glNamedBufferSubData(buffers.vbo.id(), 0, vertData.size() * sizeof(UiVertex), vertData.data());
     glNamedBufferSubData(
         buffers.ebo.id(), 0, idxData.size() * sizeof(unsigned int), idxData.data());
 
-    glVertexArrayVertexBuffer(_vao.id(), VERTEX_BINDING, buffers.vbo.id(), 0, sizeof(HudVertex));
+    glVertexArrayVertexBuffer(_vao.id(), VERTEX_BINDING, buffers.vbo.id(), 0, sizeof(UiVertex));
     glVertexArrayElementBuffer(_vao.id(), buffers.ebo.id());
 
     glBindTextureUnit(TextureUnit::HUD_ATLAS, textureID);
@@ -268,11 +268,11 @@ void HudRenderer::flushBatch(BatchBuffers &buffers,
     glBindVertexArray(0);
 }
 
-void HudRenderer::end(int screenWidth, int screenHeight, std::optional<glm::vec4> scissorRect)
+void UiRenderer::end(int screenWidth, int screenHeight, std::optional<glm::vec4> scissorRect)
 {
-    gl::DebugGroup group("HUD");
+    gl::DebugGroup group("UI");
 
-    // hud elements are always on top, drawn front-to-back in the order the draw calls were
+    // UI elements are always on top, drawn front-to-back in the order the draw calls were
     // issued (no depth test), and can have transparent edges/backgrounds (blending)
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -312,13 +312,13 @@ void HudRenderer::end(int screenWidth, int screenHeight, std::optional<glm::vec4
     glEnable(GL_BLEND);
 }
 
-void HudRenderer::drawIcon(const std::string &name, vec2 pos, vec2 size, vec4 color)
+void UiRenderer::drawIcon(const std::string &name, vec2 pos, vec2 size, vec4 color)
 {
     UVRect uv = _iconUV.at(name);
     drawQuad_h(pos, size, uv, color);
 }
 
-void HudRenderer::drawIconSliced(
+void UiRenderer::drawIconSliced(
     const std::string &name, vec2 pos, vec2 size, int borderPxNative, float pixelScale, vec4 color)
 {
     UVRect uv = _iconUV.at(name);
@@ -341,7 +341,7 @@ void HudRenderer::drawIconSliced(
                        color);
 }
 
-void HudRenderer::drawText(const std::string &text, vec2 pos, float scale, vec4 color)
+void UiRenderer::drawText(const std::string &text, vec2 pos, float scale, vec4 color)
 {
     // align the position on a pixel to avoid vuisual artefacts due to subpixel alignments in the
     // texture
@@ -359,12 +359,12 @@ void HudRenderer::drawText(const std::string &text, vec2 pos, float scale, vec4 
 
         // uv.y0 is the top of the glyph, uv.y1 the bottom (see loadFont/loadIconAtlas: y grows
         // downward, matching screen-space y, since the textures aren't flipped on load)
-        _textVertData.push_back(HudVertex{charPos, vec2(uv.x0, uv.y0), color}); // top left
-        _textVertData.push_back(HudVertex{
+        _textVertData.push_back(UiVertex{charPos, vec2(uv.x0, uv.y0), color}); // top left
+        _textVertData.push_back(UiVertex{
             vec2(charPos.x + charSize.x, charPos.y), vec2(uv.x1, uv.y0), color}); // top right
         _textVertData.push_back(
-            HudVertex{charPos + charSize, vec2(uv.x1, uv.y1), color}); // bot right
-        _textVertData.push_back(HudVertex{
+            UiVertex{charPos + charSize, vec2(uv.x1, uv.y1), color}); // bot right
+        _textVertData.push_back(UiVertex{
             vec2(charPos.x, charPos.y + charSize.y), vec2(uv.x0, uv.y1), color}); // bot left
 
         _textIdxData.insert(_textIdxData.end(),
@@ -381,14 +381,14 @@ void HudRenderer::drawText(const std::string &text, vec2 pos, float scale, vec4 
     }
 }
 
-void HudRenderer::drawShadowedText(const std::string &text, vec2 pos, float scale, vec4 color)
+void UiRenderer::drawShadowedText(const std::string &text, vec2 pos, float scale, vec4 color)
 {
     vec4 shadowColor = vec4(color.r * 0.25f, color.g * 0.25f, color.b * 0.25f, color.a);
     drawText(text, pos + vec2(scale, scale), scale, shadowColor);
     drawText(text, pos, scale, color);
 }
 
-void HudRenderer::drawQuad_h(vec2 pos, vec2 size, UVRect uv, vec4 color)
+void UiRenderer::drawQuad_h(vec2 pos, vec2 size, UVRect uv, vec4 color)
 {
     // align the position on a pixel to avoid vuisual artefacts due to subpixel alignments in the
     // texture
@@ -398,12 +398,12 @@ void HudRenderer::drawQuad_h(vec2 pos, vec2 size, UVRect uv, vec4 color)
 
     // uv.y0 is the top of the source image, uv.y1 the bottom (see loadIconAtlas: y grows
     // downward while packing, matching screen-space y, since icons aren't flipped on load)
-    _iconVertData.push_back(HudVertex{pos, vec2(uv.x0, uv.y0), color}); // top left
+    _iconVertData.push_back(UiVertex{pos, vec2(uv.x0, uv.y0), color}); // top left
     _iconVertData.push_back(
-        HudVertex{vec2(pos.x + size.x, pos.y), vec2(uv.x1, uv.y0), color});    // top right
-    _iconVertData.push_back(HudVertex{pos + size, vec2(uv.x1, uv.y1), color}); // bot right
+        UiVertex{vec2(pos.x + size.x, pos.y), vec2(uv.x1, uv.y0), color});    // top right
+    _iconVertData.push_back(UiVertex{pos + size, vec2(uv.x1, uv.y1), color}); // bot right
     _iconVertData.push_back(
-        HudVertex{vec2(pos.x, pos.y + size.y), vec2(uv.x0, uv.y1), color}); // bot left
+        UiVertex{vec2(pos.x, pos.y + size.y), vec2(uv.x0, uv.y1), color}); // bot left
 
     _iconIdxData.insert(_iconIdxData.end(),
                         {
@@ -416,18 +416,18 @@ void HudRenderer::drawQuad_h(vec2 pos, vec2 size, UVRect uv, vec4 color)
                         });
 }
 
-void HudRenderer::drawQuad(vec2 pos, vec2 size, vec4 color)
+void UiRenderer::drawQuad(vec2 pos, vec2 size, vec4 color)
 {
     drawQuad_h(pos, size, getWhitePixelUV(), color);
 }
 
-UVRect HudRenderer::getIconUV(const std::string &name) const { return _iconUV.at(name); }
+UVRect UiRenderer::getIconUV(const std::string &name) const { return _iconUV.at(name); }
 
-UVRect HudRenderer::getCharUV(char c) const { return _charUV.at(c); }
+UVRect UiRenderer::getCharUV(char c) const { return _charUV.at(c); }
 
-UVRect HudRenderer::getWhitePixelUV() const { return _iconUV.at("white_pixel"); }
+UVRect UiRenderer::getWhitePixelUV() const { return _iconUV.at("white_pixel"); }
 
-int HudRenderer::textWidth(const std::string &text)
+int UiRenderer::textWidth(const std::string &text)
 {
     int w = 0;
     for (char c : text)

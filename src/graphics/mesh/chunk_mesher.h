@@ -6,9 +6,9 @@
 #pragma once
 
 #include "chunk_mesh.h"
-#include "game/block_registry.h"
-#include "game/chunk.h"
-#include "util/directions.h"
+#include "game/blocks/block_registry.h"
+#include "game/world/chunk.h"
+#include "util/math/directions.h"
 
 #include <array>
 #include <optional>

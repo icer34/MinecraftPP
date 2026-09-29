@@ -1,5 +1,5 @@
 /**
- * @file hud_renderer.h
+ * @file ui_renderer.h
  * @brief Batched 2D renderer for the HUD and menus (icons, text, colored quads).
  */
 
@@ -15,12 +15,12 @@
 #include "graphics/gl/gl_objects.h"
 #include "graphics/shader.h"
 #include "graphics/texture.h"
-#include "util/uv_rect.h"
+#include "util/math/uv_rect.h"
 
 /**
- * @brief Vertex of a HUD quad.
+ * @brief Vertex of a UI quad.
  */
-struct HudVertex
+struct UiVertex
 {
     glm::vec2 pos;   ///< Screen position in pixels, from the top-left corner.
     glm::vec2 uv;    ///< Texture coordinates in the icon or font atlas.
@@ -40,7 +40,7 @@ struct HudVertex
  * Icons are loaded from every PNG of `assets/textures/gui` and packed into one atlas; they
  * are referred to by file name, without folder or extension.
  */
-class HudRenderer
+class UiRenderer
 {
 public:
     // must be constructed after and destroyed before the GL context (owned by Game, declared after
@@ -50,7 +50,7 @@ public:
      *
      * Must be constructed after the GL context and destroyed before it.
      */
-    HudRenderer();
+    UiRenderer();
 
     /**
      * @brief Starts a new batch, discarding everything queued since the last end().
@@ -72,7 +72,7 @@ public:
              int screenHeight,
              std::optional<glm::vec4> scissorRect = std::nullopt);
 
-    //* all the below 'draw' methods add vertices to draw to the vectors -> no draw calls per hud
+    //* all the below 'draw' methods add vertices to draw to the vectors -> no draw calls per UI
     //* element, we send one big batch (per atlas) with the end() method
     /**
      * @brief Queues an icon, stretched to `size`.
@@ -182,7 +182,7 @@ private:
     static void reserve(BatchBuffers &buffers, size_t quads);
     // uploads one batch's CPU-side data to its GPU buffers, binds its texture and draws it
     void flushBatch(BatchBuffers &buffers,
-                    const std::vector<HudVertex> &vertData,
+                    const std::vector<UiVertex> &vertData,
                     const std::vector<unsigned int> &idxData,
                     unsigned int textureID);
 
@@ -199,16 +199,16 @@ private:
 
     // quads per batch the buffers are first created for -- they grow if a frame needs more
     static constexpr size_t INITIAL_QUAD_CAPACITY = 1024;
-    std::vector<HudVertex> _iconVertData;
-    std::vector<HudVertex> _textVertData;
+    std::vector<UiVertex> _iconVertData;
+    std::vector<UiVertex> _textVertData;
     std::vector<unsigned int> _iconIdxData;
     std::vector<unsigned int> _textIdxData;
 
-    // one VAO for the HudVertex format, shared by both batches: flushBatch() only swaps the
+    // one VAO for the UiVertex format, shared by both batches: flushBatch() only swaps the
     // buffers attached to it
     GLVertexArray _vao;
-    BatchBuffers _iconBuffers{"HUD icon"};
-    BatchBuffers _textBuffers{"HUD text"};
+    BatchBuffers _iconBuffers{"UI icon"};
+    BatchBuffers _textBuffers{"UI text"};
 
     Shader _shader;
 };

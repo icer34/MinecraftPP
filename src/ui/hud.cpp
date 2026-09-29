@@ -4,7 +4,7 @@
 
 using glm::vec2;
 
-Hud::Hud(HudRenderer &renderer)
+Hud::Hud(UiRenderer &renderer)
     : _renderer(renderer)
 {
 }

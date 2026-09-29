@@ -1,16 +1,16 @@
 /**
  * @file renderer.h
- * @brief 3D world renderer and ImGui debug overlay.
+ * @brief 3D world renderer.
  */
 
 #pragma once
 
 #include "debug_line_renderer.h"
+#include "frustum.h"
 #include "gl/gl_objects.h"
 #include "mesh/block_outline.h"
 #include "texture.h"
-#include "util/frustum.h"
-#include "util/spline.h"
+#include "util/math/spline.h"
 
 #include <memory>
 #include <optional>
@@ -30,7 +30,7 @@ struct RayCastResult;
 class BlockTextureAtlas;
 
 /**
- * @brief Draws the 3D world and the ImGui debug UI.
+ * @brief Draws the 3D world.
  *
  * The world is not drawn to the screen directly, but into a multisampled HDR scene
  * framebuffer (`GL_RGBA16F` color, `GL_DEPTH_COMPONENT32F` reverse-Z depth). A frame is made
@@ -44,7 +44,8 @@ class BlockTextureAtlas;
  *    6. sky, drawn as a fullscreen triangle behind everything;
  * 2. renderBlockOutline(), optional;
  * 3. presentScene(): resolves the scene and copies it to the screen;
- * 4. then the HUD and ImGui, drawn directly on the screen.
+ * 4. then the HUD (UiRenderer) and ImGui (ImGuiLayer) are drawn directly on the screen, outside
+ *    of the Renderer.
  *
  * Must be constructed after the GL context exists (i.e. after the Window).
  */
@@ -90,16 +91,6 @@ public:
      * framebuffer bound, for the HUD and ImGui.
      */
     void presentScene();
-
-    /**
-     * @brief Starts a new ImGui frame. Call before any ImGui widget of the frame.
-     */
-    void beginUI();
-
-    /**
-     * @brief Renders the ImGui draw data of the current frame.
-     */
-    void endUI();
 
     /**
      * @brief Returns true once if a world regeneration was requested from the UI, then

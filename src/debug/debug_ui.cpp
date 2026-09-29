@@ -1,7 +1,7 @@
 #include "debug_ui.h"
 
 #include "debug/debug_settings.h"
-#include "util/input.h"
+#include "platform/input.h"
 
 #include <imgui.h>
 #include <implot.h>

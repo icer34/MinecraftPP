@@ -10,7 +10,7 @@
 
 #include "block_registry.h"
 #include "graphics/block_texture_atlas.h"
-#include "util/directions.h"
+#include "util/math/directions.h"
 
 namespace
 {

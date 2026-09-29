@@ -7,15 +7,16 @@
 
 #include "debug/debug_draw.h"
 #include "debug/debug_ui.h"
-#include "game/player.h"
-#include "game/world.h"
+#include "game/entity/player.h"
+#include "game/world/raycaster.h"
+#include "game/world/world.h"
 #include "graphics/block_texture_atlas.h"
 #include "graphics/gl/gpu_timer.h"
-#include "graphics/hud/hud.h"
-#include "graphics/hud/settings_menu.h"
 #include "graphics/renderer.h"
-#include "util/raycaster.h"
-#include "util/window.h"
+#include "platform/imgui_layer.h"
+#include "platform/window.h"
+#include "ui/hud.h"
+#include "ui/settings_menu.h"
 
 /**
  * @brief Owns the window, the world, the player and the renderers, and runs the main loop.
@@ -39,6 +40,9 @@ public:
 
 private:
     Window _window;
+    // right after _window: chains its GLFW callbacks to the Window's ones, and needs the GL
+    // context until its destruction
+    ImGuiLayer _imgui;
     // after _window: holds a GL texture, so it must be destroyed before the GL context
     BlockTextureAtlas _blockAtlas;
     Player _player;
@@ -46,7 +50,7 @@ private:
 
     Renderer _renderer;
     GpuTimer _gpuTimer;
-    HudRenderer _hudRenderer;
+    UiRenderer _uiRenderer;
     Hud _hud;
     SettingsMenu _settingsMenu;
 

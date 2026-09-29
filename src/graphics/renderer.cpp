@@ -1,10 +1,5 @@
 #include "renderer.h"
 
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
-#include <imgui.h>
-#include <implot.h>
-
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -17,17 +12,17 @@
 #include "debug/debug_settings.h"
 #include "frame_buffer.h"
 #include "frame_data.h"
-#include "game/chunk.h"
-#include "game/world.h"
+#include "game/world/chunk.h"
+#include "game/world/world.h"
 #include "gl/gl_debug.h"
 #include "gl/texture_units.h"
 #include "mesh/block_outline.h"
 #include "mesh/chunk_mesh.h"
 #include "shader.h"
 
-#include "util/perlin_noise.h"
-#include "util/raycaster.h"
-#include "util/window.h"
+#include "game/world/raycaster.h"
+#include "platform/window.h"
+#include "util/math/perlin_noise.h"
 
 using glm::mat4;
 using glm::vec2;
@@ -303,19 +298,6 @@ void Renderer::presentScene()
                            height,
                            GL_COLOR_BUFFER_BIT,
                            GL_NEAREST);
-}
-
-void Renderer::beginUI()
-{
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-}
-
-void Renderer::endUI()
-{
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
 bool Renderer::requestWorldRegeneration()

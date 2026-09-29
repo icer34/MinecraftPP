@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "game/settings_registry.h"
+#include "settings/settings_registry.h"
 
 using glm::mat4;
 using glm::vec3;

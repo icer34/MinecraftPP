@@ -4,18 +4,19 @@
 
 #include "debug/debug_settings.h"
 #include "debug/debug_shapes.h"
-#include "game/blocks.h"
-#include "util/input.h"
+#include "game/blocks/blocks.h"
+#include "platform/input.h"
 
 using glm::vec3;
 
 Game::Game()
     : _window(1600, 900, "MinecraftPP", false),
+      _imgui(_window),
       _player(vec3(-96.0f, 110.0f, 30.2f)),
       _world(World(67)),
       _renderer(Renderer(_window, _world, _blockAtlas)),
-      _hud(_hudRenderer),
-      _settingsMenu(_hudRenderer),
+      _hud(_uiRenderer),
+      _settingsMenu(_uiRenderer),
       _rayCaster(_world)
 {
     // the block textures must be loaded before registering the blocks that refer to them
@@ -178,7 +179,7 @@ void Game::render(float dt)
     _hud.render(_window.getWidth(), _window.getHeight());
 
     // render UI
-    _renderer.beginUI();
+    _imgui.beginFrame();
 
     // render debug window if needed
     if (debugSettings().showPanel)
@@ -200,7 +201,7 @@ void Game::render(float dt)
         }
     }
 
-    _renderer.endUI();
+    _imgui.endFrame();
 
     _gpuTimer.end();
 }

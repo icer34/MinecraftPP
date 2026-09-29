@@ -1,6 +1,6 @@
 #include "terrain_generator.h"
 
-#include "settings_registry.h"
+#include "settings/settings_registry.h"
 
 #include <algorithm>
 
