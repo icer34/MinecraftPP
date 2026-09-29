@@ -5,11 +5,7 @@
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
 #include <glad/glad.h>
-#include <imgui.h>
-#include <implot.h>
 
 #include "graphics/gl/gl_debug.h"
 #include "graphics/gl/gl_objects.h"
@@ -61,19 +57,6 @@ Window::Window(int width, int height, const std::string &title, bool vSync)
     glViewport(0, 0, fbWidth, fbHeight);
     _width = fbWidth;
     _height = fbHeight;
-
-    // IMGUI setup
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImPlot::CreateContext();
-    ImGui::StyleColorsDark();
-    // ImGui only shows debug stats: it must never touch the OS cursor. Besides being useless,
-    // letting it set one breaks the cursor on Wayland -- GLFW keeps re-showing a window cursor
-    // even in GLFW_CURSOR_DISABLED mode (its cursor animation timer ignores the cursor mode)
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
-
-    ImGui_ImplGlfw_InitForOpenGL(_window, true);
-    ImGui_ImplOpenGL3_Init("#version 330");
 }
 
 GLFWwindow *Window::createGlfwWindow(int width, int height, const std::string &title)
@@ -104,11 +87,6 @@ GLFWwindow *Window::createGlfwWindow(int width, int height, const std::string &t
 
 Window::~Window()
 {
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    ImPlot::DestroyContext();
-
     glfwDestroyWindow(_window);
     glfwTerminate();
 }

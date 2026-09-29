@@ -15,6 +15,7 @@
 #include "ui/settings_menu.h"
 #include "graphics/renderer.h"
 #include "game/world/raycaster.h"
+#include "platform/imgui_layer.h"
 #include "platform/window.h"
 
 /**
@@ -39,6 +40,9 @@ public:
 
 private:
     Window _window;
+    // right after _window: chains its GLFW callbacks to the Window's ones, and needs the GL
+    // context until its destruction
+    ImGuiLayer _imgui;
     // after _window: holds a GL texture, so it must be destroyed before the GL context
     BlockTextureAtlas _blockAtlas;
     Player _player;

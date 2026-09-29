@@ -22,8 +22,8 @@ class Window
 {
 public:
     /**
-     * @brief Initializes GLFW, opens the window, creates an OpenGL 4.6 core context, loads the
-     * GL functions and initializes ImGui.
+     * @brief Initializes GLFW, opens the window, creates an OpenGL 4.6 core context and loads
+     * the GL functions.
      *
      * The context uses a [0, 1] NDC depth range (`glClipControl`), and in Debug builds, the GL
      * debug output is enabled and printed to stderr (see gl::onDebugMessage()). The default
@@ -38,9 +38,13 @@ public:
     Window(int width, int height, const std::string &title, bool vSync);
 
     /**
-     * @brief Shuts down ImGui, destroys the window and terminates GLFW.
+     * @brief Destroys the window and terminates GLFW.
      */
     ~Window();
+
+    // owns the GLFW window and the GL context: exactly one owner
+    Window(const Window &) = delete;
+    Window &operator=(const Window &) = delete;
 
     /** @brief Processes pending window and input events. Call once per frame. */
     void pollEvents();
@@ -67,6 +71,9 @@ public:
     Input &getInput() { return _input; }
     /** @brief Keyboard and mouse input of this window, updated by pollEvents(). */
     const Input &getInput() const { return _input; }
+
+    /** @brief The underlying GLFW window, for libraries that need it (ImGui backend). */
+    GLFWwindow *getHandle() const { return _window; }
 
 private:
     int _width;
