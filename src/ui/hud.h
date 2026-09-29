@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "hud_renderer.h"
+#include "graphics/ui_renderer.h"
 
 /**
  * @brief Lays out and draws the in-game HUD elements on top of the 3D scene.

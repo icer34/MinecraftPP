@@ -10,7 +10,7 @@
 #include <string>
 
 #include "settings/settings_registry.h"
-#include "hud_renderer.h"
+#include "graphics/ui_renderer.h"
 #include "util/math/spline.h"
 
 /**
