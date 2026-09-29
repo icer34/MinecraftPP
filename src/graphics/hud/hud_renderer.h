@@ -15,7 +15,7 @@
 #include "graphics/gl/gl_objects.h"
 #include "graphics/shader.h"
 #include "graphics/texture.h"
-#include "util/uv_rect.h"
+#include "util/math/uv_rect.h"
 
 /**
  * @brief Vertex of a HUD quad.

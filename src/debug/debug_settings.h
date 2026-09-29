@@ -1,6 +1,6 @@
 #pragma once
 
-#include "util/input.h"
+#include "platform/input.h"
 
 /**
  * @brief Runtime flags of the debug tools, not in the SettingsMenu (debug tools only available

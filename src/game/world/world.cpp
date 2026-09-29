@@ -6,7 +6,7 @@
 
 #include "game/blocks/block_registry.h"
 #include "game/blocks/blocks.h"
-#include "util/directions.h"
+#include "util/math/directions.h"
 
 using glm::ivec3;
 using glm::vec3;

@@ -11,7 +11,7 @@
 
 #include "settings/settings_registry.h"
 #include "hud_renderer.h"
-#include "util/spline.h"
+#include "util/math/spline.h"
 
 /**
  * @brief Pause menu with one page per SettingCategory, built from the SettingsRegistry.

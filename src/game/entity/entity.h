@@ -8,8 +8,8 @@
 #include <glm/glm.hpp>
 
 #include "game/world/world.h"
-#include "util/aabb.h"
-#include "util/directions.h"
+#include "util/math/aabb.h"
+#include "util/math/directions.h"
 
 /**
  * @brief Base class for anything that moves through the world and collides with solid blocks.

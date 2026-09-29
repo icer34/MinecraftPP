@@ -9,8 +9,8 @@
 #include "gl/gl_objects.h"
 #include "mesh/block_outline.h"
 #include "texture.h"
-#include "util/frustum.h"
-#include "util/spline.h"
+#include "frustum.h"
+#include "util/math/spline.h"
 
 #include <memory>
 #include <optional>

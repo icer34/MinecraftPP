@@ -25,9 +25,9 @@
 #include "mesh/chunk_mesh.h"
 #include "shader.h"
 
-#include "util/perlin_noise.h"
+#include "util/math/perlin_noise.h"
 #include "game/world/raycaster.h"
-#include "util/window.h"
+#include "platform/window.h"
 
 using glm::mat4;
 using glm::vec2;

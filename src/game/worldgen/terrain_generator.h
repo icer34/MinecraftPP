@@ -6,8 +6,8 @@
 #pragma once
 
 #include "game/world/chunk.h"
-#include "util/perlin_noise.h"
-#include "util/spline.h"
+#include "util/math/perlin_noise.h"
+#include "util/math/spline.h"
 
 #include <vector>
 

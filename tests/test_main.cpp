@@ -11,8 +11,8 @@
 #include "graphics/frame_data.h"
 #include "graphics/mesh/mesh.h"
 #include "graphics/shader.h"
-#include "util/input.h"
-#include "util/window.h"
+#include "platform/input.h"
+#include "platform/window.h"
 
 // mirrors the packing format ChunkMesher writes and water_vert.glsl reads -- see
 // chunk_mesher.cpp for the authoritative version. Only what's needed for a flat top-face

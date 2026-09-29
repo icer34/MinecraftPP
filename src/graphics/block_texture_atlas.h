@@ -9,7 +9,7 @@
 #include <unordered_map>
 
 #include "gl/gl_objects.h"
-#include "util/directions.h"
+#include "util/math/directions.h"
 
 /**
  * @brief Single GL texture containing every block texture, arranged in a grid.

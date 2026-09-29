@@ -15,7 +15,7 @@
 #include "graphics/hud/settings_menu.h"
 #include "graphics/renderer.h"
 #include "game/world/raycaster.h"
-#include "util/window.h"
+#include "platform/window.h"
 
 /**
  * @brief Owns the window, the world, the player and the renderers, and runs the main loop.

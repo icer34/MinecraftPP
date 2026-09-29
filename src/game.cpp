@@ -5,7 +5,7 @@
 #include "debug/debug_settings.h"
 #include "debug/debug_shapes.h"
 #include "game/blocks/blocks.h"
-#include "util/input.h"
+#include "platform/input.h"
 
 using glm::vec3;
 
