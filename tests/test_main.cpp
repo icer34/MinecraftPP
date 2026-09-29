@@ -82,15 +82,15 @@ int main()
     glm::vec3 lightDir = glm::normalize(glm::vec3(-0.85f, -0.15f, -0.5f));
 
     constexpr float MOVE_SPEED = 6.0f;
-    float lastFrameTime = (float)window.getTime();
+    double lastFrameTime = window.getTime();
 
     while (!window.shouldClose())
     {
         window.pollEvents();
         Input &input = window.getInput();
 
-        float currentTime = (float)window.getTime();
-        float dt = currentTime - lastFrameTime;
+        double currentTime = window.getTime();
+        float dt = (float)(currentTime - lastFrameTime);
         lastFrameTime = currentTime;
 
         camera.rotate((float)input.consumeDx(), (float)input.consumeDy());
@@ -119,7 +119,7 @@ int main()
         data.invView = glm::inverse(data.view);
         data.invProjection = glm::inverse(data.projection);
         data.lightDir = lightDir;
-        data.time = currentTime;
+        data.time = (float)currentTime;
         data.camPos = camera.getPos();
         data.zNear = camera.getZNear();
         data.screenSize = glm::vec2(window.getWidth(), window.getHeight());

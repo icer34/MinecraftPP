@@ -9,6 +9,7 @@
 #include "game/player.h"
 #include "game/world.h"
 #include "graphics/block_texture_atlas.h"
+#include "graphics/gl/gpu_timer.h"
 #include "graphics/hud/hud.h"
 #include "graphics/hud/settings_menu.h"
 #include "graphics/renderer.h"
@@ -43,6 +44,7 @@ private:
     World _world;
 
     Renderer _renderer;
+    GpuTimer _gpuTimer;
     HudRenderer _hudRenderer;
     Hud _hud;
     SettingsMenu _settingsMenu;
@@ -56,7 +58,8 @@ private:
     void render(float dt);
 
     float _dt;
-    float _lastFrameTime;
+    double _lastFrameTime; // double: see Window::getTime()
+    float _cpuTime = 0.0f; // of the previous frame, see DebugFrameInfo::cpuTime
 
     bool _showSettings = false;
 };

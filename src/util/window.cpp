@@ -119,7 +119,7 @@ void Window::pollEvents() { glfwPollEvents(); }
 
 void Window::swapBuffers() { glfwSwapBuffers(_window); }
 
-float Window::getTime() const { return glfwGetTime(); }
+double Window::getTime() const { return glfwGetTime(); }
 
 //* ========== GLFW CALLBACKS ==========
 

@@ -28,15 +28,18 @@ void Game::run()
 
     while (!_window.shouldClose())
     {
-        float currentTime = _window.getTime();
-        _dt = currentTime - _lastFrameTime;
-        _lastFrameTime = currentTime;
+        double frameStart = _window.getTime();
+        _dt = (float)(frameStart - _lastFrameTime);
+        _lastFrameTime = frameStart;
 
         processInput();
 
         update(_dt);
 
         render(_dt);
+
+        // measured before the swap, which is where the vsync wait mostly happens
+        _cpuTime = (float)(_window.getTime() - frameStart);
 
         _window.swapBuffers();
     }
@@ -130,7 +133,24 @@ void Game::update(float dt)
 
 void Game::render(float dt)
 {
-    _debugUI.recordFrame(dt);
+    _gpuTimer.begin();
+
+    // recorded every frame, even when the panel is hidden, to keep the timing averages going
+    glm::vec3 pos = _player.getCam().getPos();
+    auto &terrain = TerrainGenerator::instance();
+
+    DebugFrameInfo info;
+    info.frameTime = dt;
+    info.cpuTime = _cpuTime;
+    info.gpuTime = _gpuTimer.getLastTime();
+    info.cameraPos = pos;
+    info.loadedChunks = _world.getChunkCount();
+    info.renderedChunks = _renderer.getRenderedChunkCount();
+    info.pvNoise = terrain.getPvNoise().sample(pos.x, pos.z);
+    info.erosionNoise = terrain.getErosionNoise().sample(pos.x, pos.z);
+    info.continentalnessNoise = terrain.getContinentalnessNoise().sample(pos.x, pos.z);
+
+    _debugUI.recordFrame(info);
 
     // render the 3D world (terrain) into the scene framebuffer, then show it on screen
     _renderer.renderWorld(_player.getCam());
@@ -147,20 +167,7 @@ void Game::render(float dt)
 
     // render debug window if needed
     if (debugSettings().showPanel)
-    {
-        glm::vec3 pos = _player.getCam().getPos();
-        auto &terrain = TerrainGenerator::instance();
-
-        DebugFrameInfo info;
-        info.cameraPos = pos;
-        info.loadedChunks = _world.getChunkCount();
-        info.renderedChunks = _renderer.getRenderedChunkCount();
-        info.pvNoise = terrain.getPvNoise().sample(pos.x, pos.z);
-        info.erosionNoise = terrain.getErosionNoise().sample(pos.x, pos.z);
-        info.continentalnessNoise = terrain.getContinentalnessNoise().sample(pos.x, pos.z);
-
-        _debugUI.render(info);
-    }
+        _debugUI.render();
 
     if (_showSettings)
     {
@@ -179,4 +186,6 @@ void Game::render(float dt)
     }
 
     _renderer.endUI();
+
+    _gpuTimer.end();
 }

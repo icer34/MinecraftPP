@@ -117,7 +117,7 @@ void Renderer::uploadFrameData(const Camera &cam)
         data.cutoffDist[i / 4][i % 4] = cutoffs[i];
 
     data.lightDir = _lightDir;
-    data.time = _window.getTime();
+    data.time = (float)_window.getTime();
     data.camPos = cam.getPos();
     data.zNear = cam.getZNear();
     data.screenSize = vec2(_window.getWidth(), _window.getHeight());
