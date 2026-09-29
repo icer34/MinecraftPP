@@ -1,10 +1,95 @@
 #include "debug_ui.h"
 
+#include "debug/debug_settings.h"
 #include "util/input.h"
 
 #include <imgui.h>
+#include <implot.h>
 
-void DebugUI::handleInput(Input &window) {}
+#include <algorithm>
+#include <cmath>
+#include <string>
+#include <vector>
+
+namespace
+{
+constexpr float GRAPH_HEIGHT = 150.0f;
+constexpr float GRAPH_WIDTH = 450.0f;
+// number of samples shown by a graph, i.e. seconds, since one sample is pushed per second
+constexpr size_t GRAPH_WINDOW = 60;
+
+// room left above the highest value, as a factor of it
+constexpr double AXIS_MARGIN = 1.2;
+// time constant of the fall of the y axis maximum, in seconds: it covers about two thirds of
+// the way down to its target in that time
+constexpr float AXIS_FALL_TIME = 2.0f;
+
+/// Max of the `count` most recent values of `buffer` (0 if it is empty).
+template <typename T, size_t N> T recentMax(const RingBuffer<T, N> &buffer, size_t count)
+{
+    T result{};
+    size_t n = std::min(count, buffer.size());
+    // chronological index i is at data()[(offset() + i) % N]
+    for (size_t i = buffer.size() - n; i < buffer.size(); i++)
+        result = std::max(result, buffer.data()[(buffer.offset() + i) % N]);
+    return result;
+}
+
+/**
+ * Moves the maximum of a y axis toward `target`: rises at once, so that a spike is never cut,
+ * but falls back smoothly, so that the scale doesn't jump when the spike leaves the graph.
+ *
+ * @param dt duration of the last frame, in seconds: makes the fall independent of the FPS
+ */
+void updateAxisMax(float &axisMax, float target, float dt)
+{
+    if (target > axisMax)
+        axisMax = target;
+    else
+        axisMax += (target - axisMax) * (1.0f - std::exp(-dt / AXIS_FALL_TIME));
+}
+
+bool beginGraph(const char *title,
+                ImVec2 size,
+                double xMax,
+                double yMax,
+                const char *xLabel = nullptr,
+                const char *yLabel = nullptr)
+{
+    if (!ImPlot::BeginPlot(title, size, ImPlotFlags_NoFrame))
+        return false;
+
+    ImPlot::SetupAxes(
+        xLabel, yLabel, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoTickMarks, 0);
+    // the most recent value is at x = 0 (see plotSeries()): show the last xMax samples
+    ImPlot::SetupAxisLimits(ImAxis_X1, -xMax, 0, ImPlotCond_Always);
+    // from 0, so that the height of a curve is proportional to its value. Never an empty
+    // range, even before the first value is recorded
+    ImPlot::SetupAxisLimits(ImAxis_Y1, 0, std::max(yMax * AXIS_MARGIN, 1.0), ImPlotCond_Always);
+    return true;
+}
+
+template <typename T, size_t N> void plotSeries(const char *label, const RingBuffer<T, N> &buffer)
+{
+    // x counts the samples back from the most recent one, which is at x = 0, so that the
+    // newest values stay in view whatever the size of the history.
+    // (not size() - 1: size_t would wrap around on an empty buffer)
+    double xStart = 1.0 - static_cast<double>(buffer.size());
+
+    ImPlot::PlotLine(label,
+                     buffer.data(),
+                     static_cast<int>(buffer.size()),
+                     1.0,
+                     xStart,
+                     {ImPlotProp_Offset, static_cast<int>(buffer.offset())});
+}
+} // namespace
+
+void DebugUI::handleInput(Input &input)
+{
+    if (input.consumeKeyPress(Key::F3))
+        debugSettings().showPanel = !debugSettings().showPanel;
+}
 
 void DebugUI::recordFrame(const DebugFrameInfo &info)
 {
@@ -23,6 +108,13 @@ void DebugUI::recordFrame(const DebugFrameInfo &info)
         _cpuMs = 1000.0f * _cpuTimeSum / _frameCount;
         _gpuMs = 1000.0f * _gpuTimeSum / _frameCount;
 
+        // update graph data buffers
+        _fpsBuffer.push(_fps);
+        _cpuMsBuffer.push(_cpuMs);
+        _gpuMsBuffer.push(_gpuMs);
+        _totalMsBuffer.push(_msPerFrame);
+
+        // reset the counters
         _frameCount = 0;
         _fpsTimer -= 1.0f;
         _cpuTimeSum = 0.0f;
@@ -32,6 +124,7 @@ void DebugUI::recordFrame(const DebugFrameInfo &info)
 
 void DebugUI::render()
 {
+    // main panel
     ImGui::Begin("Debug pannel");
 
     ImGui::Text("FPS: %.1f", _fps);
@@ -44,6 +137,56 @@ void DebugUI::render()
     ImGui::Text("PV: %.3f", _info.pvNoise);
     ImGui::Text("Erosion: %.3f", _info.erosionNoise);
     ImGui::Text("Continentalness: %.3f", _info.continentalnessNoise);
+
+    ImGui::End();
+
+    // debug graphs: fixed overlay in the top-right corner of the screen
+    constexpr float OVERLAY_MARGIN = 10.0f;
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - OVERLAY_MARGIN,
+                                   viewport->WorkPos.y + OVERLAY_MARGIN),
+                            ImGuiCond_Always,
+                            ImVec2(1.0f, 0.0f)); // pivot: position of the window's top-right corner
+    ImGui::SetNextWindowBgAlpha(0.35f);          // semi-transparent background
+
+    ImGui::Begin("Debug Graphs",
+                 nullptr,
+                 ImGuiWindowFlags_NoDecoration // no title bar, resize border or scrollbars
+                     | ImGuiWindowFlags_AlwaysAutoResize // window fitted to the plots
+                     | ImGuiWindowFlags_NoSavedSettings  // nothing stored in imgui.ini
+                     | ImGuiWindowFlags_NoFocusOnAppearing
+                     | ImGuiWindowFlags_NoInputs); // clicks go through it
+
+    // y axes fitted to the visible values only (the buffers hold more than GRAPH_WINDOW)
+    updateAxisMax(_fpsAxisMax, recentMax(_fpsBuffer, GRAPH_WINDOW), _info.frameTime);
+    float msTarget = std::max({recentMax(_cpuMsBuffer, GRAPH_WINDOW),
+                               recentMax(_gpuMsBuffer, GRAPH_WINDOW),
+                               recentMax(_totalMsBuffer, GRAPH_WINDOW)});
+    updateAxisMax(_msAxisMax, msTarget, _info.frameTime);
+
+    if (beginGraph("FPS",
+                   ImVec2(GRAPH_WIDTH, GRAPH_HEIGHT),
+                   GRAPH_WINDOW,
+                   _fpsAxisMax,
+                   "time (s)",
+                   nullptr))
+    {
+        plotSeries("FPS", _fpsBuffer);
+        ImPlot::EndPlot();
+    }
+
+    if (beginGraph("Frame time",
+                   ImVec2(GRAPH_WIDTH, GRAPH_HEIGHT),
+                   GRAPH_WINDOW,
+                   _msAxisMax,
+                   "time (s)",
+                   "ms"))
+    {
+        plotSeries("CPU", _cpuMsBuffer);
+        plotSeries("GPU", _gpuMsBuffer);
+        plotSeries("TOTAL", _totalMsBuffer);
+        ImPlot::EndPlot();
+    }
 
     ImGui::End();
 }

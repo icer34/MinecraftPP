@@ -2,6 +2,8 @@
 
 #include <glm/glm.hpp>
 
+#include "util/ring_buffer.h"
+
 struct DebugFrameInfo
 {
     //* timings, in seconds
@@ -50,6 +52,16 @@ public:
 
 private:
     DebugFrameInfo _info{};
+
+    // ring buffers for the graphs
+    RingBuffer<float, 500> _fpsBuffer;
+    RingBuffer<float, 500> _cpuMsBuffer;
+    RingBuffer<float, 500> _gpuMsBuffer;
+    RingBuffer<float, 500> _totalMsBuffer;
+
+    // current maximum of the graphs' y axes, smoothed (see updateAxisMax() in debug_ui.cpp)
+    float _fpsAxisMax = 0.0f;
+    float _msAxisMax = 0.0f;
 
     //* timing averages, over a window of about 1 second
     float _fps = 0.0f;

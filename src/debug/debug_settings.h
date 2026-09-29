@@ -8,15 +8,13 @@ struct DebugSettings
 {
     bool showPanel = false; ///< F3 panel
     bool showHelp = false;  ///< Shortcut binds list in the panel
+    bool showPerfGraphs = true;
 
     bool wireframe = false;
     bool showChunkBorders = false;
     bool showEntityHitBoxes = false;
     bool showRayCast = false;
     bool freezeCuling = false;
-
-    bool showPerfGraphs = false;
-    bool gpuTimings = false;
 
     //... might grow as more debug tools may be needed
 };

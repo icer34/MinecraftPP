@@ -58,7 +58,7 @@ private:
     void render(float dt);
 
     float _dt;
-    double _lastFrameTime; // double: see Window::getTime()
+    double _lastFrameTime;
     float _cpuTime = 0.0f; // of the previous frame, see DebugFrameInfo::cpuTime
 
     bool _showSettings = false;

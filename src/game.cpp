@@ -50,6 +50,8 @@ void Game::processInput()
     _window.pollEvents();
     Input &input = _window.getInput();
 
+    _debugUI.handleInput(input);
+
     if (input.consumeKeyPress(Key::Esc))
     {
         _showSettings = !_showSettings;
@@ -93,10 +95,6 @@ void Game::processInput()
         if (input.isKeyPressed(Key::Space))
         {
             inputData.jump = true;
-        }
-        if (input.consumeKeyPress(Key::F3))
-        {
-            debugSettings().showPanel = !debugSettings().showPanel;
         }
 
         inputData.move.y = 0.0f;
