@@ -11,7 +11,7 @@
 #include "graphics/frame_data.h"
 #include "graphics/mesh/mesh.h"
 #include "graphics/shader.h"
-#include "util/key_codes.h"
+#include "util/input.h"
 #include "util/window.h"
 
 // mirrors the packing format ChunkMesher writes and water_vert.glsl reads -- see
@@ -87,23 +87,24 @@ int main()
     while (!window.shouldClose())
     {
         window.pollEvents();
+        Input &input = window.getInput();
 
         float currentTime = (float)window.getTime();
         float dt = currentTime - lastFrameTime;
         lastFrameTime = currentTime;
 
-        camera.rotate((float)window.consumeDx(), (float)window.consumeDy());
+        camera.rotate((float)input.consumeDx(), (float)input.consumeDy());
 
         glm::vec3 move(0.0f);
-        if (window.isKeyPressed(Key::W))
+        if (input.isKeyPressed(Key::W))
             move += camera.getFront();
-        if (window.isKeyPressed(Key::S))
+        if (input.isKeyPressed(Key::S))
             move -= camera.getFront();
-        if (window.isKeyPressed(Key::A))
+        if (input.isKeyPressed(Key::A))
             move -= camera.getRight();
-        if (window.isKeyPressed(Key::D))
+        if (input.isKeyPressed(Key::D))
             move += camera.getRight();
-        if (window.isKeyPressed(Key::Space))
+        if (input.isKeyPressed(Key::Space))
             move += camera.getUp();
         if (glm::length(move) > 0.0f)
             camera.move(glm::normalize(move) * MOVE_SPEED * dt);
