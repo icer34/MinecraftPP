@@ -51,6 +51,15 @@ void updateAxisMax(float &axisMax, float target, float dt)
         axisMax += (target - axisMax) * (1.0f - std::exp(-dt / AXIS_FALL_TIME));
 }
 
+/// Letter of a letter key, for display ('?' for any other key: the debug shortcuts only use
+/// letters for now). Relies on Key::A to Key::Z being contiguous and in order in key_codes.h.
+char keyLetter(Key key)
+{
+    if (key < Key::A || key > Key::Z)
+        return '?';
+    return static_cast<char>('A' + (static_cast<int>(key) - static_cast<int>(Key::A)));
+}
+
 /**
  * Begins a fixed, undecorated and semi-transparent window, anchored to a corner of the screen.
  * Must be closed with ImGui::End().
@@ -225,4 +234,41 @@ void DebugUI::render()
     }
 
     ImGui::End();
+
+    // show the help window if needed: bottom-left corner. Built from the same TOGGLES table as
+    // handleInput(), so that it always lists the shortcuts that actually work
+    // TODO: make the help a command in the chat
+    if (debugSettings().showHelp)
+    {
+        beginOverlay("Help window", ImVec2(0.0f, 1.0f));
+
+        ImGui::TextUnformatted("F3: debug panel");
+        ImGui::Separator();
+
+        if (ImGui::BeginTable("##shortcuts", 3, ImGuiTableFlags_SizingFixedFit))
+        {
+            for (const DebugToggle &t : TOGGLES)
+            {
+                if (std::string(t.description) == "help")
+                    continue;
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::Text("F3 + %c", keyLetter(t.key));
+
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(t.description);
+
+                ImGui::TableNextColumn();
+                if (debugSettings().*t.flag)
+                    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "ON");
+                else
+                    ImGui::TextDisabled("OFF");
+            }
+            ImGui::EndTable();
+        }
+
+        ImGui::End();
+    }
 }
